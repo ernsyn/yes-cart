@@ -22,16 +22,14 @@ import org.apache.commons.lang.math.NumberUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.access.AccessDeniedException;
 import org.yes.cart.constants.AttributeNamesKeys;
-import org.yes.cart.constants.Constants;
 import org.yes.cart.domain.dto.AttrValueCustomerDTO;
 import org.yes.cart.domain.dto.CustomerDTO;
 import org.yes.cart.domain.dto.ShopDTO;
 import org.yes.cart.domain.misc.MutablePair;
 import org.yes.cart.domain.misc.Pair;
-import org.yes.cart.domain.vo.VoAttrValueCustomer;
-import org.yes.cart.domain.vo.VoCustomer;
-import org.yes.cart.domain.vo.VoCustomerInfo;
-import org.yes.cart.domain.vo.VoCustomerShopLink;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
+import org.yes.cart.domain.vo.*;
 import org.yes.cart.service.dto.DtoAttributeService;
 import org.yes.cart.service.dto.DtoCustomerService;
 import org.yes.cart.service.federation.FederationFacade;
@@ -75,9 +73,6 @@ public class VoCustomerServiceImpl implements VoCustomerService {
                 new VoAttributesCRUDTemplate<VoAttrValueCustomer, AttrValueCustomerDTO>(
                         VoAttrValueCustomer.class,
                         AttrValueCustomerDTO.class,
-                        Constants.CUSTOMER_IMAGE_REPOSITORY_URL_PATTERN,
-                        Constants.CUSTOMER_FILE_REPOSITORY_URL_PATTERN,
-                        Constants.CUSTOMER_SYSFILE_REPOSITORY_URL_PATTERN,
                         this.dtoCustomerService,
                         this.dtoAttributeService,
                         this.voAssemblySupport,
@@ -111,22 +106,36 @@ public class VoCustomerServiceImpl implements VoCustomerService {
      * {@inheritDoc}
      */
     @Override
-    public List<VoCustomerInfo> getFiltered(final String filter, final int max) throws Exception {
+    public VoSearchResult<VoCustomerInfo> getFilteredCustomers(final VoSearchContext filter) throws Exception {
 
+        final VoSearchResult<VoCustomerInfo> result = new VoSearchResult<>();
         final List<VoCustomerInfo> results = new ArrayList<>();
+        result.setSearchContext(filter);
+        result.setItems(results);
 
-        int start = 0;
-        do {
-            final List<CustomerDTO> batch = dtoCustomerService.findBy(filter, start, max);
-            if (batch.isEmpty()) {
-                break;
+        final Map<String, List> all = filter.getParameters() != null ? new HashMap<>(filter.getParameters()) : new HashMap<>();
+        if (!federationFacade.isCurrentUserSystemAdmin()) {
+            final Set<Long> shopIds = federationFacade.getAccessibleShopIdsByCurrentManager();
+            if (CollectionUtils.isEmpty(shopIds)) {
+                return result;
             }
-            federationFacade.applyFederationFilter(batch, CustomerDTO.class);
-            results.addAll(voAssemblySupport.assembleVos(VoCustomerInfo.class, CustomerDTO.class, batch));
+            all.put("shopIds", new ArrayList(shopIds));
+        }
 
-            start++;
-        } while (results.size() < max && max != Integer.MAX_VALUE);
-        return results.size() > max ? results.subList(0, max) : results;
+        final SearchContext searchContext = new SearchContext(
+                all,
+                filter.getStart(),
+                filter.getSize(),
+                filter.getSortBy(),
+                filter.isSortDesc(),
+                "filter", "shopIds"
+        );
+
+        final SearchResult<CustomerDTO> batch = dtoCustomerService.findCustomers(searchContext);
+        results.addAll(voAssemblySupport.assembleVos(VoCustomerInfo.class, CustomerDTO.class, batch.getItems()));
+        result.setTotal(batch.getTotal());
+
+        return result;
 
     }
 
@@ -135,7 +144,7 @@ public class VoCustomerServiceImpl implements VoCustomerService {
      * {@inheritDoc}
      */
     @Override
-    public VoCustomer getById(final long id) throws Exception {
+    public VoCustomer getCustomerById(final long id) throws Exception {
         if (federationFacade.isManageable(id, CustomerDTO.class)) {
             final CustomerDTO customerDTO = dtoCustomerService.getById(id);
             final VoCustomer vo = voAssemblySupport.assembleVo(VoCustomer.class, CustomerDTO.class, new VoCustomer(), customerDTO);
@@ -151,15 +160,6 @@ public class VoCustomerServiceImpl implements VoCustomerService {
             vo.setOrdersRequireApproval(Boolean.valueOf(getStringVoAttrValueCustomer(attrsMap, AttributeNamesKeys.Customer.B2B_REQUIRE_APPROVE)));
             final String approveLimit = vo.isOrdersRequireApproval() ? "0" : getStringVoAttrValueCustomer(attrsMap, AttributeNamesKeys.Customer.B2B_REQUIRE_APPROVE_X);
             vo.setOrdersRequireApprovalForOrdersOver(StringUtils.isNotBlank(approveLimit) ? new BigDecimal(NumberUtils.toInt(approveLimit)) : null);
-
-            final Map<ShopDTO, Boolean> links = dtoCustomerService.getAssignedShop(id);
-            for (final Map.Entry<ShopDTO, Boolean> assign : links.entrySet()) {
-                final VoCustomerShopLink link = new VoCustomerShopLink();
-                link.setCustomerId(vo.getCustomerId());
-                link.setShopId(assign.getKey().getShopId());
-                link.setDisabled(assign.getValue());
-                vo.getCustomerShops().add(link);
-            }
 
             return vo;
         } else {
@@ -186,7 +186,7 @@ public class VoCustomerServiceImpl implements VoCustomerService {
      * {@inheritDoc}
      */
     @Override
-    public VoCustomer update(final VoCustomer vo) throws Exception {
+    public VoCustomer updateCustomer(final VoCustomer vo) throws Exception {
 
         if (federationFacade.isManageable(vo.getCustomerId(), CustomerDTO.class)) {
             final CustomerDTO customerDTO = dtoCustomerService.getById(vo.getCustomerId());
@@ -230,16 +230,16 @@ public class VoCustomerServiceImpl implements VoCustomerService {
         } else {
             throw new AccessDeniedException("Access is denied");
         }
-        return getById(vo.getCustomerId());
+        return getCustomerById(vo.getCustomerId());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public VoCustomer create(final VoCustomer vo) throws Exception {
+    public VoCustomer createCustomer(final VoCustomer vo) throws Exception {
 
-        final List<CustomerDTO> existing = dtoCustomerService.findCustomer(vo.getEmail());
+        final List<CustomerDTO> existing = dtoCustomerService.findCustomers(vo.getEmail());
         final Map<String, Set<Long>> registered = new HashMap<>();
         if (!existing.isEmpty()) {
             for (final CustomerDTO existingDto : existing) {
@@ -285,14 +285,14 @@ public class VoCustomerServiceImpl implements VoCustomerService {
             dtoCustomerService.grantShop(customerDTO.getCustomerId(), link.getShopId(), false);
         }
 
-        return getById(customerDTO.getCustomerId());
+        return getCustomerById(customerDTO.getCustomerId());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void remove(final long id) throws Exception {
+    public void removeCustomer(final long id) throws Exception {
         if (federationFacade.isCurrentUserSystemAdmin()) {
             dtoCustomerService.remove(id);
         } else {
@@ -314,7 +314,7 @@ public class VoCustomerServiceImpl implements VoCustomerService {
      * {@inheritDoc}
      */
     @Override
-    public List<VoAttrValueCustomer> update(final List<MutablePair<VoAttrValueCustomer, Boolean>> vo) throws Exception {
+    public List<VoAttrValueCustomer> updateCustomerAttributes(final List<MutablePair<VoAttrValueCustomer, Boolean>> vo) throws Exception {
 
         final long customerId = voAttributesCRUDTemplate.verifyAccessAndUpdateAttributes(vo, true);
 

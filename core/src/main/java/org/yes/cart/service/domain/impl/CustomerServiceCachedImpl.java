@@ -26,6 +26,8 @@ import org.yes.cart.domain.entity.Shop;
 import org.yes.cart.service.domain.CustomerService;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * User: denispavlov
@@ -86,14 +88,20 @@ public class CustomerServiceCachedImpl implements CustomerService {
      * {@inheritDoc}
      */
     @Override
-    public List<Customer> findCustomer(final String email,
-                                       final String firstname,
-                                       final String lastname,
-                                       final String middlename,
-                                       final String tag,
-                                       final String customerType,
-                                       final String pricingPolicy) {
-        return customerService.findCustomer(email, firstname, lastname, middlename, tag, customerType, pricingPolicy);
+    public List<Customer> findCustomers(final int start,
+                                        final int offset,
+                                        final String sort,
+                                        final boolean sortDescending,
+                                        final Map<String, List> filter) {
+        return customerService.findCustomers(start, offset, sort, sortDescending, filter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int findCustomerCount(final Map<String, List> filter) {
+        return customerService.findCustomerCount(filter);
     }
 
     /**

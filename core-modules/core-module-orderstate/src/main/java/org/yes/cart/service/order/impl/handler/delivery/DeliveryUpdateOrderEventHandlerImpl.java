@@ -22,14 +22,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
-import org.yes.cart.domain.entity.*;
+import org.yes.cart.domain.entity.CustomerOrder;
+import org.yes.cart.domain.entity.CustomerOrderDelivery;
+import org.yes.cart.domain.entity.CustomerOrderDeliveryDet;
+import org.yes.cart.domain.entity.Warehouse;
+import org.yes.cart.domain.i18n.I18NModel;
 import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.service.domain.ProductService;
 import org.yes.cart.service.domain.WarehouseService;
 import org.yes.cart.service.order.*;
 import org.yes.cart.service.order.impl.OrderEventImpl;
 import org.yes.cart.shoppingcart.InventoryResolver;
-import org.yes.cart.util.log.Markers;
+import org.yes.cart.utils.log.Markers;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -122,7 +126,7 @@ public class DeliveryUpdateOrderEventHandlerImpl implements OrderEventHandler, A
 
 
                 if (update.getAdditionalData() != null) {
-                    for (final Map.Entry<String, Pair<String, String>> data : update.getAdditionalData().entrySet()) {
+                    for (final Map.Entry<String, Pair<String, I18NModel>> data : update.getAdditionalData().entrySet()) {
                         if (data.getValue() != null) {
                             customerOrder.putValue(data.getKey(), data.getValue().getFirst(), data.getValue().getSecond());
                         } else {
@@ -187,7 +191,7 @@ public class DeliveryUpdateOrderEventHandlerImpl implements OrderEventHandler, A
                             }
 
                             if (lineUpdate.getAdditionalData() != null) {
-                                for (final Map.Entry<String, Pair<String, String>> data : lineUpdate.getAdditionalData().entrySet()) {
+                                for (final Map.Entry<String, Pair<String, I18NModel>> data : lineUpdate.getAdditionalData().entrySet()) {
                                     if (data.getValue() != null) {
                                         detail.putValue(data.getKey(), data.getValue().getFirst(), data.getValue().getSecond());
                                     } else {
@@ -370,23 +374,19 @@ public class DeliveryUpdateOrderEventHandlerImpl implements OrderEventHandler, A
 
             for (CustomerOrderDeliveryDet det : deliveryDetails) {
 
-                final Product product = productService.getProductBySkuCode(det.getProductSkuCode());
+                final String skuCode = det.getProductSkuCode();
+                final BigDecimal toAllocate = det.getQty();
+                final Warehouse selected = warehouseByCode.get(det.getSupplierCode());
 
-                if (product == null || Product.AVAILABILITY_ALWAYS != product.getAvailability()) {
-
-                    final String skuCode = det.getProductSkuCode();
-                    final BigDecimal toAllocate = det.getQty();
-                    final Warehouse selected = warehouseByCode.get(det.getSupplierCode());
-
-                    if (selected == null) {
-                        LOG.warn(Markers.alert(),
-                                "Warehouse is not found for delivery detail {}:{}",
-                                orderDelivery.getDeliveryNum(), det.getProductSkuCode()
-                        );
-                    } else {
-                        // At this point we should have reserved the quantity, so we just releasing the reservation
-                        inventoryResolver.voidReservation(selected, skuCode, toAllocate);
-                    }
+                if (selected == null) {
+                    LOG.warn(
+                            Markers.alert(),
+                            "Warehouse is not found for delivery detail {}:{}",
+                            orderDelivery.getDeliveryNum(), det.getProductSkuCode()
+                    );
+                } else {
+                    // At this point we should have reserved the quantity, so we just releasing the reservation
+                    inventoryResolver.voidReservation(selected, skuCode, toAllocate);
                 }
             }
         }

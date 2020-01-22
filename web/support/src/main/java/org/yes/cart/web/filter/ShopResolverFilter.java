@@ -24,7 +24,7 @@ import org.yes.cart.domain.entity.Shop;
 import org.yes.cart.service.domain.ShopService;
 import org.yes.cart.service.domain.SystemService;
 import org.yes.cart.service.theme.ThemeService;
-import org.yes.cart.util.ShopCodeContext;
+import org.yes.cart.utils.ShopCodeContext;
 import org.yes.cart.web.application.ApplicationDirector;
 import org.yes.cart.web.support.request.IPResolver;
 import org.yes.cart.web.support.request.impl.HttpServletRequestWrapper;
@@ -55,6 +55,8 @@ public class ShopResolverFilter extends AbstractFilter implements Filter, Servle
     private final ThemeService themeService;
 
     private ServletContext servletContext;
+
+    private boolean skipRequestWrapper = false;
 
 
     public ShopResolverFilter(final ShopService shopService,
@@ -121,6 +123,10 @@ public class ShopResolverFilter extends AbstractFilter implements Filter, Servle
      */
     private ServletRequest getModifiedRequest(final ServletRequest servletRequest, final List<String> themes) {
 
+        if (skipRequestWrapper) {
+            return servletRequest;
+        }
+
         final HttpServletRequest httpServletRequest = (HttpServletRequest) servletRequest;
         final String servletPath = httpServletRequest.getServletPath();
 
@@ -153,6 +159,15 @@ public class ShopResolverFilter extends AbstractFilter implements Filter, Servle
     @Override
     public void setServletContext(final ServletContext servletContext) {
         this.servletContext = servletContext;
+    }
+
+    @Override
+    public void init(final FilterConfig filterConfig) throws ServletException {
+        super.init(filterConfig);
+
+        final String skip = filterConfig.getInitParameter("skipRequestWrapper");
+        this.skipRequestWrapper = skip != null && Boolean.valueOf(skip);
+
     }
 
     @Override

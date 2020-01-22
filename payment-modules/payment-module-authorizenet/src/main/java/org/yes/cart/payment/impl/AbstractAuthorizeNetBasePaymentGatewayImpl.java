@@ -27,7 +27,7 @@ import org.yes.cart.payment.persistence.entity.PaymentGatewayParameter;
 import org.yes.cart.payment.service.ConfigurablePaymentGateway;
 import org.yes.cart.payment.service.PaymentGatewayConfigurationVisitor;
 import org.yes.cart.payment.service.PaymentGatewayParameterService;
-import org.yes.cart.util.HttpParamsUtils;
+import org.yes.cart.utils.HttpParamsUtils;
 
 import java.math.BigDecimal;
 import java.util.Collection;
@@ -48,7 +48,7 @@ public abstract class AbstractAuthorizeNetBasePaymentGatewayImpl implements Conf
     private Collection<PaymentGatewayParameter> allParameters = null;
 
     private String shopCode;
-
+    private String label;
 
     /**
      * {@inheritDoc}
@@ -56,6 +56,14 @@ public abstract class AbstractAuthorizeNetBasePaymentGatewayImpl implements Conf
     @Override
     public String getShopCode() {
         return shopCode;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getLabel() {
+        return label;
     }
 
     /**
@@ -233,8 +241,8 @@ public abstract class AbstractAuthorizeNetBasePaymentGatewayImpl implements Conf
     }
 
 
-    protected String getHiddenField(final String fieldName, final Object value) {
-        return "<input type='hidden' name='" + fieldName + "' value='" + value + "'>\n";
+    protected String getHiddenField(final String fieldName, final String value) {
+        return "<input type='hidden' name='" + fieldName + "' value='" + StringUtils.remove(value, '\'') + "'>\n";
     }
 
     /**
@@ -243,6 +251,7 @@ public abstract class AbstractAuthorizeNetBasePaymentGatewayImpl implements Conf
     @Override
     public void accept(final PaymentGatewayConfigurationVisitor visitor) {
         this.shopCode = visitor.getConfiguration("shopCode");
+        this.label = visitor.getConfiguration("label");
     }
 
 }

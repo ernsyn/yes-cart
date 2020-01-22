@@ -18,10 +18,9 @@ package org.yes.cart.shoppingcart.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yes.cart.config.Configuration;
-import org.yes.cart.config.ConfigurationContext;
 import org.yes.cart.config.ConfigurationRegistry;
 import org.yes.cart.domain.dto.ProductSearchResultDTO;
+import org.yes.cart.domain.dto.ProductSkuSearchResultDTO;
 import org.yes.cart.domain.entity.Product;
 import org.yes.cart.domain.entity.ProductAvailabilityModel;
 import org.yes.cart.domain.entity.ProductSku;
@@ -36,14 +35,12 @@ import java.util.Map;
  * Time: 14:00
  */
 public class ProductAvailabilityStrategyImpl
-        implements ProductAvailabilityStrategy, ConfigurationRegistry<Long, ProductAvailabilityStrategy>, Configuration {
+        implements ProductAvailabilityStrategy, ConfigurationRegistry<Long, ProductAvailabilityStrategy> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ProductAvailabilityStrategyImpl.class);
 
     private final ProductAvailabilityStrategy defaultAvailabilityStrategy;
     private final Map<Long, ProductAvailabilityStrategy> customAvailabilityStrategies = new HashMap<>();
-
-    private ConfigurationContext cfgContext;
 
     public ProductAvailabilityStrategyImpl(final ProductAvailabilityStrategy defaultAvailabilityStrategy) {
         this.defaultAvailabilityStrategy = defaultAvailabilityStrategy;
@@ -52,26 +49,50 @@ public class ProductAvailabilityStrategyImpl
 
     /** {@inheritDoc} */
     @Override
-    public ProductAvailabilityModel getAvailabilityModel(final long shopId, final Product product) {
-        return getProductAvailabilityStrategy(shopId).getAvailabilityModel(shopId, product);
+    public ProductAvailabilityModel getAvailabilityModel(final long shopId,
+                                                         final Product product,
+                                                         final String supplier) {
+
+        return getProductAvailabilityStrategy(shopId).getAvailabilityModel(shopId, product, supplier);
+
     }
 
     /** {@inheritDoc} */
     @Override
-    public ProductAvailabilityModel getAvailabilityModel(final long shopId, final ProductSearchResultDTO product) {
+    public ProductAvailabilityModel getAvailabilityModel(final long shopId,
+                                                         final ProductSearchResultDTO product) {
+
         return getProductAvailabilityStrategy(shopId).getAvailabilityModel(shopId, product);
+
     }
 
     /** {@inheritDoc} */
     @Override
-    public ProductAvailabilityModel getAvailabilityModel(final long shopId, final ProductSku sku) {
+    public ProductAvailabilityModel getAvailabilityModel(final long shopId,
+                                                         final ProductSku sku,
+                                                         final String supplier) {
+
+        return getProductAvailabilityStrategy(shopId).getAvailabilityModel(shopId, sku, supplier);
+
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public ProductAvailabilityModel getAvailabilityModel(final long shopId,
+                                                         final ProductSkuSearchResultDTO sku) {
+
         return getProductAvailabilityStrategy(shopId).getAvailabilityModel(shopId, sku);
+
     }
 
     /** {@inheritDoc} */
     @Override
-    public ProductAvailabilityModel getAvailabilityModel(final long shopId, final String skuCode) {
-        return getProductAvailabilityStrategy(shopId).getAvailabilityModel(shopId, skuCode);
+    public ProductAvailabilityModel getAvailabilityModel(final long shopId,
+                                                         final String skuCode,
+                                                         final String supplier) {
+
+        return getProductAvailabilityStrategy(shopId).getAvailabilityModel(shopId, skuCode, supplier);
+
     }
 
     protected ProductAvailabilityStrategy getProductAvailabilityStrategy(final Long shopId) {
@@ -84,7 +105,7 @@ public class ProductAvailabilityStrategyImpl
 
     /** {@inheritDoc} */
     @Override
-    public boolean supports(final Object configuration) {
+    public boolean supports(final String cfgProperty, final Object configuration) {
         return configuration instanceof ProductAvailabilityStrategy ||
                 (configuration instanceof Class && ProductAvailabilityStrategy.class.isAssignableFrom((Class<?>) configuration));
     }
@@ -101,15 +122,5 @@ public class ProductAvailabilityStrategyImpl
             customAvailabilityStrategies.remove(shopCode);
         }
 
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public ConfigurationContext getCfgContext() {
-        return cfgContext;
-    }
-
-    public void setCfgContext(final ConfigurationContext cfgContext) {
-        this.cfgContext = cfgContext;
     }
 }

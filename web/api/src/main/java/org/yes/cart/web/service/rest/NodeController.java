@@ -16,6 +16,7 @@
 
 package org.yes.cart.web.service.rest;
 
+import io.swagger.annotations.Api;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
@@ -23,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.yes.cart.domain.ro.NodeRO;
-import org.yes.cart.util.ShopCodeContext;
+import org.yes.cart.utils.ShopCodeContext;
 import org.yes.cart.cluster.node.NodeService;
 import org.yes.cart.cluster.node.Node;
 
@@ -33,6 +34,7 @@ import org.yes.cart.cluster.node.Node;
  * Time: 21:45
  */
 @Controller
+@Api(value = "Node", tags = "node")
 @RequestMapping("/node")
 public class NodeController {
 
@@ -41,7 +43,7 @@ public class NodeController {
 
 
     /**
-     * Interface: GET /yes-api/rest/node
+     * Interface: GET /api/rest/node
      * <p>
      * <p>
      * Node interface returns basic node information.
@@ -63,14 +65,14 @@ public class NodeController {
      * <pre><code>
      * {
      *    "shopCode" : "SHOP10",
-     *    "nodeId" : "YES1"
+     *    "nodeId" : "SF1"
      * }
      * </code></pre>
      *     </td></tr>
      *     <tr><td>XML example</td><td>
      * <pre><code>
      * &lt;node&gt;
-     *    &lt;node-id&gt;YES1&lt;/node-id&gt;
+     *    &lt;node-id&gt;SF1&lt;/node-id&gt;
      *    &lt;shop-code&gt;SHOP10&lt;/shop-code&gt;
      * &lt;/node&gt;
      * </code></pre>

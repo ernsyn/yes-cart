@@ -18,6 +18,9 @@ package org.yes.cart.domain.vo;
 
 import com.inspiresoftware.lib.dto.geda.annotations.Dto;
 import com.inspiresoftware.lib.dto.geda.annotations.DtoField;
+import org.yes.cart.domain.misc.MutablePair;
+
+import java.util.List;
 
 /**
  * User: denispavlov
@@ -25,64 +28,15 @@ import com.inspiresoftware.lib.dto.geda.annotations.DtoField;
  * Time: 17:54
  */
 @Dto
-public class VoCountry {
+public class VoCountry extends VoCountryInfo {
 
-    private static final long serialVersionUID = 20101108L;
+    private List<VoState> states;
 
-    @DtoField(value = "countryId", readOnly = true)
-    private long countryId;
-
-    @DtoField(value = "countryCode")
-    private String countryCode;
-
-    @DtoField(value = "isoCode")
-    private String isoCode;
-
-    @DtoField(value = "name")
-    private String name;
-
-    @DtoField(value = "displayName")
-    private String displayName;
-
-
-    public long getCountryId() {
-        return countryId;
+    public List<VoState> getStates() {
+        return states;
     }
 
-    public void setCountryId(final long countryId) {
-        this.countryId = countryId;
+    public void setStates(final List<VoState> states) {
+        this.states = states;
     }
-
-    public String getCountryCode() {
-        return countryCode;
-    }
-
-    public void setCountryCode(final String countryCode) {
-        this.countryCode = countryCode;
-    }
-
-    public String getIsoCode() {
-        return isoCode;
-    }
-
-    public void setIsoCode(final String isoCode) {
-        this.isoCode = isoCode;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(final String name) {
-        this.name = name;
-    }
-
-    public String getDisplayName() {
-        return displayName;
-    }
-
-    public void setDisplayName(final String displayName) {
-        this.displayName = displayName;
-    }
-
 }

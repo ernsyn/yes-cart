@@ -16,6 +16,8 @@
 
 package org.yes.cart.domain.entity;
 
+import org.yes.cart.domain.i18n.I18NModel;
+
 import java.util.Collection;
 
 /**
@@ -23,13 +25,14 @@ import java.util.Collection;
  * Date: 07-May-2011
  * Time: 11:12:54
  * <p/>
- * Product sku. Sku is product or product variation.
- * By default one product has at least one sku
- * or several in case of multisku product.
- * Sku is abbreviation from stock keeping unit.
- * Attribute values is distinguish between sku for multisku product.
+ * Product Stock Keeping Unit (SKU). Sku is product or product variation.
+ * By default one product has at least one sku. Product can also have several SKU
+ * in case of multisku product.
+ *
+ * Attribute values refine the base product definition with specifics
+ * e.g. Product is a T-Shirt, therefore SKU would be T-Shirt, color: red, size: M.
  */
-public interface ProductSku extends Auditable, Attributable, Rankable, Nameable, Seoable, Codable {
+public interface ProductSku extends Auditable, Attributable, Rankable, Nameable, Seoable, Codable, Taggable {
 
     /**
      * @return sku primary key
@@ -172,14 +175,14 @@ public interface ProductSku extends Auditable, Attributable, Rankable, Nameable,
      *
      * @return display name.
      */
-    String getDisplayName();
+    I18NModel getDisplayName();
 
     /**
      * Get display name
      *
      * @param name display name
      */
-    void setDisplayName(String name);
+    void setDisplayName(I18NModel name);
 
 
     /**
@@ -197,6 +200,13 @@ public interface ProductSku extends Auditable, Attributable, Rankable, Nameable,
      */
     @Override
     void setDescription(String description);
+
+    /**
+     * Get description for indexing
+     *
+     * @return as is description
+     */
+    I18NModel getDisplayDescription();
 
     /**
      * {@inheritDoc}

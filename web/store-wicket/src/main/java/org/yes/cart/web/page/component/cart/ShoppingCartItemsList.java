@@ -38,7 +38,7 @@ import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.shoppingcart.CartItem;
 import org.yes.cart.shoppingcart.ShoppingCart;
 import org.yes.cart.shoppingcart.ShoppingCartCommand;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.MoneyUtils;
 import org.yes.cart.web.page.AbstractWebPage;
 import org.yes.cart.web.page.component.BaseComponent;
 import org.yes.cart.web.page.component.price.PriceView;
@@ -50,7 +50,7 @@ import org.yes.cart.web.support.entity.decorator.DecoratorFacade;
 import org.yes.cart.web.support.entity.decorator.ProductSkuDecorator;
 import org.yes.cart.web.support.service.CategoryServiceFacade;
 import org.yes.cart.web.support.service.ProductServiceFacade;
-import org.yes.cart.web.util.WicketUtil;
+import org.yes.cart.web.utils.WicketUtil;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -129,6 +129,7 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
         final CartItem cartItem = cartItemListItem.getModelObject();
 
         final String skuCode = cartItem.getProductSkuCode();
+        final String supplier = cartItem.getSupplierCode();
 
         final PageParameters params = new PageParameters();
         params.add(WebParametersKeys.PAGE_TYPE, "cart");
@@ -136,19 +137,19 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
         final long browsingShopId = ((AbstractWebPage) getPage()).getCurrentCustomerShopId();
 
         final ProductSku sku = productServiceFacade.getProductSkuBySkuCode(skuCode);
-        final ProductAvailabilityModel skuPam = productServiceFacade.getProductAvailability(sku, browsingShopId);
-        final QuantityModel pqm = productServiceFacade.getProductQuantity(cartItem.getQty(), sku);
+        final ProductAvailabilityModel skuPam = productServiceFacade.getProductAvailability(sku, browsingShopId, supplier);
+        final QuantityModel pqm = productServiceFacade.getProductQuantity(cartItem.getQty(), sku, browsingShopId, supplier);
 
         final ProductSkuDecorator productSkuDecorator = decoratorFacade.decorate(sku, wicketUtil.getHttpServletRequest().getContextPath(), true);
 
         final boolean notGift = !cartItem.isGift();
         final boolean available = skuPam.isAvailable();
 
-        cartItemListItem.add(createAddOneSkuLink(skuCode).setVisible(available && notGift && pqm.canOrderMore()));
-        cartItemListItem.add(createRemoveAllSkuLink(skuCode).setVisible(notGift));
-        cartItemListItem.add(createRemoveOneSkuLink(skuCode).setVisible(available && notGift && pqm.canOrderLess()));
+        cartItemListItem.add(createAddOneSkuLink(skuCode, supplier).setVisible(available && notGift && pqm.isCanOrderMore()));
+        cartItemListItem.add(createRemoveAllSkuLink(skuCode, supplier).setVisible(notGift));
+        cartItemListItem.add(createRemoveOneSkuLink(skuCode, supplier).setVisible(available && notGift && pqm.isCanOrderLess()));
         cartItemListItem.add(new Label(SKU_NUM_LABEL, skuCode));
-        cartItemListItem.add(getProductLink(productSkuDecorator));
+        cartItemListItem.add(getProductLink(productSkuDecorator, cartItem));
 
         final PriceView priceView = getPriceView(cartItem, available);
 
@@ -159,17 +160,17 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
 
 
         cartItemListItem.add(
-                wicketSupportFacade.links().newAddToWishListLink(ADD_TO_WISHLIST_LINK, sku.getCode(), null, null, null, params)
+                wicketSupportFacade.links().newAddToWishListLink(ADD_TO_WISHLIST_LINK, supplier, skuCode, null, null, null, params)
                         .add(new Label(ADD_TO_WISHLIST_LINK_LABEL, getLocalizer().getString("addToWishlist", this)))
         );
         cartItemListItem.add(
-                wicketSupportFacade.links().newAddToWishListLink(SAVE_FOR_LATER_LINK, sku.getCode(), cartItem.getQty().toPlainString(), CustomerWishList.CART_SAVE_FOR_LATER, null, params)
+                wicketSupportFacade.links().newAddToWishListLink(SAVE_FOR_LATER_LINK, supplier, skuCode, cartItem.getQty().toPlainString(), CustomerWishList.CART_SAVE_FOR_LATER, null, params)
                         .add(new Label(SAVE_FOR_LATER_LINK_LABEL, getLocalizer().getString("saveForLater", this)))
         );
 
 
         final String message;
-        if (!pqm.canOrderMore()) {
+        if (!pqm.isCanOrderMore()) {
 
             final Map<String, Object> mparams = new HashMap<>();
             mparams.put("cart", pqm.getCartQty().toPlainString());
@@ -177,7 +178,7 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
             message = getLocalizer().getString("quantityPickerFullTooltip", this,
                     new Model<Serializable>(new ValueMap(mparams)));
 
-        } else if (pqm.hasMax()) {
+        } else if (pqm.isHasMax()) {
 
             final Map<String, Object> mparams = new HashMap<>();
             mparams.put("min", pqm.getMin().toPlainString());
@@ -209,7 +210,7 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
         )
         .add(new Label(QUANTITY_TEXT_RO, pqm.getCartQty().stripTrailingZeros().toPlainString()).setVisible(!notGift))
         .add(
-                createAddSeveralSkuButton(skuCode, quantity).setVisible(available && notGift)
+                createAddSeveralSkuButton(skuCode, supplier, quantity).setVisible(available && notGift)
         );
 
 
@@ -263,10 +264,10 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
      * Adjust quantity.
      *
      * @param productSkuCode sku code
-     * @param qtyField       quantity input box
-     * @return BookmarkablePageLink for remove one sku from cart command
+     * @param supplier       supplier
+     * @param qtyField       quantity input box  @return BookmarkablePageLink for remove one sku from cart command
      */
-    private Button createAddSeveralSkuButton(final String productSkuCode, final TextField<BigDecimal> qtyField) {
+    private Button createAddSeveralSkuButton(final String productSkuCode, final String supplier, final TextField<BigDecimal> qtyField) {
         final Button adjustQuantityButton = new Button(QUANTITY_ADJUST_BUTTON) {
             @Override
             public void onSubmit() {
@@ -287,7 +288,8 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
                             getPage().getPageClass(),
                             new PageParameters()
                                     .add(ShoppingCartCommand.CMD_SETQTYSKU, productSkuCode)
-                                    .add(ShoppingCartCommand.CMD_SETQTYSKU_P_QTY, qty)
+                                    .add(ShoppingCartCommand.CMD_P_SUPPLIER, supplier)
+                                    .add(ShoppingCartCommand.CMD_P_QTY, qty)
                     );
 
 
@@ -304,12 +306,14 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
     /**
      * Get link to show product with selected in cart product sku.
      *
-     * @param productSku product    sku
+     * @param productSku product sku
+     * @param cartItem   cart item
+     *
      * @return link to show product and selected SKU
      */
-    private Link getProductLink(final ProductSkuDecorator productSku) {
+    private Link getProductLink(final ProductSkuDecorator productSku, final CartItem cartItem) {
         final Link productLink = ((AbstractWebPage) getPage()).getWicketSupportFacade().links()
-                .newProductSkuLink(PRODUCT_LINK, productSku.getId());
+                .newProductSkuLink(PRODUCT_LINK, cartItem.getSupplierCode(), productSku.getId());
         productLink.add(new Label(PRODUCT_NAME_LABEL, productSku.getName(getLocale().getLanguage())).setEscapeModelStrings(false));
         return productLink;
     }
@@ -318,12 +322,15 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
     /**
      * Create BookmarkablePageLink for add one sku to cart command.
      *
-     * @param skuCode sku code
+     * @param skuCode   sku code
+     * @param supplier  supplier
+     *
      * @return BookmarkablePageLink for add one sku to cart command
      */
-    private BookmarkablePageLink createAddOneSkuLink(final String skuCode) {
+    private BookmarkablePageLink createAddOneSkuLink(final String skuCode, final String supplier) {
         final PageParameters paramsMap = new PageParameters();
         paramsMap.set(ShoppingCartCommand.CMD_ADDTOCART, skuCode);
+        paramsMap.set(ShoppingCartCommand.CMD_P_SUPPLIER, supplier);
         return new BookmarkablePageLink<Page>(
                 ADD_ONE_LINK,
                 getPage().getPageClass(),
@@ -334,12 +341,15 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
     /**
      * Create BookmarkablePageLink for remove one sku from cart command.
      *
-     * @param skuCode sku code
+     * @param skuCode   sku code
+     * @param supplier  supplier
+     *
      * @return BookmarkablePageLink for remove one sku from cart command
      */
-    private BookmarkablePageLink createRemoveOneSkuLink(final String skuCode) {
+    private BookmarkablePageLink createRemoveOneSkuLink(final String skuCode, final String supplier) {
         final PageParameters paramsMap = new PageParameters();
         paramsMap.set(ShoppingCartCommand.CMD_REMOVEONESKU, skuCode);
+        paramsMap.set(ShoppingCartCommand.CMD_P_SUPPLIER, supplier);
         return new BookmarkablePageLink<Page>(
                 REMOVE_ONE_LINK,
                 getPage().getPageClass(),
@@ -351,12 +361,15 @@ public class ShoppingCartItemsList extends ListView<CartItem> {
     /**
      * Create BookmarkablePageLink for remove one sku from cart command.
      *
-     * @param skuCode sku code
+     * @param skuCode   sku code
+     * @param supplier  supplier
+     *
      * @return BookmarkablePageLink for remove one sku from cart command
      */
-    private BookmarkablePageLink createRemoveAllSkuLink(final String skuCode) {
+    private BookmarkablePageLink createRemoveAllSkuLink(final String skuCode, final String supplier) {
         final PageParameters paramsMap = new PageParameters();
         paramsMap.set(ShoppingCartCommand.CMD_REMOVEALLSKU, skuCode);
+        paramsMap.set(ShoppingCartCommand.CMD_P_SUPPLIER, supplier);
         return new BookmarkablePageLink<Page>(
                 REMOVE_ALL_LINK,
                 getPage().getPageClass(),

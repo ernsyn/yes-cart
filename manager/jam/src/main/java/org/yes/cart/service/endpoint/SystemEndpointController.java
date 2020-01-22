@@ -19,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.yes.cart.domain.misc.MutablePair;
 import org.yes.cart.domain.vo.*;
 
 import java.util.List;
@@ -35,7 +36,7 @@ public interface SystemEndpointController {
     /**
      * All registered nodes in this cluster.
      *
-     * E.g. if we have JAM, YES0, YES1 and YES2 nodes
+     * E.g. if we have JAM, SF0, SF1 and SF2 nodes
      * this methods should return four nodes.
      *
      * @return node objects
@@ -76,6 +77,17 @@ public interface SystemEndpointController {
 
 
     /**
+     * Map of supported queries by node.
+     *
+     * @return map of supported queries
+     */
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/query/supported", method = RequestMethod.GET, produces = { MediaType.APPLICATION_JSON_VALUE })
+    @ResponseBody
+    List<MutablePair<String, List<String>>> supportedQueries() throws Exception;
+
+
+    /**
      * Execute sql and return result.
      * DML operation also allowed, in this case result has quantity of affected rows.
      *
@@ -85,35 +97,10 @@ public interface SystemEndpointController {
      * @return list of rows
      */
     @Secured({"ROLE_SMADMIN"})
-    @RequestMapping(value = "/dbquery/{node}", method = RequestMethod.POST, consumes = { MediaType.TEXT_PLAIN_VALUE }, produces = { MediaType.APPLICATION_JSON_VALUE })
+    @RequestMapping(value = "/query/{node}/{type}", method = RequestMethod.POST, consumes = { MediaType.TEXT_PLAIN_VALUE }, produces = { MediaType.APPLICATION_JSON_VALUE })
     @ResponseBody
-    List<Object[]> sqlQuery(@RequestBody String query, @PathVariable("node") String node) throws Exception;
+    List<Object[]> runQuery(@RequestBody String query, @PathVariable("type") String type, @PathVariable("node") String node) throws Exception;
 
-    /**
-     * Execute hsql and return result.
-     *
-     * @param query query ot execute.
-     * @param node node on which to run query
-     *
-     * @return list of rows
-     */
-    @Secured({"ROLE_SMADMIN"})
-    @RequestMapping(value = "/hquery/{node}", method = RequestMethod.POST, consumes = { MediaType.TEXT_PLAIN_VALUE }, produces = { MediaType.APPLICATION_JSON_VALUE })
-    @ResponseBody
-    List<Object[]> hsqlQuery(@RequestBody String query, @PathVariable("node") String node) throws Exception;
-
-    /**
-     * Execute ft query and return result.
-     *
-     * @param query query ot execute.
-     * @param node node on which to run query
-     *
-     * @return list of rows
-     */
-    @Secured({"ROLE_SMADMIN"})
-    @RequestMapping(value = "/ftquery/{node}", method = RequestMethod.POST, consumes = { MediaType.TEXT_PLAIN_VALUE }, produces = { MediaType.APPLICATION_JSON_VALUE })
-    @ResponseBody
-    List<Object[]> ftQuery(@RequestBody String query, @PathVariable("node") String node) throws Exception;
 
     /**
      * Get cache information.
@@ -153,9 +140,9 @@ public interface SystemEndpointController {
      * @param name name of cache to evict
      */
     @Secured({"ROLE_SMADMIN"})
-    @RequestMapping(value = "/cache/statson/{name}", method = RequestMethod.POST, produces = { MediaType.APPLICATION_JSON_VALUE })
+    @RequestMapping(value = "/cache/on/{name}", method = RequestMethod.POST, produces = { MediaType.APPLICATION_JSON_VALUE })
     @ResponseBody
-    List<VoCacheInfo> enableStats(@PathVariable("name") String name) throws Exception;
+    List<VoCacheInfo> enableCache(@PathVariable("name") String name) throws Exception;
 
     /**
      * Disable cache statistics by name.
@@ -163,9 +150,9 @@ public interface SystemEndpointController {
      * @param name name of cache to evict
      */
     @Secured({"ROLE_SMADMIN"})
-    @RequestMapping(value = "/cache/statsoff/{name}", method = RequestMethod.POST, produces = { MediaType.APPLICATION_JSON_VALUE })
+    @RequestMapping(value = "/cache/off/{name}", method = RequestMethod.POST, produces = { MediaType.APPLICATION_JSON_VALUE })
     @ResponseBody
-    List<VoCacheInfo> disableStats(@PathVariable("name") String name) throws Exception;
+    List<VoCacheInfo> disableCache(@PathVariable("name") String name) throws Exception;
 
 
     /**

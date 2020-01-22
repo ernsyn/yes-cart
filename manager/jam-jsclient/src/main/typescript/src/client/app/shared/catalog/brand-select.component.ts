@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild } from '@angular/core';
-import { BrandVO } from './../model/index';
+import { BrandVO, SearchContextVO } from './../model/index';
 import { CatalogService } from './../services/index';
 import { ModalComponent, ModalResult, ModalAction } from './../modal/index';
 import { Futures, Future, FormValidationEvent } from './../event/index';
@@ -54,6 +54,10 @@ export class BrandSelectComponent implements OnInit, OnDestroy {
 
   constructor (private _brandService : CatalogService) {
     LogUtil.debug('BrandSelectComponent constructed');
+    let that = this;
+    this.delayedFiltering = Futures.perpetual(function() {
+      that.getAllBrands();
+    }, this.delayedFilteringMs);
   }
 
   ngOnDestroy() {
@@ -62,11 +66,6 @@ export class BrandSelectComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     LogUtil.debug('BrandSelectComponent ngOnInit');
-    let that = this;
-    this.delayedFiltering = Futures.perpetual(function() {
-      that.getAllBrands();
-    }, this.delayedFilteringMs);
-
   }
 
   onSelectClick(brand: BrandVO) {
@@ -93,7 +92,7 @@ export class BrandSelectComponent implements OnInit, OnDestroy {
 
 
   protected onSelectConfirmationResult(modalresult: ModalResult) {
-    LogUtil.debug('ProductTypeSelectComponent onSelectConfirmationResult modal result is ', modalresult);
+    LogUtil.debug('BrandSelectComponent onSelectConfirmationResult modal result is ', modalresult);
     if (ModalAction.POSITIVE === modalresult.action) {
       this.dataSelected.emit({ source: this.selectedBrand, valid: true });
       this.selectedBrand = null;
@@ -106,13 +105,22 @@ export class BrandSelectComponent implements OnInit, OnDestroy {
 
     if (!this.brandFilterRequired) {
       this.loading = true;
-      let _sub:any = this._brandService.getFilteredBrands(this.brandFilter, this.filterCap).subscribe(allbrands => {
+      let _ctx:SearchContextVO = {
+        parameters : {
+          filter: [ this.brandFilter ]
+        },
+        start : 0,
+        size : this.filterCap,
+        sortBy : 'name',
+        sortDesc : false
+      };
+      let _sub:any = this._brandService.getFilteredBrands(_ctx).subscribe(allbrands => {
         LogUtil.debug('BrandSelectComponent getAllBrands', allbrands);
         this.selectedBrand = null;
         this.changed = false;
         this.validForSelect = false;
-        this.filteredBrands = allbrands;
-        this.brandFilterCapped = this.filteredBrands.length >= this.filterCap;
+        this.filteredBrands = allbrands != null ? allbrands.items : [];
+        this.brandFilterCapped = allbrands != null && allbrands.total > this.filterCap;
         this.loading = false;
         _sub.unsubscribe();
       });

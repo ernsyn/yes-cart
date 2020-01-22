@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright 2009 Denys Pavlov, Igor Azarnyi
+  ~
+  ~    Licensed under the Apache License, Version 2.0 (the "License");
+  ~    you may not use this file except in compliance with the License.
+  ~    You may obtain a copy of the License at
+  ~
+  ~        http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~    Unless required by applicable law or agreed to in writing, software
+  ~    distributed under the License is distributed on an "AS IS" BASIS,
+  ~    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~    See the License for the specific language governing permissions and
+  ~    limitations under the License.
+  -->
+<configuration>
+
+    <contextName>${cluster.config.sf.node_id}</contextName>
+
+    <jmxConfigurator />
+
+    <turboFilter class="org.yes.cart.utils.log.AlertTurboFilter"/>
+
+    <appender name="DEFAULT" class="ch.qos.logback.classic.sift.SiftingAppender">
+        <discriminator class="org.yes.cart.utils.log.ShopCodeAndLevelLogDiscriminator"/>
+        <sift>
+            <appender name="DEFAULT-${shopCode}" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+                <File>${catalina.base}/logs/yc-${shopCode}.log</File>
+                <Append>true</Append>
+                <encoder>
+                    <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+                </encoder>
+                <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+                    <maxIndex>10</maxIndex>
+                    <FileNamePattern>${catalina.base}/logs/yc-${shopCode}.log.%i.zip</FileNamePattern>
+                </rollingPolicy>
+                <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+                    <MaxFileSize>10MB</MaxFileSize>
+                </triggeringPolicy>
+            </appender>
+        </sift>
+    </appender>
+
+    <appender name="SHOPPAY" class="ch.qos.logback.classic.sift.SiftingAppender">
+        <discriminator class="org.yes.cart.utils.log.ShopCodeLogDiscriminator"/>
+        <sift>
+            <appender name="SHOPPAY-${shopCode}" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+                <File>${catalina.base}/logs/yc-${shopCode}-pay.log</File>
+                <Append>true</Append>
+                <encoder>
+                    <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+                </encoder>
+                <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+                    <maxIndex>10</maxIndex>
+                    <FileNamePattern>${catalina.base}/logs/yc-${shopCode}-pay.log.%i.zip</FileNamePattern>
+                </rollingPolicy>
+                <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+                    <MaxFileSize>10MB</MaxFileSize>
+                </triggeringPolicy>
+            </appender>
+        </sift>
+    </appender>
+
+    <appender name="ORDEREXPORT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+        <File>${catalina.base}/logs/yc-orderexport.log</File>
+        <Append>true</Append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <maxIndex>10</maxIndex>
+            <FileNamePattern>${catalina.base}/logs/yc-orderexport.log.%i.zip</FileNamePattern>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <appender name="ORDERSTATE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+        <File>${catalina.base}/logs/yc-orderstate.log</File>
+        <Append>true</Append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <maxIndex>10</maxIndex>
+            <FileNamePattern>${catalina.base}/logs/yc-orderstate.log.%i.zip</FileNamePattern>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <appender name="MAIL" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+        <File>${catalina.base}/logs/yc-mail.log</File>
+        <Append>true</Append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <maxIndex>10</maxIndex>
+            <FileNamePattern>${catalina.base}/logs/yc-mail.log.%i.zip</FileNamePattern>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <appender name="MAILDUMP" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+        <File>${catalina.base}/logs/yc-maildump.log</File>
+        <Append>true</Append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <maxIndex>10</maxIndex>
+            <FileNamePattern>${catalina.base}/logs/yc-maildump.log.%i.zip</FileNamePattern>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <appender name="AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+        <File>${catalina.base}/logs/yc-audit.csv</File>
+        <Append>true</Append>
+        <encoder>
+            <pattern>%d,%m%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <maxIndex>10</maxIndex>
+            <FileNamePattern>${catalina.base}/logs/yc-audit.csv.%i.zip</FileNamePattern>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <appender name="FTQ" class="ch.qos.logback.classic.sift.SiftingAppender">
+        <discriminator class="org.yes.cart.utils.log.ShopCodeLogDiscriminator"/>
+        <sift>
+            <appender name="FTQ-${shopCode}" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+                <File>${catalina.base}/logs/yc-${shopCode}-ftq.log</File>
+                <Append>true</Append>
+                <encoder>
+                    <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+                </encoder>
+                <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+                    <maxIndex>10</maxIndex>
+                    <FileNamePattern>${catalina.base}/logs/yc-${shopCode}-ftq.log.%i.zip</FileNamePattern>
+                </rollingPolicy>
+                <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+                    <MaxFileSize>10MB</MaxFileSize>
+                </triggeringPolicy>
+            </appender>
+        </sift>
+    </appender>
+
+    <appender name="WS" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+        <File>${catalina.base}/logs/yc-ws.log</File>
+        <Append>true</Append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <maxIndex>10</maxIndex>
+            <FileNamePattern>${catalina.base}/logs/yc-ws.log.%i.zip</FileNamePattern>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <appender name="CONFIG" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+        <File>${catalina.base}/logs/yc-config.log</File>
+        <Append>true</Append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <maxIndex>10</maxIndex>
+            <FileNamePattern>${catalina.base}/logs/yc-config.%i.zip</FileNamePattern>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <appender name="SAC" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+        <File>${catalina.base}/logs/yc-${shopCode}-sac.log</File>
+        <Append>true</Append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <maxIndex>10</maxIndex>
+            <FileNamePattern>${catalina.base}/logs/yc-${shopCode}-sac.%i.zip</FileNamePattern>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="MAILDUMP" level="DEBUG">
+        <!-- MAILDUMP logs at DEBUG level -->
+        <appender-ref ref="MAILDUMP"/>
+    </logger>
+
+    <logger name="org.yes.cart.service.mail.impl.MailComposerImpl" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.bulkjob.mail.BulkMailProcessorImpl" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.domain.message.consumer.CustomerRegistrationMessageListener" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.domain.message.consumer.ManagerRegistrationMessageListener" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.domain.message.consumer.StandardMessageListener" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.web.aspect.ContactFormAspect" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.web.aspect.NewsletterAspect" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.web.aspect.RegistrationAspect" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.service.domain.aspect.impl.CustomerRegistrationAspect" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.service.domain.aspect.impl.ManagerRegistrationAspect" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.service.domain.aspect.impl.PaymentAspect" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.service.domain.aspect.impl.BaseOrderStateAspect" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.service.domain.aspect.impl.OrderStateChangeListenerAspect" level="DEBUG">
+        <appender-ref ref="MAIL"/>
+    </logger>
+    <logger name="org.yes.cart.orderexport.mail.EmailNotificationOrderExporterImpl" level="INFO">
+        <appender-ref ref="MAIL"/>
+    </logger>
+
+    <logger name="org.yes.cart.web.filter.payment" level="DEBUG">
+        <appender-ref ref="SHOPPAY"/>
+    </logger>
+    <logger name="org.yes.cart.payment.impl" level="DEBUG">
+        <appender-ref ref="SHOPPAY"/>
+    </logger>
+    <logger name="org.yes.cart.web.page.payment.callback" level="DEBUG">
+        <appender-ref ref="SHOPPAY"/>
+    </logger>
+
+    <logger name="org.yes.cart.orderexport" level="INFO">
+        <appender-ref ref="ORDEREXPORT"/>
+    </logger>
+
+    <logger name="org.yes.cart.service.order" level="INFO">
+        <appender-ref ref="ORDERSTATE"/>
+    </logger>
+
+    <logger name="AUDIT" level="INFO">
+        <!-- AUDIT logs are at TRACE level -->
+        <appender-ref ref="AUDIT"/>
+    </logger>
+    <!-- Example of specific entity logging, e.g. ShopEntity audit
+    <logger name="AUDIT.ShopEntity" level="TRACE">
+        <appender-ref ref="AUDIT"/>
+    </logger>
+    -->
+
+    <logger name="org.yes.cart.web.support.request.impl.ServletRequestSecurityAccessControlServiceImpl" level="DEBUG">
+        <!-- DETAILED logs at DEBUG level -->
+        <appender-ref ref="SAC"/>
+    </logger>
+
+    <!-- Suppress ehcache size warnings -->
+    <logger name="net.sf.ehcache.pool.impl.DefaultSizeOfEngine" level="ERROR"/>
+
+    <logger name="FTQ" level="INFO">
+        <!-- FTQ logs at DEBUG level, TRACE logs FTQ explanations -->
+        <appender-ref ref="FTQ"/>
+    </logger>
+
+    <logger name="WS.IN" level="ERROR">
+        <!-- Interceptors log at INFO level -->
+        <appender-ref ref="WS"/>
+    </logger>
+    <logger name="WS.OUT" level="ERROR">
+        <!-- Interceptors log at INFO level -->
+        <appender-ref ref="WS"/>
+    </logger>
+
+    <logger name="CONFIG" level="INFO">
+        <!-- CONFIG logs at DEBUG level -->
+        <appender-ref ref="CONFIG"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="DEFAULT"/>
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

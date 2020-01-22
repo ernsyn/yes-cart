@@ -1,3 +1,19 @@
+/*
+ * Copyright 2009 Denys Pavlov, Igor Azarnyi
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package org.yes.cart.report.impl;
 
 import org.apache.fop.apps.*;
@@ -7,6 +23,7 @@ import org.apache.xmlgraphics.io.TempResourceResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yes.cart.report.ReportDescriptor;
+import org.yes.cart.report.ReportDescriptorPDF;
 import org.yes.cart.report.ReportGenerator;
 
 import javax.xml.transform.Result;
@@ -29,6 +46,14 @@ import java.util.Map;
 public abstract class AbstractFopReportGenerator implements ReportGenerator {
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractFopReportGenerator.class);
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean supports(final ReportDescriptor reportDescriptor) {
+        return reportDescriptor instanceof ReportDescriptorPDF;
+    }
 
     /**
      * {@inheritDoc}
@@ -153,7 +178,7 @@ public abstract class AbstractFopReportGenerator implements ReportGenerator {
     /**
      * Get required MIME type for report.
      *
-     * Uses parameters['MIME'], defaults to {@link MimeConstants#MIME_PDF} is not provided
+     * Uses parameters['MIME'], defaults to {@link MimeConstants#MIME_PDF} if not provided
      *
      * @param descriptor descriptor
      * @param parameters passed in parameter values

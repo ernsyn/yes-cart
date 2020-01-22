@@ -17,7 +17,7 @@ import { Component, OnInit, OnDestroy, Input, ViewChild } from '@angular/core';
 import { FormBuilder, Validators, ValidatorFn } from '@angular/forms';
 import { CustomerService, I18nEventBus, Util } from './../../shared/services/index';
 import { YcValidators } from './../../shared/validation/validators';
-import { ShopVO, CustomerInfoVO, AddressBookVO, AddressVO, AttrValueVO, Pair } from './../../shared/model/index';
+import { ShopVO, CustomerInfoVO, AddressBookVO, AddressVO, AttrValueVO, LocationVO, Pair } from './../../shared/model/index';
 import { Futures, Future } from './../../shared/event/index';
 import { ModalComponent, ModalResult, ModalAction } from './../../shared/modal/index';
 import { Config } from './../../shared/config/env.config';
@@ -41,17 +41,15 @@ export class AddressBookComponent implements OnInit, OnDestroy {
 
   private addressEdit:AddressVO = null;
   private addressBook:AddressBookVO = null;
-  private countries:Pair<string, string>[] = [];
-  private states:Pair<string, string>[] = [];
+  private countries:LocationVO[] = [];
+  private states:LocationVO[] = [];
   private formattingShopId:number = 0;
 
   private addresses:AddressVO[] = [];
 
-  private initialising:boolean = false; // tslint:disable-line:no-unused-variable
   private delayedChange:Future;
 
   private addressForm:any;
-  private addressFormSub:any; // tslint:disable-line:no-unused-variable
 
   private addressFormConfig:any;
 
@@ -127,12 +125,12 @@ export class AddressBookComponent implements OnInit, OnDestroy {
 
 
   formBind():void {
-    UiUtil.formBind(this, 'addressForm', 'addressFormSub', 'delayedChange', 'initialising');
+    UiUtil.formBind(this, 'addressForm', 'delayedChange');
   }
 
 
   formUnbind():void {
-    UiUtil.formUnbind(this, 'addressFormSub');
+    UiUtil.formUnbind(this, 'addressForm');
   }
 
   formChange():void {
@@ -252,7 +250,7 @@ export class AddressBookComponent implements OnInit, OnDestroy {
 
   @Input()
   set shops(shops:ShopVO[]) {
-    this._shops = shops;
+    this._shops = shops != null ? shops : [];
     if (this._reload) {
       this.reloadAddressbook();
     }
@@ -315,15 +313,15 @@ export class AddressBookComponent implements OnInit, OnDestroy {
       this.reloadCountries(address.addressType);
       let copy:AddressVO = Util.clone(address);
       if ((copy.countryCode == null || copy.countryCode == '') && this.countries.length > 0) {
-        copy.countryCode = this.countries[0].first; // preselect first for new addresses
+        copy.countryCode = this.countries[0].code; // preselect first for new addresses
         LogUtil.debug('AddressBookComponent pre-selected country', copy.countryCode);
       }
       this.reloadStates(copy);
       if ((copy.stateCode == null || copy.stateCode == '') && this.states.length > 0) {
-        copy.stateCode = this.states[0].first; // preselect first for new addresses
+        copy.stateCode = this.states[0].code; // preselect first for new addresses
         LogUtil.debug('AddressBookComponent pre-selected state', copy.stateCode);
       }
-      UiUtil.formInitialise(this, 'initialising', 'addressForm', 'addressEdit', copy, address != null && address.addressId > 0, ['addressType']);
+      UiUtil.formInitialise(this, 'addressForm', 'addressEdit', copy, address != null && address.addressId > 0, ['addressType']);
       this.formConfigure(address.addressType);
       this.editModalDialog.show();
     }
@@ -344,11 +342,10 @@ export class AddressBookComponent implements OnInit, OnDestroy {
 
   protected reloadCountries(addressType:string):void {
 
-    let countryPair = this.addressBook.countries.find((country:Pair<string, Pair<string, string>[]>) => {
-      return country.first == addressType;
-    });
-    if (countryPair != null) {
-      this.countries = countryPair.second;
+    let countries = addressType == 'S' ? this.addressBook.shippingCountries : this.addressBook.billingCountries;
+
+    if (countries != null) {
+      this.countries = countries;
       this.states = [];
     } else {
       this.countries = [];
@@ -361,11 +358,12 @@ export class AddressBookComponent implements OnInit, OnDestroy {
   protected reloadStates(address:AddressVO):void {
 
     if (address != null && address.countryCode != null) {
-      let statePair = this.addressBook.states.find((state:Pair<string, Pair<string, string>[]>) => {
-        return state.first == address.countryCode;
+      let countries = address.addressType == 'S' ? this.addressBook.shippingCountries : this.addressBook.billingCountries;
+      let addressCountry = countries.find((country:LocationVO) => {
+        return country.code == address.countryCode;
       });
-      if (statePair != null) {
-        this.states = statePair.second;
+      if (addressCountry != null && addressCountry.subLocations != null) {
+        this.states = addressCountry.subLocations;
       } else {
         this.states = [];
       }

@@ -19,26 +19,27 @@ package org.yes.cart.service.order.impl;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yes.cart.constants.AttributeNamesKeys;
 import org.yes.cart.dao.EntityFactory;
 import org.yes.cart.dao.GenericDAO;
 import org.yes.cart.domain.entity.*;
 import org.yes.cart.domain.i18n.I18NModel;
 import org.yes.cart.domain.i18n.impl.FailoverStringI18NModel;
+import org.yes.cart.domain.i18n.impl.NonI18NModel;
+import org.yes.cart.domain.i18n.impl.StringI18NModel;
 import org.yes.cart.service.domain.*;
 import org.yes.cart.service.order.*;
-import org.yes.cart.shoppingcart.CartItem;
-import org.yes.cart.shoppingcart.PriceResolver;
-import org.yes.cart.shoppingcart.ShoppingCart;
-import org.yes.cart.shoppingcart.Total;
-import org.yes.cart.util.DateUtils;
-import org.yes.cart.util.DomainApiUtils;
-import org.yes.cart.util.MoneyUtils;
-import org.yes.cart.util.TimeContext;
+import org.yes.cart.shoppingcart.*;
+import org.yes.cart.utils.DateUtils;
+import org.yes.cart.utils.MoneyUtils;
+import org.yes.cart.utils.TimeContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -49,21 +50,24 @@ import java.util.Map;
  */
 public class OrderAssemblerImpl implements OrderAssembler {
 
-    private final OrderNumberGenerator orderNumberGenerator;
+    private final Logger LOG = LoggerFactory.getLogger(OrderAssemblerImpl.class);
+
     private final EntityFactory entityFactory;
     private final ShopService shopService;
     private final ProductService productService;
     private final ProductSkuService productSkuService;
     private final PriceResolver priceResolver;
+    private final InventoryResolver inventoryResolver;
     private final OrderAddressFormatter addressFormatter;
     private final PromotionCouponService promotionCouponService;
     private final AddressService addressService;
     private final CustomerService customerService;
     private final AttributeService attributeService;
+    private final WarehouseService warehouseService;
 
     /**
      * Create order assembler.
-     *  @param orderNumberGenerator   order number generator
+     *
      * @param genericDAO             generic DAO
      * @param customerService        customer service
      * @param shopService            shop service
@@ -75,51 +79,56 @@ public class OrderAssemblerImpl implements OrderAssembler {
      * @param addressService         address service
      * @param attributeService       attribute service
      */
-    public OrderAssemblerImpl(final OrderNumberGenerator orderNumberGenerator,
-                              final GenericDAO genericDAO,
+    public OrderAssemblerImpl(final GenericDAO genericDAO,
                               final CustomerService customerService,
                               final ShopService shopService,
                               final ProductService productService,
                               final ProductSkuService productSkuService,
                               final PriceResolver priceResolver,
+                              final InventoryResolver inventoryResolver,
                               final OrderAddressFormatter addressFormatter,
                               final PromotionCouponService promotionCouponService,
                               final AddressService addressService,
-                              final AttributeService attributeService) {
+                              final AttributeService attributeService,
+                              final WarehouseService warehouseService) {
         this.productService = productService;
         this.priceResolver = priceResolver;
+        this.inventoryResolver = inventoryResolver;
         this.promotionCouponService = promotionCouponService;
         this.attributeService = attributeService;
         this.entityFactory = genericDAO.getEntityFactory();
-        this.orderNumberGenerator = orderNumberGenerator;
         this.customerService = customerService;
         this.addressService = addressService;
         this.shopService = shopService;
         this.productSkuService = productSkuService;
         this.addressFormatter = addressFormatter;
+        this.warehouseService = warehouseService;
     }
 
     /**
      * Create and fill {@link CustomerOrder} from   from {@link ShoppingCart}.
      *
      * @param shoppingCart given shopping cart
+     * @param orderNumber order number
+     *
      * @return not persisted but filled with data order
      */
     @Override
-    public CustomerOrder assembleCustomerOrder(final ShoppingCart shoppingCart) throws OrderAssemblyException {
-        return assembleCustomerOrder(shoppingCart, false);
+    public CustomerOrder assembleCustomerOrder(final ShoppingCart shoppingCart, final String orderNumber) throws OrderAssemblyException {
+        return assembleCustomerOrder(shoppingCart, orderNumber, false);
     }
 
     /**
      * Create and fill {@link CustomerOrder} from   from {@link ShoppingCart}.
      *
      * @param shoppingCart given shopping cart
+     * @param orderNumber order number
      * @param temp         if set to true then order number is not generated and coupon usage is not created
      *
      * @return not persisted but filled with data order
      */
     @Override
-    public CustomerOrder assembleCustomerOrder(final ShoppingCart shoppingCart, final boolean temp) throws OrderAssemblyException {
+    public CustomerOrder assembleCustomerOrder(final ShoppingCart shoppingCart, final String orderNumber, final boolean temp) throws OrderAssemblyException {
 
         final Total cartTotal = shoppingCart.getTotal();
 
@@ -128,6 +137,7 @@ public class OrderAssemblerImpl implements OrderAssembler {
                 || cartTotal.getSubTotal() == null
                 || cartTotal.getSubTotalTax() == null
                 || cartTotal.getSubTotalAmount() == null) {
+            LOG.debug("Unable to create order for cart as one of the total is missing in cart {}", shoppingCart.getGuid());
             throw new OrderAssemblyException("No order total");
         }
 
@@ -158,10 +168,9 @@ public class OrderAssemblerImpl implements OrderAssembler {
 
         fillOrderDetails(customerOrder, shoppingCart, temp);
 
-        if (!temp) {
-            customerOrder.setOrdernum(orderNumberGenerator.getNextOrderNumber());
-            fillCoupons(customerOrder, shoppingCart);
-        }
+        customerOrder.setOrdernum(orderNumber);
+
+        fillCoupons(customerOrder, shoppingCart, temp);
 
         return customerOrder;
     }
@@ -184,6 +193,7 @@ public class OrderAssemblerImpl implements OrderAssembler {
         if (approvedDate != null) {
             final LocalDateTime approve = DateUtils.ldtParseSDT(approvedDate);
             if (approve == null) {
+                LOG.debug("Unable to create order for cart as b2bApprovedDate has invalid format in cart {}, {} has to be \"yyyy-MM-dd HH:mm:ss\"", shoppingCart.getGuid(), approvedDate);
                 throw new OrderAssemblyException("Order b2bApprovedDate has invalid format: " + approvedDate + ", has to be \"yyyy-MM-dd HH:mm:ss\"");
             }
             customerOrder.setB2bApprovedDate(approve);
@@ -196,10 +206,11 @@ public class OrderAssemblerImpl implements OrderAssembler {
      *
      * @param customerOrder order to fill
      * @param shoppingCart  cart
+     * @param temp temporary flag
      */
-    private void fillCoupons(final CustomerOrder customerOrder, final ShoppingCart shoppingCart) throws OrderAssemblyException {
+    private void fillCoupons(final CustomerOrder customerOrder, final ShoppingCart shoppingCart, final boolean temp) throws OrderAssemblyException {
 
-        if (!shoppingCart.getCoupons().isEmpty()) {
+        if (!temp && !shoppingCart.getCoupons().isEmpty()) {
 
             final List<String> appliedCouponCodes = shoppingCart.getAppliedCoupons();
 
@@ -208,11 +219,12 @@ public class OrderAssemblerImpl implements OrderAssembler {
 
                     final PromotionCoupon coupon = promotionCouponService.findValidPromotionCoupon(code, shoppingCart.getCustomerEmail());
                     if (coupon == null) {
+                        LOG.debug("Unable to create order for cart {}, coupon code is invalid {}", shoppingCart.getGuid(), code);
                         throw new CouponCodeInvalidException(code);
                     }
 
                     final PromotionCouponUsage usage = entityFactory.getByIface(PromotionCouponUsage.class);
-                    usage.setCoupon(coupon);
+                    usage.setCouponCode(coupon.getCode());
                     usage.setCustomerEmail(shoppingCart.getCustomerEmail());
                     usage.setCustomerOrder(customerOrder);
 
@@ -278,6 +290,7 @@ public class OrderAssemblerImpl implements OrderAssembler {
             if (shippingNotRequired) {
                 customerOrder.setShippingAddress("");
             } else if (shippingAddress == null) {
+                LOG.debug("Unable to create order for cart {}, missing shipping address", shoppingCart.getGuid());
                 throw new OrderAssemblyException("Shipping address is required");
             } else {
                 customerOrder.setShippingAddress(formatAddress(shippingAddress, configShop, customer, customerOrder.getLocale()));
@@ -290,6 +303,7 @@ public class OrderAssemblerImpl implements OrderAssembler {
             if (billingNotRequired) {
                 customerOrder.setBillingAddress("");
             } else if (billingAddress == null) {
+                LOG.debug("Unable to create order for cart {}, missing billing address", shoppingCart.getGuid());
                 throw new OrderAssemblyException("Billing address is required");
             } else {
                 customerOrder.setBillingAddress(formatAddress(billingAddress, configShop, customer, customerOrder.getLocale()));
@@ -354,10 +368,34 @@ public class OrderAssemblerImpl implements OrderAssembler {
                 if (entry.getKey().startsWith(attributeIdPrefix)) {
                     final String avCode = entry.getKey().substring(attributeIdPrefix.length());
                     final I18NModel nameModel = attrI18n.get(avCode);
-                    final String name = nameModel != null ? nameModel.getValue(customerOrder.getLocale()) : avCode;
-                    customerOrder.putValue(AttributeNamesKeys.Cart.ORDER_INFO_ORDER_ATTRIBUTE_ID + ":" + avCode,
-                            entry.getValue(), name + ": " + entry.getValue());
+                    customerOrder.putValue(
+                            AttributeNamesKeys.Cart.ORDER_INFO_ORDER_ATTRIBUTE_ID + ":" + avCode,
+                            entry.getValue(),
+                            convertToValueI18nModel(nameModel, new NonI18NModel(entry.getValue()), avCode)
+                    );
                 }
+            }
+
+            if (shoppingCart.getShoppingContext().isManagedCart()) {
+
+                final String timestamp = DateUtils.formatSDT();
+                final String auditKey = "MGR/ORD: " + timestamp;
+
+                customerOrder.putValue(auditKey,
+                        shoppingCart.getShoppingContext().getManagerName() + " / " + shoppingCart.getShoppingContext().getManagerEmail(),
+                        newDefaultModel("AUDITEXPORT")
+                );
+
+                customerOrder.putValue("ORDER_MANAGER_NAME",
+                        shoppingCart.getShoppingContext().getManagerName(),
+                        new NonI18NModel(shoppingCart.getShoppingContext().getManagerName())
+                );
+
+                customerOrder.putValue("ORDER_MANAGER_EMAIL",
+                        shoppingCart.getShoppingContext().getManagerName(),
+                        new NonI18NModel(shoppingCart.getShoppingContext().getManagerName())
+                );
+
             }
         }
 
@@ -402,6 +440,8 @@ public class OrderAssemblerImpl implements OrderAssembler {
      */
     private void fillOrderDetails(final CustomerOrder customerOrder, final ShoppingCart shoppingCart, final boolean temp) throws OrderAssemblyException {
 
+        final Map<String, Warehouse> suppliersByCode = getSuppliersMap(shoppingCart);
+
         for (CartItem item : shoppingCart.getCartItemList()) {
 
             if (item.getPrice() == null
@@ -412,6 +452,15 @@ public class OrderAssemblerImpl implements OrderAssembler {
                     || item.getTaxRate() == null
                     || item.getTaxCode() == null
                     || item.getProductSkuCode() == null) {
+                LOG.debug("Unable to create order for cart {}, one of the totals is missing for item {}", shoppingCart.getGuid(), item);
+                throw new SkuUnavailableException(item.getProductSkuCode(), item.getProductName(), false);
+            }
+
+            final Warehouse supplier = suppliersByCode.get(item.getSupplierCode());
+
+            if (supplier == null) {
+                // Unknown supplier, must not allow order to proceed
+                LOG.debug("Unable to create order for cart {}, item {} has invalid supplier {}", shoppingCart.getGuid(), item, item.getSupplierCode());
                 throw new SkuUnavailableException(item.getProductSkuCode(), item.getProductName(), false);
             }
 
@@ -434,7 +483,7 @@ public class OrderAssemblerImpl implements OrderAssembler {
             customerOrderDet.setTaxExclusiveOfPrice(item.isTaxExclusiveOfPrice());
 
             customerOrderDet.setProductSkuCode(item.getProductSkuCode());
-            fillOrderDetail(customerOrder, shoppingCart, item, customerOrderDet, temp);
+            fillOrderDetail(customerOrder, shoppingCart, item, customerOrderDet, supplier, temp);
 
             customerOrderDet.setProductName(item.getProductName());
             customerOrderDet.setSupplierCode(item.getSupplierCode());
@@ -445,6 +494,12 @@ public class OrderAssemblerImpl implements OrderAssembler {
 
     }
 
+    private Map<String, Warehouse> getSuppliersMap(final ShoppingCart shoppingCart) {
+
+        return warehouseService.getByShopIdMapped(shoppingCart.getShoppingContext().getCustomerShopId(), false);
+
+    }
+
     /**
      * Fill specific product details for current item.
      *
@@ -452,15 +507,42 @@ public class OrderAssemblerImpl implements OrderAssembler {
      * @param shoppingCart     cart
      * @param item             item
      * @param customerOrderDet item to populate
+     * @param supplier         supplier
      * @param temp             temporary
-     *
-     * @throws OrderAssemblyException error
+     *  @throws OrderAssemblyException error
      */
-    protected void fillOrderDetail(final CustomerOrder customerOrder, final ShoppingCart shoppingCart, final CartItem item, final CustomerOrderDet customerOrderDet, final boolean temp) throws OrderAssemblyException {
+    protected void fillOrderDetail(final CustomerOrder customerOrder, final ShoppingCart shoppingCart, final CartItem item, final CustomerOrderDet customerOrderDet, final Warehouse supplier, final boolean temp) throws OrderAssemblyException {
+
+        /*
+            Check availability at given fulfilment centre
+         */
+        final SkuWarehouse inventory = inventoryResolver.findByWarehouseSku(supplier, item.getProductSkuCode());
+        if (inventory == null) {
+            // No inventory for this SKU provided by this supplier
+            LOG.debug("Unable to create order for cart {}, item {} has no inventory for supplier {}", shoppingCart.getGuid(), item, item.getSupplierCode());
+            throw new SkuUnavailableException(item.getProductSkuCode(), item.getProductName(), false);
+        }
+        final LocalDateTime now = now();
+        final int availability = inventory.getAvailability();
+        final boolean isAvailableNow = availability != SkuWarehouse.AVAILABILITY_SHOWROOM && inventory.isAvailable(now);
+        if (!isAvailableNow) {
+            LOG.debug("Unable to create order for cart {}, item {} has no available inventory for supplier {}", shoppingCart.getGuid(), item, item.getSupplierCode());
+            throw new SkuUnavailableException(item.getProductSkuCode(), item.getProductName(), false);
+        }
+        if (!inventory.isAvailableToSell(item.getQty(), true)) {
+            LOG.debug("Unable to create order for cart {}, item {} does not have enough inventory for supplier {}", shoppingCart.getGuid(), item, item.getSupplierCode());
+            throw new SkuUnavailableException(item.getProductSkuCode(), item.getProductName(), true);
+        }
+
 
         if (!item.isGift()) {
-            // Copy line remark which will be stored in "b2bRemarksLine" + SKU detail, e.g. b2bRemarksLineABC0001
-            customerOrderDet.setB2bRemarks(shoppingCart.getOrderInfo().getDetailByKey(AttributeNamesKeys.Cart.ORDER_INFO_B2B_ORDER_LINE_REMARKS_ID + item.getProductSkuCode()));
+            // Copy line remark which will be stored in "b2bRemarksLine" + FF + SKU detail, e.g. b2bRemarksLineMAIN_ABC0001
+            customerOrderDet.setB2bRemarks(shoppingCart.getOrderInfo().getDetailByKey(
+                    AttributeNamesKeys.Cart.ORDER_INFO_B2B_ORDER_LINE_REMARKS_ID + item.getSupplierCode() + "_" + item.getProductSkuCode()));
+
+            final String managed = shoppingCart.getOrderInfo().getDetailByKey(
+                    AttributeNamesKeys.Cart.ORDER_INFO_ORDER_LINE_MANAGED_LIST + item.getSupplierCode() + "_" + item.getProductSkuCode());
+            customerOrderDet.putValue(AttributeNamesKeys.Cart.ORDER_INFO_ORDER_LINE_MANAGED_LIST, managed, null);
         }
 
         /*
@@ -474,14 +556,16 @@ public class OrderAssemblerImpl implements OrderAssembler {
 
             final Map<String, I18NModel> attrI18n = this.attributeService.getAllAttributeNames();
 
-            final String attributeIdPrefix = AttributeNamesKeys.Cart.ORDER_INFO_ORDER_LINE_ATTRIBUTE_ID + item.getProductSkuCode() + "_";
+            final String attributeIdPrefix = AttributeNamesKeys.Cart.ORDER_INFO_ORDER_LINE_ATTRIBUTE_ID + item.getSupplierCode() + "_" + item.getProductSkuCode() + "_";
             for (final Map.Entry<String, String> entry : shoppingCart.getOrderInfo().getDetails().entrySet()) {
                 if (entry.getKey().startsWith(attributeIdPrefix)) {
                     final String avCode = entry.getKey().substring(attributeIdPrefix.length());
                     final I18NModel nameModel = attrI18n.get(avCode);
-                    final String name = nameModel != null ? nameModel.getValue(customerOrder.getLocale()) : avCode;
-                    customerOrderDet.putValue(AttributeNamesKeys.Cart.ORDER_INFO_ORDER_LINE_ATTRIBUTE_ID + ":" + avCode,
-                            entry.getValue(), name + ": " + entry.getValue());
+                    customerOrderDet.putValue(
+                            AttributeNamesKeys.Cart.ORDER_INFO_ORDER_LINE_ATTRIBUTE_ID + ":" + avCode,
+                            entry.getValue(),
+                            convertToValueI18nModel(nameModel, new NonI18NModel(entry.getValue()), avCode)
+                    );
                 }
             }
         }
@@ -495,44 +579,36 @@ public class OrderAssemblerImpl implements OrderAssembler {
             'attribute + ":" + displayable value'
          */
         final ProductSku sku = productSkuService.getProductSkuBySkuCode(item.getProductSkuCode());
-        if (sku != null) {
+        if (sku != null && !temp) {
+            // stored attributes are configured per customer group
+            final List<String> storedAttributes = customerOrder.getShop().getProductStoredAttributesAsList();
+            if (CollectionUtils.isNotEmpty(storedAttributes)) {
 
-            final LocalDateTime now = now();
-            final int availability = sku.getProduct().getAvailability();
-            final boolean isAvailableNow = availability != Product.AVAILABILITY_SHOWROOM && DomainApiUtils.isObjectAvailableNow(!sku.getProduct().isDisabled(), sku.getProduct().getAvailablefrom(), sku.getProduct().getAvailableto(), now);
-            final boolean isAvailableLater = availability == Product.AVAILABILITY_PREORDER && DomainApiUtils.isObjectAvailableNow(!sku.getProduct().isDisabled(), null, sku.getProduct().getAvailableto(), now);
+                final Map<String, I18NModel> attrI18n = this.attributeService.getAllAttributeNames();
 
-            if (!isAvailableNow && !isAvailableLater) {
-                final I18NModel name = new FailoverStringI18NModel(sku.getDisplayName(), sku.getName());
-                throw new SkuUnavailableException(item.getProductSkuCode(), name.getValue(customerOrder.getLocale()), false);
-            }
-            if (!temp) {
-                // stored attributes are configured per customer group
-                final List<String> storedAttributes = customerOrder.getShop().getProductStoredAttributesAsList();
-                if (CollectionUtils.isNotEmpty(storedAttributes)) {
-
-                    final Map<String, I18NModel> attrI18n = this.attributeService.getAllAttributeNames();
-
-                    // fill product first
-                    final Product product = productService.getProductById(sku.getProduct().getProductId(), true);
-                    for (final AttrValue av : product.getAttributes()) {
-                        if (storedAttributes.contains(av.getAttributeCode())) {
-                            final I18NModel nameModel = attrI18n.get(av.getAttributeCode());
-                            final String name = nameModel != null ? nameModel.getValue(customerOrder.getLocale()) : av.getAttributeCode();
-                            final String displayValue =
-                                    new FailoverStringI18NModel(av.getDisplayVal(), av.getVal()).getValue(customerOrder.getLocale());
-                            customerOrderDet.putValue(av.getAttributeCode(), av.getVal(), name + ": " + displayValue);
-                        }
+                // fill product first
+                final Product product = productService.getProductById(sku.getProduct().getProductId(), true);
+                for (final AttrValue av : product.getAttributes()) {
+                    if (storedAttributes.contains(av.getAttributeCode())) {
+                        final I18NModel nameModel = attrI18n.get(av.getAttributeCode());
+                        final I18NModel displayValue = new FailoverStringI18NModel(av.getDisplayVal(), av.getVal());
+                        customerOrderDet.putValue(
+                                av.getAttributeCode(),
+                                av.getVal(),
+                                convertToValueI18nModel(nameModel, displayValue, av.getAttributeCode())
+                        );
                     }
-                    // fill SKU specific (will override product ones)
-                    for (final AttrValue av : sku.getAttributes()) {
-                        if (storedAttributes.contains(av.getAttributeCode())) {
-                            final I18NModel nameModel = attrI18n.get(av.getAttributeCode());
-                            final String name = nameModel != null ? nameModel.getValue(customerOrder.getLocale()) : av.getAttributeCode();
-                            final String displayValue =
-                                    new FailoverStringI18NModel(av.getDisplayVal(), av.getVal()).getValue(customerOrder.getLocale());
-                            customerOrderDet.putValue(av.getAttributeCode(), av.getVal(), name + ": " + displayValue);
-                        }
+                }
+                // fill SKU specific (will override product ones)
+                for (final AttrValue av : sku.getAttributes()) {
+                    if (storedAttributes.contains(av.getAttributeCode())) {
+                        final I18NModel nameModel = attrI18n.get(av.getAttributeCode());
+                        final I18NModel displayValue = new FailoverStringI18NModel(av.getDisplayVal(), av.getVal());
+                        customerOrderDet.putValue(
+                                av.getAttributeCode(),
+                                av.getVal(),
+                                convertToValueI18nModel(nameModel, displayValue, av.getAttributeCode())
+                        );
                     }
                 }
             }
@@ -561,16 +637,35 @@ public class OrderAssemblerImpl implements OrderAssembler {
 
             final String policyID = "COST" + (StringUtils.isBlank(item.getSupplierCode()) ? "" : "_" + item.getSupplierCode());
 
-            final SkuPrice price = priceResolver.getMinimalPrice(null, item.getProductSkuCode(), customerShopId, fallbackShopId, currency, item.getQty(), false, policyID);
+            final SkuPrice price = priceResolver.getMinimalPrice(
+                    null,
+                    item.getProductSkuCode(),
+                    customerShopId,
+                    fallbackShopId,
+                    currency,
+                    item.getQty(),
+                    false,
+                    policyID,
+                    item.getSupplierCode()
+            );
+            
             if (price != null && price.getSkuPriceId() > 0L) {
                 final BigDecimal cost = MoneyUtils.secondOrFirst(price.getSalePriceForCalculation());
-                customerOrderDet.putValue("ItemCostPrice", cost.toPlainString(), "SUPPLIER");
+                customerOrderDet.putValue(
+                        "ItemCostPrice",
+                        cost.toPlainString(),
+                        new StringI18NModel("SUPPLIER")
+                );
             }
 
-            final String priceRef = AttributeNamesKeys.Cart.ORDER_INFO_ORDER_LINE_PRICE_REF_ID + item.getProductSkuCode();
+            final String priceRef = AttributeNamesKeys.Cart.ORDER_INFO_ORDER_LINE_PRICE_REF_ID + item.getSupplierCode() + "_" + item.getProductSkuCode();
             final String priceRefVal = shoppingCart.getOrderInfo().getDetailByKey(priceRef);
             if (StringUtils.isNotBlank(priceRefVal)) {
-                customerOrderDet.putValue("ItemPriceRef", priceRefVal, "SUPPLIER");
+                customerOrderDet.putValue(
+                        "ItemPriceRef",
+                        priceRefVal,
+                        new StringI18NModel("SUPPLIER")
+                );
             }
 
         }
@@ -635,4 +730,25 @@ public class OrderAssemblerImpl implements OrderAssembler {
         return addressFormatter.formatAddress(address, format);
 
     }
+
+
+    private I18NModel convertToValueI18nModel(final I18NModel nameModel, final I18NModel value, final String defaultPrefix) {
+        final I18NModel display = new StringI18NModel();
+        if (StringUtils.isNotBlank(defaultPrefix)) {
+            display.putValue(I18NModel.DEFAULT, defaultPrefix + ": " + value.getValue(I18NModel.DEFAULT));
+        } else {
+            display.putValue(I18NModel.DEFAULT, value.getValue(I18NModel.DEFAULT));
+        }
+        if (nameModel != null) {
+            for (final Map.Entry<String, String> name : nameModel.getAllValues().entrySet()) {
+                display.putValue(name.getKey(), name.getValue() + ": " + value.getValue(name.getKey()));
+            }
+        }
+        return display;
+    }
+
+    private I18NModel newDefaultModel(final String value) {
+        return new StringI18NModel(Collections.singletonMap(I18NModel.DEFAULT, value));
+    }
+
 }

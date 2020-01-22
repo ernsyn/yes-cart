@@ -44,6 +44,8 @@ export class YcValidators {
 
   static noWhitespace255 = Validators.compose([YcValidators.noWhitespace, Validators.maxLength(255)]);
 
+  static nonBlankTrimmed64 = Validators.compose([Validators.maxLength(64), YcValidators.nonBlankTrimmed]);
+
   static nonBlankTrimmed128 = Validators.compose([Validators.maxLength(128), YcValidators.nonBlankTrimmed]);
 
   static nonBlankTrimmed255 = Validators.compose([Validators.maxLength(255), YcValidators.nonBlankTrimmed]);
@@ -95,6 +97,8 @@ export class YcValidators {
   static requiredValidEmail = Validators.compose([Validators.required, YcValidators.validEmail]);
 
   static validDate = Validators.pattern('[0-9]{4}\\-([0][1-9]|[1][0-2])\\-([0][1-9]|[1-2][0-9]|[3][0-1])( ([0][0-9]|[1][0-9]|[2][0-3]):[0-5][0-9]:[0-5][0-9])?');
+
+  static requiredValidDate = Validators.compose([Validators.required, YcValidators.validDate]);
 
   private static _cache:LRUCache = new LRUCache();
 

@@ -16,6 +16,8 @@
 
 package org.yes.cart.service.domain.impl;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,11 +27,13 @@ import org.yes.cart.dao.ResultsIterator;
 import org.yes.cart.domain.entity.Customer;
 import org.yes.cart.domain.entity.CustomerOrder;
 import org.yes.cart.domain.entity.CustomerOrderDelivery;
+import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.service.domain.CustomerOrderService;
 import org.yes.cart.service.order.*;
 import org.yes.cart.shoppingcart.CartContentsValidator;
 import org.yes.cart.shoppingcart.CartValidityModel;
 import org.yes.cart.shoppingcart.ShoppingCart;
+import org.yes.cart.utils.HQLUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -42,6 +46,8 @@ import java.util.*;
 public class CustomerOrderServiceImpl extends BaseGenericServiceImpl<CustomerOrder> implements CustomerOrderService {
 
     private static final Logger LOG = LoggerFactory.getLogger(CustomerOrderServiceImpl.class);
+
+    private final OrderNumberGenerator orderNumberGenerator;
 
     private final OrderAssembler orderAssembler;
 
@@ -60,24 +66,27 @@ public class CustomerOrderServiceImpl extends BaseGenericServiceImpl<CustomerOrd
 
     /**
      * Construct order service.
-     *  @param customerOrderDao customer order dao.
+     *
+     * @param customerOrderDao customer order dao.
      * @param customerDao customer dao to use
      * @param customerOrderDeliveryDao to get deliveries, awiting for inventory
+     * @param orderNumberGenerator   order number generator
      * @param orderAssembler order assembler
      * @param deliveryAssembler delivery assembler
      * @param orderSplittingStrategy order splitting strategy
      * @param cartContentsValidator cart contents validator
      */
-    public CustomerOrderServiceImpl(
-            final GenericDAO<CustomerOrder, Long> customerOrderDao,
-            final GenericDAO<Customer, Long> customerDao,
-            final GenericDAO<Object, Long> genericDao,
-            final GenericDAO<CustomerOrderDelivery, Long> customerOrderDeliveryDao,
-            final OrderAssembler orderAssembler,
-            final DeliveryAssembler deliveryAssembler,
-            final OrderSplittingStrategy orderSplittingStrategy,
-            final CartContentsValidator cartContentsValidator) {
+    public CustomerOrderServiceImpl(final GenericDAO<CustomerOrder, Long> customerOrderDao,
+                                    final GenericDAO<Customer, Long> customerDao,
+                                    final GenericDAO<Object, Long> genericDao,
+                                    final GenericDAO<CustomerOrderDelivery, Long> customerOrderDeliveryDao,
+                                    final OrderNumberGenerator orderNumberGenerator,
+                                    final OrderAssembler orderAssembler,
+                                    final DeliveryAssembler deliveryAssembler,
+                                    final OrderSplittingStrategy orderSplittingStrategy,
+                                    final CartContentsValidator cartContentsValidator) {
         super(customerOrderDao);
+        this.orderNumberGenerator = orderNumberGenerator;
         this.orderAssembler = orderAssembler;
         this.deliveryAssembler = deliveryAssembler;
         this.customerDao = customerDao;
@@ -157,31 +166,50 @@ public class CustomerOrderServiceImpl extends BaseGenericServiceImpl<CustomerOrd
 
     }
 
+    private Pair<String, Object[]> findCustomerOrderQuery(final boolean count,
+                                                          final String sort,
+                                                          final boolean sortDescending,
+                                                          final Map<String, List> filter) {
+
+        final Map<String, List> currentFilter = filter != null ? new HashMap<>(filter) : null;
+
+        final StringBuilder hqlCriteria = new StringBuilder();
+        final List<Object> params = new ArrayList<>();
+
+        if (count) {
+            hqlCriteria.append("select count(o.customerorderId) from CustomerOrderEntity o ");
+        } else {
+            hqlCriteria.append("select o from CustomerOrderEntity o ");
+        }
+
+        final List shops = currentFilter != null ? currentFilter.remove("shopIds") : null;
+        if (CollectionUtils.isNotEmpty(shops)) {
+            hqlCriteria.append(" where (o.shop.shopId in (?1) or o.shop.master.shopId in (?1)) ");
+            params.add(shops);
+        }
+
+        final List statuses  = currentFilter != null ? currentFilter.remove("orderStatus") : null;
+        if (CollectionUtils.isNotEmpty(statuses)) {
+            if (params.isEmpty()) {
+                hqlCriteria.append(" where (o.orderStatus in ?1) ");
+            } else {
+                hqlCriteria.append(" and (o.orderStatus in ?2) ");
+            }
+            params.add(statuses);
+        }
+
+        HQLUtils.appendFilterCriteria(hqlCriteria, params, "o", currentFilter);
 
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public List<CustomerOrder> findCustomerOrdersByCriteria(
-            final long customerId,
-            final String firstName,
-            final String lastName,
-            final String email,
-            final String orderStatus,
-            final LocalDateTime fromDate,
-            final LocalDateTime toDate,
-            final String orderNum
-            ) {
-        return getGenericDao().findByNamedQuery("ORDERS.BY.CRITERIA",
-                likeValue(firstName),
-                likeValue(lastName),
-                likeValue(email),
-                orderStatus,
-                fromDate,
-                toDate,
-                likeValue(orderNum),
-                customerId
+        if (StringUtils.isNotBlank(sort)) {
+
+            hqlCriteria.append(" order by o." + sort + " " + (sortDescending ? "desc" : "asc"));
+
+        }
+
+        return new Pair<>(
+                hqlCriteria.toString(),
+                params.toArray(new Object[params.size()])
         );
 
     }
@@ -191,8 +219,41 @@ public class CustomerOrderServiceImpl extends BaseGenericServiceImpl<CustomerOrd
      * {@inheritDoc}
      */
     @Override
-    public List<CustomerOrder> findCustomerOrdersByDeliveryIds(final Collection<Long> deliveryIds) {
-        return getGenericDao().findByNamedQuery("ORDERS.BY.DELIVERY.IDS", deliveryIds);
+    public List<CustomerOrder> findOrders(final int start,
+                                          final int offset,
+                                          final String sort,
+                                          final boolean sortDescending,
+                                          final Map<String, List> filter) {
+
+        final Pair<String, Object[]> query = findCustomerOrderQuery(false, sort, sortDescending, filter);
+
+        return getGenericDao().findRangeByQuery(
+                query.getFirst(),
+                start, offset,
+                query.getSecond()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int findOrderCount(final Map<String, List> filter) {
+
+        final Pair<String, Object[]> query = findCustomerOrderQuery(true, null, false, filter);
+
+        return getGenericDao().findCountByQuery(
+                query.getFirst(),
+                query.getSecond()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<Long> findCustomerOrderIdsByDeliveryIds(final Collection<Long> deliveryIds) {
+        return (List) getGenericDao().findQueryObjectByNamedQuery("ORDER.IDS.BY.DELIVERY.IDS", deliveryIds);
     }
 
     /**
@@ -266,15 +327,28 @@ public class CustomerOrderServiceImpl extends BaseGenericServiceImpl<CustomerOrd
 
         if (customerOrderToDelete != null) {
 
-            if (!CustomerOrder.ORDER_STATUS_NONE.equals(customerOrderToDelete.getOrderStatus())) {
+            final boolean orderIsProcessedByPg = !CustomerOrder.ORDER_STATUS_NONE.equals(customerOrderToDelete.getOrderStatus());
+            final boolean orderHasPgSet = StringUtils.isNotBlank(customerOrderToDelete.getPgLabel());
 
-                // Order is not in ORDER_STATUS_NONE but the cart had not been cleaned
-                // This can only happen if they did not click come back to site from the external payment site
-                // Meanwhile the callback happened and updated the order
+            if (orderIsProcessedByPg || orderHasPgSet) {
 
-                LOG.warn("Order {} with {} cart guid has {} order status instead of 1 - ORDER_STATUS_NONE",
-                    customerOrderToDelete.getCustomerorderId(), shoppingCart.getGuid(), customerOrderToDelete.getOrderStatus()
-                );
+                if (orderIsProcessedByPg) {
+                    // Order is not in ORDER_STATUS_NONE but the cart had not been cleaned
+                    // This can only happen if they did not click come back to site from the external payment site
+                    // Meanwhile the callback happened and updated the order
+
+                    LOG.warn("Order {} with {} cart guid has {} order status instead of 1 - ORDER_STATUS_NONE, keeping the order",
+                            customerOrderToDelete.getCustomerorderId(), shoppingCart.getGuid(), customerOrderToDelete.getOrderStatus()
+                    );
+                } else /* if (orderHasPgSet) */ {
+                    // If we have an order that is os.none but we have PGLabel it may indicate that
+                    // customer is on an external payment form and came back to re-check in which case
+                    // we need to retain the order reference which was sent to external PG
+
+                    LOG.warn("Order {} with {} cart guid has {} order status and PG {}, keeping the order",
+                            customerOrderToDelete.getCustomerorderId(), shoppingCart.getGuid(), customerOrderToDelete.getOrderStatus(), customerOrderToDelete.getPgLabel()
+                    );
+                }
 
                 // detach order as it is being processed (rehash the GUID and reset cartGuid)
                 customerOrderToDelete.setGuid(UUID.randomUUID().toString());
@@ -299,7 +373,8 @@ public class CustomerOrderServiceImpl extends BaseGenericServiceImpl<CustomerOrd
 
         }
 
-        final CustomerOrder customerOrder = orderAssembler.assembleCustomerOrder(shoppingCart);
+        final String orderNumber = orderNumberGenerator.getNextOrderNumber();
+        final CustomerOrder customerOrder = orderAssembler.assembleCustomerOrder(shoppingCart, orderNumber);
         deliveryAssembler.assembleCustomerOrder(customerOrder, shoppingCart, onePhysicalDelivery);
         return create(customerOrder);
 

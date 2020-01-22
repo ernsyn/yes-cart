@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild } from '@angular/core';
-import { ProductTypeVO } from './../model/index';
+import { ProductTypeVO, SearchContextVO } from './../model/index';
 import { CatalogService } from './../services/index';
 import { ModalComponent, ModalResult, ModalAction } from './../modal/index';
 import { Futures, Future, FormValidationEvent } from './../event/index';
@@ -54,6 +54,10 @@ export class ProductTypeSelectComponent implements OnInit, OnDestroy {
 
   constructor (private _typeService : CatalogService) {
     LogUtil.debug('ProductTypeSelectComponent constructed');
+    let that = this;
+    this.delayedFiltering = Futures.perpetual(function() {
+      that.getAllProductTypes();
+    }, this.delayedFilteringMs);
   }
 
   ngOnDestroy() {
@@ -62,11 +66,6 @@ export class ProductTypeSelectComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     LogUtil.debug('ProductTypeSelectComponent ngOnInit');
-    let that = this;
-    this.delayedFiltering = Futures.perpetual(function() {
-      that.getAllProductTypes();
-    }, this.delayedFilteringMs);
-
   }
 
   onSelectClick(producttype: ProductTypeVO) {
@@ -85,7 +84,6 @@ export class ProductTypeSelectComponent implements OnInit, OnDestroy {
     this.productTypeFilter = '';
     this.delayedFiltering.delay();
   }
-
 
   public showDialog() {
     LogUtil.debug('ProductTypeSelectComponent showDialog');
@@ -107,13 +105,22 @@ export class ProductTypeSelectComponent implements OnInit, OnDestroy {
 
     if (!this.productTypeFilterRequired) {
       this.loading = true;
-      let _sub:any = this._typeService.getFilteredProductTypes(this.productTypeFilter, this.filterCap).subscribe(allproductTypes => {
+      let _ctx:SearchContextVO = {
+        parameters : {
+          filter: [ this.productTypeFilter ]
+        },
+        start : 0,
+        size : this.filterCap,
+        sortBy : 'name',
+        sortDesc : false
+      };
+      let _sub:any = this._typeService.getFilteredProductTypes(_ctx).subscribe(allproductTypes => {
         LogUtil.debug('ProductTypeSelectComponent getAllProductTypes', allproductTypes);
         this.selectedProductType = null;
         this.changed = false;
         this.validForSelect = false;
-        this.filteredProductTypes = allproductTypes;
-        this.productTypeFilterCapped = this.filteredProductTypes.length >= this.filterCap;
+        this.filteredProductTypes = allproductTypes != null ? allproductTypes.items : [];
+        this.productTypeFilterCapped = allproductTypes != null && allproductTypes.total > this.filterCap;
         this.loading = false;
         _sub.unsubscribe();
       });

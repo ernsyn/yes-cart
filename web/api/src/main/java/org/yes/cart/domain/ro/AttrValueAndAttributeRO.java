@@ -48,7 +48,10 @@ public class AttrValueAndAttributeRO implements Serializable {
     @DtoField(value = "val", readOnly = true)
     private String val;
 
-    @DtoField(value = "displayVal", converter = "i18nStringConverter", readOnly = true)
+    @DtoField(value = "attributeCode", readOnly = true)
+    private String attributeCode;
+
+    @DtoField(value = "displayVal", converter = "i18nModelConverter", readOnly = true)
     private Map<String, String> displayVals;
 
     @DtoVirtualField(converter = "attributeCodeConverter", readOnly = true)
@@ -71,6 +74,8 @@ public class AttrValueAndAttributeRO implements Serializable {
     public void setVal(final String val) {
         this.val = val;
     }
+
+
 
     @XmlJavaTypeAdapter(I18nMapAdapter.class)
     @XmlElement(name = "display-vals")
@@ -112,12 +117,12 @@ public class AttrValueAndAttributeRO implements Serializable {
     @XmlAttribute(name = "attribute-code")
     public String getAttributeCode() {
         initAttribute();
-        return attribute.getCode();
+        return attributeCode;
     }
 
     public void setAttributeCode(final String attributeCode) {
         initAttribute();
-        this.attribute.setCode(attributeCode);
+        this.attributeCode = attributeCode;
     }
 
     @XmlElement(name = "attribute-name")

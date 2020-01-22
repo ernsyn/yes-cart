@@ -27,7 +27,7 @@ import org.yes.cart.payment.persistence.entity.PaymentGatewayParameter;
 import org.yes.cart.payment.service.ConfigurablePaymentGateway;
 import org.yes.cart.payment.service.PaymentGatewayConfigurationVisitor;
 import org.yes.cart.payment.service.PaymentGatewayParameterService;
-import org.yes.cart.util.HttpParamsUtils;
+import org.yes.cart.utils.HttpParamsUtils;
 
 import java.math.BigDecimal;
 import java.util.Collection;
@@ -48,7 +48,7 @@ public abstract class AbstractCyberSourcePaymentGatewayImpl implements Configura
     private Collection<PaymentGatewayParameter> allParameters = null;
 
     private String shopCode;
-
+    private String label;
 
     /**
      * {@inheritDoc}
@@ -56,6 +56,14 @@ public abstract class AbstractCyberSourcePaymentGatewayImpl implements Configura
     @Override
     public String getShopCode() {
         return shopCode;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getLabel() {
+        return label;
     }
 
     /**
@@ -151,7 +159,9 @@ public abstract class AbstractCyberSourcePaymentGatewayImpl implements Configura
      * {@inheritDoc}
      */
     @Override
-    public Payment createPaymentPrototype(final String operation, final Map parametersMap, final boolean forceProcessing) {
+    public Payment createPaymentPrototype(final String operation,
+                                          final Map parametersMap,
+                                          boolean forceProcessing) {
 
         final Map<String, String> params = HttpParamsUtils.createSingleValueMap(parametersMap);
         final Payment payment = new PaymentImpl();
@@ -214,33 +224,12 @@ public abstract class AbstractCyberSourcePaymentGatewayImpl implements Configura
     }
 
     /**
-     * Get street address.
-     *
-     * @param addreLine1 line 1
-     * @param addreLine2 line 2
-     * @return street address
-     */
-    protected String getStreetAddress(final String addreLine1, final String addreLine2) {
-        return addreLine1
-                + (
-                StringUtils.isNotBlank(addreLine2) ?
-                        " " + addreLine2 :
-                        StringUtils.EMPTY)
-                ;
-
-    }
-
-
-    protected String getHiddenField(final String fieldName, final Object value) {
-        return "<input type='hidden' name='" + fieldName + "' value='" + value + "'>\n";
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override
     public void accept(final PaymentGatewayConfigurationVisitor visitor) {
         this.shopCode = visitor.getConfiguration("shopCode");
+        this.label = visitor.getConfiguration("label");
     }
 
 }

@@ -17,13 +17,16 @@
 package org.yes.cart.service.vo.impl;
 
 import org.springframework.security.access.AccessDeniedException;
-import org.yes.cart.constants.Constants;
 import org.yes.cart.domain.dto.AttrValueBrandDTO;
 import org.yes.cart.domain.dto.BrandDTO;
 import org.yes.cart.domain.misc.MutablePair;
 import org.yes.cart.domain.misc.Pair;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.domain.vo.VoAttrValueBrand;
 import org.yes.cart.domain.vo.VoBrand;
+import org.yes.cart.domain.vo.VoSearchContext;
+import org.yes.cart.domain.vo.VoSearchResult;
 import org.yes.cart.service.dto.DtoAttributeService;
 import org.yes.cart.service.dto.DtoBrandService;
 import org.yes.cart.service.federation.FederationFacade;
@@ -66,9 +69,6 @@ public class VoBrandServiceImpl implements VoBrandService {
                 new VoAttributesCRUDTemplate<VoAttrValueBrand, AttrValueBrandDTO>(
                         VoAttrValueBrand.class,
                         AttrValueBrandDTO.class,
-                        Constants.BRAND_IMAGE_REPOSITORY_URL_PATTERN,
-                        Constants.BRAND_FILE_REPOSITORY_URL_PATTERN,
-                        Constants.BRAND_SYSFILE_REPOSITORY_URL_PATTERN,
                         this.dtoBrandService,
                         this.dtoAttributeService,
                         this.voAssemblySupport,
@@ -101,16 +101,31 @@ public class VoBrandServiceImpl implements VoBrandService {
      * {@inheritDoc}
      */
     @Override
-    public List<VoBrand> getFiltered(final String filter, final int max) throws Exception {
+    public VoSearchResult<VoBrand> getFilteredBrands(final VoSearchContext filter) throws Exception {
 
+        final VoSearchResult<VoBrand> result = new VoSearchResult<>();
         final List<VoBrand> results = new ArrayList<>();
+        result.setSearchContext(filter);
+        result.setItems(results);
 
-        final List<BrandDTO> batch = dtoBrandService.findBy(filter, 0, max);
-        if (!batch.isEmpty()) {
-            results.addAll(voAssemblySupport.assembleVos(VoBrand.class, BrandDTO.class, batch));
+        final SearchContext searchContext = new SearchContext(
+                filter.getParameters(),
+                filter.getStart(),
+                filter.getSize(),
+                filter.getSortBy(),
+                filter.isSortDesc(),
+                "filter"
+        );
+
+
+        final SearchResult<BrandDTO> batch = dtoBrandService.findBrands(searchContext);
+        if (!batch.getItems().isEmpty()) {
+            results.addAll(voAssemblySupport.assembleVos(VoBrand.class, BrandDTO.class, batch.getItems()));
         }
 
-        return results;
+        result.setTotal(batch.getTotal());
+
+        return result;
 
     }
 
@@ -118,7 +133,7 @@ public class VoBrandServiceImpl implements VoBrandService {
      * {@inheritDoc}
      */
     @Override
-    public VoBrand getById(final long id) throws Exception {
+    public VoBrand getBrandById(final long id) throws Exception {
         final BrandDTO brandDTO = dtoBrandService.getById(id);
         if (brandDTO != null && federationFacade.isCurrentUserSystemAdmin()) {
             return voAssemblySupport.assembleVo(VoBrand.class, BrandDTO.class, new VoBrand(), brandDTO);
@@ -131,7 +146,7 @@ public class VoBrandServiceImpl implements VoBrandService {
      * {@inheritDoc}
      */
     @Override
-    public VoBrand update(final VoBrand vo) throws Exception {
+    public VoBrand updateBrand(final VoBrand vo) throws Exception {
         final BrandDTO brandDTO = dtoBrandService.getById(vo.getBrandId());
         if (brandDTO != null && federationFacade.isCurrentUserSystemAdmin()) {
             dtoBrandService.update(
@@ -140,20 +155,20 @@ public class VoBrandServiceImpl implements VoBrandService {
         } else {
             throw new AccessDeniedException("Access is denied");
         }
-        return getById(vo.getBrandId());
+        return getBrandById(vo.getBrandId());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public VoBrand create(final VoBrand vo) throws Exception {
+    public VoBrand createBrand(final VoBrand vo) throws Exception {
         if (federationFacade.isCurrentUserSystemAdmin()) {
             BrandDTO brandDTO = dtoBrandService.getNew();
             brandDTO = dtoBrandService.create(
                     voAssemblySupport.assembleDto(BrandDTO.class, VoBrand.class, brandDTO, vo)
             );
-            return getById(brandDTO.getBrandId());
+            return getBrandById(brandDTO.getBrandId());
         } else {
             throw new AccessDeniedException("Access is denied");
         }
@@ -163,7 +178,7 @@ public class VoBrandServiceImpl implements VoBrandService {
      * {@inheritDoc}
      */
     @Override
-    public void remove(final long id) throws Exception {
+    public void removeBrand(final long id) throws Exception {
         if (federationFacade.isCurrentUserSystemAdmin()) {
             dtoBrandService.remove(id);
         } else {
@@ -185,7 +200,7 @@ public class VoBrandServiceImpl implements VoBrandService {
      * {@inheritDoc}
      */
     @Override
-    public List<VoAttrValueBrand> update(final List<MutablePair<VoAttrValueBrand, Boolean>> vo) throws Exception {
+    public List<VoAttrValueBrand> updateBrandAttributes(final List<MutablePair<VoAttrValueBrand, Boolean>> vo) throws Exception {
 
         final long brandId = voAttributesCRUDTemplate.verifyAccessAndUpdateAttributes(vo, true);
 

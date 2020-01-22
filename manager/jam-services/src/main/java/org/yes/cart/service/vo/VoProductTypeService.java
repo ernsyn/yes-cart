@@ -17,9 +17,7 @@
 package org.yes.cart.service.vo;
 
 import org.yes.cart.domain.misc.MutablePair;
-import org.yes.cart.domain.vo.VoProductType;
-import org.yes.cart.domain.vo.VoProductTypeAttr;
-import org.yes.cart.domain.vo.VoProductTypeInfo;
+import org.yes.cart.domain.vo.*;
 
 import java.util.List;
 
@@ -32,52 +30,63 @@ public interface VoProductTypeService {
 
     /**
      * Get all types in the system, filtered by criteria and according to rights, up to max
-     * @return list of categories
+     *
+     * @return list of types
+     *
      * @throws Exception errors
      */
-    List<VoProductTypeInfo> getFiltered(String filter, int max) throws Exception;
+    VoSearchResult<VoProductTypeInfo> getFilteredTypes(VoSearchContext filter) throws Exception;
 
     /**
      * Get type by id.
      *
      * @param id type id
+     *
      * @return type vo
+     *
      * @throws Exception errors
      */
-    VoProductType getById(long id) throws Exception;
+    VoProductType getTypeById(long id) throws Exception;
 
     /**
      * Update given type.
      *
      * @param vo type to update
+     *
      * @return updated instance
+     *
      * @throws Exception errors
      */
-    VoProductType update(VoProductType vo) throws Exception;
+    VoProductType updateType(VoProductType vo) throws Exception;
 
     /**
      * Create new type
      *
      * @param vo given instance to persist
+     *
      * @return persisted instance
+     *
      * @throws Exception errors
      */
-    VoProductType create(VoProductTypeInfo vo) throws Exception;
+    VoProductType createType(VoProductTypeInfo vo) throws Exception;
 
     /**
      * Get type by id.
      *
-     * @param id
-     * @return type vo
+     * @param id type vo ID
+     *
      * @throws Exception errors
      */
-    void remove(long id) throws Exception;
+    void removeType(long id) throws Exception;
 
 
     /**
      * Get supported attributes by given type
+     *
      * @param typeId given type id
+     *
      * @return attributes
+     *
      * @throws Exception errors
      */
     List<VoProductTypeAttr> getTypeAttributes(long typeId) throws Exception;
@@ -87,10 +96,12 @@ public interface VoProductTypeService {
      * Update the type attributes.
      *
      * @param vo type attributes to update, boolean indicates if this attribute is to be removed (true) or not (false)
+     *
      * @return type attributes.
+     *
      * @throws Exception errors
      */
-    List<VoProductTypeAttr> update(List<MutablePair<VoProductTypeAttr, Boolean>> vo) throws Exception;
+    List<VoProductTypeAttr> updateTypeAttributes(List<MutablePair<VoProductTypeAttr, Boolean>> vo) throws Exception;
 
 
 

@@ -48,20 +48,11 @@
                   <input formControlName="disabled" name="disabled" type="checkbox" [(ngModel)]="content.disabled">
                   <label>{{ 'CONTENT_DISABLED' | translate }}</label>
                 </div>
-                <div class="form-group">
-                  <label>{{ 'CONTENT_FROM' | translate }}</label>
-                  <input class="form-control" placeholder="yyyy-MM-dd HH:mm:SS" formControlName="availablefrom" name="availablefrom" type="text" [(ngModel)]="availablefrom">
-                  <div [hidden]="contentForm.controls['availablefrom'].valid || contentForm.controls['availablefrom'].pristine" class="alert alert-danger">
-                    {{ 'DATE_REQUIRED' | translate }}
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>{{ 'CONTENT_TO' | translate }}</label>
-                  <input class="form-control" placeholder="yyyy-MM-dd HH:mm:SS" formControlName="availableto" name="availableto" type="text" [(ngModel)]="availableto">
-                  <div [hidden]="contentForm.controls['availableto'].valid || contentForm.controls['availableto'].pristine" class="alert alert-danger">
-                    {{ 'DATE_REQUIRED' | translate }}
-                  </div>
-                </div>
+
+                <yc-datetime title="{{ 'CONTENT_FROM' | translate }}" [value]="content.availablefrom" (dataChanged)="onAvailableFrom($event)"></yc-datetime>
+
+                <yc-datetime title="{{ 'CONTENT_TO' | translate }}" [value]="content.availableto" (dataChanged)="onAvailableTo($event)"></yc-datetime>
+
               </fieldset>
             </div>
           </div>
@@ -315,7 +306,7 @@
             <div class="row">
               <yc-attribute-values #attributeValuesComponent
                                    [masterObject]="content"
-                                   masterObjectType="category"
+                                   masterObjectType="content"
                                    [objectAttributes]="attributes"
                                    [attributeFilter]="attributeFilter"
                                    (dataSelected)="onSelectRow($event)"
@@ -349,7 +340,7 @@
       </div>
       <div class="row block-margin-spacer">
         <div class="col-xs-12">
-          <textarea class="form-control" name="bodyEditChange" [(ngModel)]="bodyEditChange"></textarea>
+          <textarea class="form-control" rows="6" name="bodyEditChange" [(ngModel)]="bodyEditChange"></textarea>
         </div>
       </div>
     </fieldset>

@@ -15,7 +15,7 @@
  */
 
 import { Injectable } from '@angular/core';
-import { Http, Headers, RequestOptions, Response } from '@angular/http';
+import { Http, Response } from '@angular/http';
 import { Config } from '../config/env.config';
 import { Util } from './util';
 import { LogUtil } from './../log/index';
@@ -47,7 +47,7 @@ export class SystemService {
    * @returns {Observable<R>}
    */
   getSystemPreferences(includeSecure:boolean) {
-    return this.http.get(this._serviceBaseUrl + (includeSecure ? '/preferences/secure' : '/preferences'))
+    return this.http.get(this._serviceBaseUrl + (includeSecure ? '/preferences/secure' : '/preferences'), Util.requestOptions())
       .map(res => <AttrValueSystemVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -60,9 +60,7 @@ export class SystemService {
    */
   saveSystemAttributes(attrs:Array<Pair<AttrValueSystemVO, boolean>>, includeSecure:boolean) {
     let body = JSON.stringify(attrs);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
-    return this.http.post(this._serviceBaseUrl + (includeSecure ? '/preferences/secure' : '/preferences'), body, options)
+    return this.http.post(this._serviceBaseUrl + (includeSecure ? '/preferences/secure' : '/preferences'), body, Util.requestOptions())
       .map(res => <AttrValueSystemVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -74,7 +72,7 @@ export class SystemService {
    * @returns {Observable<R>}
    */
   getCacheInfo() {
-    return this.http.get(this._serviceBaseUrl + '/cache')
+    return this.http.get(this._serviceBaseUrl + '/cache', Util.requestOptions())
       .map(res => <CacheInfoVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -85,10 +83,8 @@ export class SystemService {
    * @returns {Observable<R>}
    */
   evictAllCache() {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/cache', options)
+    return this.http.delete(this._serviceBaseUrl + '/cache', Util.requestOptions())
       .map(res => <CacheInfoVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -100,28 +96,23 @@ export class SystemService {
    * @returns {Observable<R>}
    */
   evictSingleCache(name:string) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/cache/' + name + '/', options)
+    return this.http.delete(this._serviceBaseUrl + '/cache/' + name + '/', Util.requestOptions())
       .map(res => <CacheInfoVO[]> this.json(res))
       .catch(this.handleError);
   }
 
   /**
-   * Save cache stats flag.
+   * Save cache flag.
    * @param name cache name
-   * @param stats flag whether to turn it on or off
+   * @param enable whether to turn it on or off
    * @returns {Observable<R>}
    */
-  saveCacheStatsFlag(name:string, stats:boolean) {
+  saveCacheFlag(name:string, enable:boolean) {
 
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
+    let path = enable ? 'on/' : 'off/';
 
-    let path = stats ? 'statson/' : 'statsoff/';
-
-    return this.http.post(this._serviceBaseUrl + '/cache/' + path + name + '/', null, options)
+    return this.http.post(this._serviceBaseUrl + '/cache/' + path + name + '/', null, Util.requestOptions())
       .map(res => <CacheInfoVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -132,7 +123,7 @@ export class SystemService {
    * @returns {Observable<R>}
    */
   getClusterInfo() {
-    return this.http.get(this._serviceBaseUrl + '/cluster')
+    return this.http.get(this._serviceBaseUrl + '/cluster', Util.requestOptions())
       .map(res => <ClusterNodeVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -143,7 +134,7 @@ export class SystemService {
    * @returns {Observable<R>}
    */
   getModuleInfo(node:string) {
-    return this.http.get(this._serviceBaseUrl + '/cluster/' + node + '/modules')
+    return this.http.get(this._serviceBaseUrl + '/cluster/' + node + '/modules', Util.requestOptions())
       .map(res => <ModuleVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -154,7 +145,7 @@ export class SystemService {
    * @returns {Observable<R>}
    */
   getConfigurationInfo() {
-    return this.http.get(this._serviceBaseUrl + '/cluster/configurations')
+    return this.http.get(this._serviceBaseUrl + '/cluster/configurations', Util.requestOptions())
       .map(res => <ConfigurationVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -166,10 +157,8 @@ export class SystemService {
    * @returns {Observable<R>}
    */
   reloadConfigurations() {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.post(this._serviceBaseUrl + '/reloadconfigurations', null, options)
+    return this.http.post(this._serviceBaseUrl + '/reloadconfigurations', null, Util.requestOptions())
       .map(res => <ClusterNodeVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -181,7 +170,7 @@ export class SystemService {
    * @returns {Observable<R>}
    */
   getIndexJobStatus(token:string) {
-    return this.http.get(this._serviceBaseUrl + '/index/status/' + token + '/')
+    return this.http.get(this._serviceBaseUrl + '/index/status/' + token + '/', Util.requestOptions())
       .map(res => <JobStatusVO> this.json(res))
       .catch(this.handleError);
   }
@@ -193,10 +182,7 @@ export class SystemService {
    */
   reindexAllProducts() {
 
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
-
-    return this.http.post(this._serviceBaseUrl + '/index/all', null, options)
+    return this.http.post(this._serviceBaseUrl + '/index/all', null, Util.requestOptions())
       .map(res => <JobStatusVO> this.json(res))
       .catch(this.handleError);
   }
@@ -209,18 +195,26 @@ export class SystemService {
    */
   reindexShopProducts(id:number) {
 
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
-
-    return this.http.post(this._serviceBaseUrl + '/index/shop/' + id, null, options)
+    return this.http.post(this._serviceBaseUrl + '/index/shop/' + id, null, Util.requestOptions())
       .map(res => <JobStatusVO> this.json(res))
       .catch(this.handleError);
   }
 
 
+  /**
+   * Retrieve supported queries per node.
+   * @returns {Observable<R>}
+   */
+  supportedQueries() {
+
+    return this.http.get(this._serviceBaseUrl + '/query/supported/', Util.requestOptions())
+      .map(res => <Pair<string, Array<string>>[]> this.json(res))
+      .catch(this.handleError);
+  }
+
 
   /**
-   * Reindex all products.
+   * Run query of specified type against node.
    * @param node node
    * @param typ query type
    * @param query query
@@ -228,12 +222,8 @@ export class SystemService {
    */
   runQuery(node:string, typ:string, query:string) {
 
-    let headers = new Headers({ 'Content-Type': 'text/plain; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
-
-    let path = (typ == 'HQL') ? '/hquery/' : ((typ == 'FT') ? '/ftquery/' : '/dbquery/');
-
-    return this.http.post(this._serviceBaseUrl + path + node + '/', query, options)
+    return this.http.post(this._serviceBaseUrl + '/query/' + node + '/' + typ, query,
+        Util.requestOptions({ type:'text/plain; charset=utf-8' }))
       .map(res => <Array<Array<string>>> this.json(res))
       .catch(this.handleError);
   }

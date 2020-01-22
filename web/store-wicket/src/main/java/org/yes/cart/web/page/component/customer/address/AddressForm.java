@@ -22,14 +22,10 @@ import org.apache.wicket.Component;
 import org.apache.wicket.Page;
 import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.basic.Label;
-import org.apache.wicket.markup.html.form.AbstractChoice;
-import org.apache.wicket.markup.html.form.DropDownChoice;
-import org.apache.wicket.markup.html.form.Form;
-import org.apache.wicket.markup.html.form.SubmitLink;
+import org.apache.wicket.markup.html.form.*;
 import org.apache.wicket.markup.html.link.AbstractLink;
 import org.apache.wicket.markup.html.panel.Fragment;
 import org.apache.wicket.markup.repeater.RepeatingView;
-import org.apache.wicket.model.AbstractReadOnlyModel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.PropertyModel;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
@@ -42,7 +38,6 @@ import org.yes.cart.domain.i18n.I18NModel;
 import org.yes.cart.shoppingcart.ShoppingCart;
 import org.yes.cart.shoppingcart.ShoppingCartCommand;
 import org.yes.cart.shoppingcart.ShoppingCartCommandFactory;
-import org.yes.cart.util.ShopCodeContext;
 import org.yes.cart.web.application.ApplicationDirector;
 import org.yes.cart.web.page.AbstractWebPage;
 import org.yes.cart.web.page.component.customer.dynaform.EditorFactory;
@@ -53,7 +48,7 @@ import org.yes.cart.web.page.component.util.StateRenderer;
 import org.yes.cart.web.support.constants.StorefrontServiceSpringKeys;
 import org.yes.cart.web.support.i18n.I18NWebSupport;
 import org.yes.cart.web.support.service.AddressBookFacade;
-import org.yes.cart.web.util.WicketUtil;
+import org.yes.cart.web.utils.WicketUtil;
 
 import java.util.HashMap;
 import java.util.List;
@@ -148,7 +143,7 @@ public class AddressForm extends Form<Address> {
         final AbstractChoice<State, State> stateDropDownChoice = new DropDownChoice<>(
                 STATE,
                 new StateModel(new PropertyModel(stateCode, "val"), stateList),
-                stateList).setChoiceRenderer(new StateRenderer());
+                stateList).setChoiceRenderer(new StateRenderer(getLocale().getLanguage()));
         final boolean needState = !stateList.isEmpty();
         stateDropDownChoice.setRequired(needState);
         stateDropDownChoice.setVisible(needState);
@@ -157,12 +152,11 @@ public class AddressForm extends Form<Address> {
         final AbstractChoice<Country, Country> countryDropDownChoice = new DropDownChoice<Country>(
                 COUNTRY,
                 new CountryModel(new PropertyModel(countryCode, "val"), countryList),
-                countryList) {
-
+                countryList);
+        countryDropDownChoice.add(new FormComponentUpdatingBehavior() {
             @Override
-            protected void onSelectionChanged(final Country country) {
-                super.onSelectionChanged(country);
-                stateDropDownChoice.setChoices(getStateList(country.getCountryCode()));
+            protected void onUpdate() {
+                stateDropDownChoice.setChoices(getStateList(valuesMap.get("countryCode").getVal()));
                 final boolean needState = !stateDropDownChoice.getChoices().isEmpty();
                 stateDropDownChoice.setRequired(needState);
                 stateDropDownChoice.setVisible(needState);
@@ -170,13 +164,8 @@ public class AddressForm extends Form<Address> {
                     valuesMap.get("stateCode").setVal(StringUtils.EMPTY);
                 }
             }
-
-            @Override
-            protected boolean wantOnSelectionChangedNotifications() {
-                return true;
-            }
-
-        }.setChoiceRenderer(new CountryRenderer());
+        });
+        countryDropDownChoice.setChoiceRenderer(new CountryRenderer(getLocale().getLanguage()));
         countryDropDownChoice.setRequired(true);
 
 
@@ -314,7 +303,7 @@ public class AddressForm extends Form<Address> {
                 attrValue.getAttribute().getName());
         final String prop = attrValue.getAttribute().getVal();
 
-        return new Label(NAME, new AbstractReadOnlyModel<String>() {
+        return new Label(NAME, new IModel<String>() {
 
             private final I18NModel m = model;
 

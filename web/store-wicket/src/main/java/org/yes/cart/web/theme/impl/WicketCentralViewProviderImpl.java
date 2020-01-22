@@ -19,14 +19,14 @@ package org.yes.cart.web.theme.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yes.cart.domain.entity.Category;
+import org.yes.cart.domain.entity.Content;
 import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.search.dto.NavigationContext;
 import org.yes.cart.service.domain.CategoryService;
 import org.yes.cart.service.domain.ContentService;
 import org.yes.cart.service.domain.ShopService;
-import org.yes.cart.util.DomainApiUtils;
-import org.yes.cart.util.ShopCodeContext;
-import org.yes.cart.util.TimeContext;
+import org.yes.cart.utils.ShopCodeContext;
+import org.yes.cart.utils.TimeContext;
 import org.yes.cart.web.application.ApplicationDirector;
 import org.yes.cart.web.page.component.AbstractCentralView;
 import org.yes.cart.web.page.component.EmptyCentralView;
@@ -34,7 +34,6 @@ import org.yes.cart.web.support.constants.CentralViewLabel;
 import org.yes.cart.web.theme.WicketCentralViewProvider;
 
 import java.lang.reflect.Constructor;
-import java.text.MessageFormat;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Set;
@@ -134,7 +133,7 @@ public class WicketCentralViewProviderImpl implements WicketCentralViewProvider 
 
         } catch (Exception e) {
 
-            LOG.error(MessageFormat.format("Can not create instance of panel for label {0}", rendererLabel), e);
+            LOG.error("Can not create instance of panel for label " + rendererLabel, e);
             return new EmptyCentralView(wicketComponentId, navigationContext);
 
         }
@@ -177,7 +176,7 @@ public class WicketCentralViewProviderImpl implements WicketCentralViewProvider 
 
                 while (category != null && !category.isRoot()) { // while enabled and not reached root
 
-                    if (!DomainApiUtils.isObjectAvailableNow(!category.isDisabled(), category.getAvailablefrom(), category.getAvailableto(), now)) {
+                    if (!category.isAvailable(now)) {
                         LOG.warn("Attempted to access category {} in shop {} but {} category is not available", categoryId, customerShopId, category.getCategoryId());
                         return false; // not available
                     }
@@ -214,13 +213,13 @@ public class WicketCentralViewProviderImpl implements WicketCentralViewProvider 
             final long shopId = ApplicationDirector.getShoppingCart().getShoppingContext().getShopId();
             final Set<Long> catIds = shopService.getShopContentIds(shopId);
             if (catIds.contains(contentId)) {
-                Category content = contentService.getById(contentId);
+                Content content = contentService.getById(contentId);
                 final LocalDateTime now = now();
 
                 while (content != null && !content.isRoot() &&  !CentralViewLabel.INCLUDE.equals(content.getUitemplate())) {
 
-                    if (!DomainApiUtils.isObjectAvailableNow(!content.isDisabled(), content.getAvailablefrom(), content.getAvailableto(), now)) {
-                        LOG.warn("Attempted to access content {} in shop {} but {} content is not available", contentId, shopId, content.getCategoryId());
+                    if (!content.isAvailable(now)) {
+                        LOG.warn("Attempted to access content {} in shop {} but {} content is not available", contentId, shopId, content.getContentId());
                         return false; // not available
                     }
 

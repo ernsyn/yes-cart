@@ -23,6 +23,8 @@
     <import resource="classpath:rest-mvc.xml"/>
     <import resource="classpath*:api-servlet-ext.xml"/>
 
+    <import resource="classpath:rest-swagger2.xml"/>
+
     <!-- ################################ Register module  ####################################################### -->
 
     <bean class="org.yes.cart.env.impl.ModuleImpl">

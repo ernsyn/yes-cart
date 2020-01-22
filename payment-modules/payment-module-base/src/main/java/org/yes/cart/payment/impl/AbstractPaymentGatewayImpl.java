@@ -16,6 +16,7 @@
 
 package org.yes.cart.payment.impl;
 
+import org.apache.commons.lang.SerializationUtils;
 import org.apache.commons.lang.StringUtils;
 import org.yes.cart.payment.PaymentGateway;
 import org.yes.cart.payment.dto.Payment;
@@ -25,11 +26,12 @@ import org.yes.cart.payment.persistence.entity.PaymentGatewayParameter;
 import org.yes.cart.payment.service.ConfigurablePaymentGateway;
 import org.yes.cart.payment.service.PaymentGatewayConfigurationVisitor;
 import org.yes.cart.payment.service.PaymentGatewayParameterService;
-import org.yes.cart.util.HttpParamsUtils;
+import org.yes.cart.utils.HttpParamsUtils;
 
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Map;
+import java.util.UUID;
 
 /**
 * User: Igor Azarny iazarny@yahoo.com
@@ -43,6 +45,17 @@ public abstract class AbstractPaymentGatewayImpl implements ConfigurablePaymentG
     private Collection<PaymentGatewayParameter> allParameters = null;
 
     private String shopCode;
+    private String label;
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getLabel() {
+        return label;
+    }
+
 
     /**
      * {@inheritDoc}
@@ -124,6 +137,19 @@ public abstract class AbstractPaymentGatewayImpl implements ConfigurablePaymentG
         return null;
     }
 
+    protected Payment runDefaultOperation(final Payment paymentIn,
+                                          final String operation,
+                                          final String processorResult,
+                                          final boolean settlement) {
+        final Payment payment = (Payment) SerializationUtils.clone(paymentIn);
+        payment.setTransactionOperation(operation);
+        payment.setTransactionReferenceId(UUID.randomUUID().toString());
+        payment.setTransactionAuthorizationCode(UUID.randomUUID().toString());
+        payment.setPaymentProcessorResult(processorResult);
+        payment.setPaymentProcessorBatchSettlement(settlement);
+        return payment;
+    }
+
 
     /**
      * {@inheritDoc}
@@ -203,6 +229,7 @@ public abstract class AbstractPaymentGatewayImpl implements ConfigurablePaymentG
     @Override
     public void accept(final PaymentGatewayConfigurationVisitor visitor) {
         this.shopCode = visitor.getConfiguration("shopCode");
+        this.label = visitor.getConfiguration("label");
     }
 
 

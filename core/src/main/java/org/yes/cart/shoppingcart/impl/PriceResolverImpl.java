@@ -18,8 +18,6 @@ package org.yes.cart.shoppingcart.impl;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yes.cart.config.Configuration;
-import org.yes.cart.config.ConfigurationContext;
 import org.yes.cart.config.ConfigurationRegistry;
 import org.yes.cart.domain.entity.SkuPrice;
 import org.yes.cart.shoppingcart.PriceResolver;
@@ -35,14 +33,12 @@ import java.util.Map;
  * Time: 17:04
  */
 public class PriceResolverImpl
-        implements PriceResolver, ConfigurationRegistry<Long, PriceResolver>, Configuration {
+        implements PriceResolver, ConfigurationRegistry<Long, PriceResolver> {
 
     private static final Logger LOG = LoggerFactory.getLogger(PriceResolverImpl.class);
 
     private final PriceResolver defaultPriceResolver;
     private final Map<Long, PriceResolver> customPriceResolvers = new HashMap<>();
-
-    private ConfigurationContext cfgContext;
 
     public PriceResolverImpl(final PriceResolver defaultPriceResolver) {
         this.defaultPriceResolver = defaultPriceResolver;
@@ -51,14 +47,48 @@ public class PriceResolverImpl
 
     /** {@inheritDoc} */
     @Override
-    public SkuPrice getMinimalPrice(final Long productId, final String selectedSku, final long customerShopId, final Long masterShopId, final String currencyCode, final BigDecimal quantity, final boolean enforceTier, final String pricingPolicy) {
-        return getPriceResolver(customerShopId).getMinimalPrice(productId, selectedSku, customerShopId, masterShopId, currencyCode, quantity, enforceTier, pricingPolicy);
+    public SkuPrice getMinimalPrice(final Long productId,
+                                    final String selectedSku,
+                                    final long customerShopId,
+                                    final Long masterShopId,
+                                    final String currencyCode,
+                                    final BigDecimal quantity,
+                                    final boolean enforceTier,
+                                    final String pricingPolicy,
+                                    final String supplier) {
+
+        return getPriceResolver(customerShopId).getMinimalPrice(
+                productId,
+                selectedSku,
+                customerShopId,
+                masterShopId,
+                currencyCode,
+                quantity,
+                enforceTier,
+                pricingPolicy,
+                supplier
+        );
     }
 
     /** {@inheritDoc} */
     @Override
-    public List<SkuPrice> getAllCurrentPrices(final Long productId, final String selectedSku, final long customerShopId, final Long masterShopId, final String currencyCode, final String pricingPolicy) {
-        return getPriceResolver(customerShopId).getAllCurrentPrices(productId, selectedSku, customerShopId, masterShopId, currencyCode, pricingPolicy);
+    public List<SkuPrice> getAllCurrentPrices(final Long productId,
+                                              final String selectedSku,
+                                              final long customerShopId,
+                                              final Long masterShopId,
+                                              final String currencyCode,
+                                              final String pricingPolicy,
+                                              final String supplier) {
+
+        return getPriceResolver(customerShopId).getAllCurrentPrices(
+                productId,
+                selectedSku,
+                customerShopId,
+                masterShopId,
+                currencyCode,
+                pricingPolicy,
+                supplier
+        );
     }
 
     protected PriceResolver getPriceResolver(final Long shopId) {
@@ -71,7 +101,7 @@ public class PriceResolverImpl
 
     /** {@inheritDoc} */
     @Override
-    public boolean supports(final Object configuration) {
+    public boolean supports(final String cfgProperty, final Object configuration) {
         return configuration instanceof PriceResolver ||
                 (configuration instanceof Class && PriceResolver.class.isAssignableFrom((Class<?>) configuration));
     }
@@ -88,15 +118,5 @@ public class PriceResolverImpl
             customPriceResolvers.remove(shopCode);
         }
 
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public ConfigurationContext getCfgContext() {
-        return cfgContext;
-    }
-
-    public void setCfgContext(final ConfigurationContext cfgContext) {
-        this.cfgContext = cfgContext;
     }
 }

@@ -37,6 +37,7 @@ public abstract class AbstractPayPalPaymentGatewayImpl implements ConfigurablePa
     private Collection<PaymentGatewayParameter> allParameters = null;
 
     private String shopCode;
+    private String label;
 
     /**
      * {@inheritDoc}
@@ -44,6 +45,14 @@ public abstract class AbstractPayPalPaymentGatewayImpl implements ConfigurablePa
     @Override
     public String getShopCode() {
         return shopCode;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getLabel() {
+        return label;
     }
 
     /**
@@ -147,15 +156,15 @@ public abstract class AbstractPayPalPaymentGatewayImpl implements ConfigurablePa
     }
 
 
-    protected String getHiddenFieldValue(final String fieldName, final Object value) {
+    String getHiddenFieldValue(final String fieldName, final String value) {
         if (value == null) {
             return "";
         }
-        final String str = value.toString();
+        final String str = value;
         if (StringUtils.isBlank(str)) {
             return "";
         }
-        return "<input type='hidden' name='" + fieldName + "' value='" + value + "'>\n";
+        return "<input type='hidden' name='" + fieldName + "' value='" + StringUtils.remove(value, '\'') + "'>\n";
     }
 
     protected String getHiddenFieldParam(final String fieldName, final String param) {
@@ -178,6 +187,7 @@ public abstract class AbstractPayPalPaymentGatewayImpl implements ConfigurablePa
     @Override
     public void accept(final PaymentGatewayConfigurationVisitor visitor) {
         this.shopCode = visitor.getConfiguration("shopCode");
+        this.label = visitor.getConfiguration("label");
     }
 
 }

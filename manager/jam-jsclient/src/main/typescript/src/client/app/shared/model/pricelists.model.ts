@@ -39,6 +39,7 @@ export interface PriceListVO {
   tag : string;
 
   pricingPolicy : string;
+  supplier : string;
 
   ref : string;
 
@@ -111,7 +112,7 @@ export interface TaxVO {
 export interface TaxConfigVO {
 
   taxConfigId : number;
-  taxId : number;
+  tax : TaxVO;
 
   productCode : string;
   stateCode : string;
@@ -123,6 +124,7 @@ export interface TaxConfigVO {
 
 export interface PromotionTestVO {
 
+  supplier: string;
   customer: string;
   shipping: string;
   coupons: string;

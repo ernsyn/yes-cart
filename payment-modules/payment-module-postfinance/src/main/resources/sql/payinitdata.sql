@@ -16,8 +16,8 @@ VALUES (15105, 'postFinancePaymentGateway', 'name_de', 'PostFinance', 'Gateway-N
 
 
 INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
-VALUES (15150, 'postFinancePaymentGateway', 'PF_POST_URL', 'https://e-payment.postfinance.ch/ncol/test/orderstandard.asp', 'Form action',
-'In the production (PROD) environment, the URL for the action will be https://e- payment.postfinance.ch/ncol/prod/orderstandard.asp.');
+VALUES (15150, 'postFinancePaymentGateway', 'PF_POST_URL', 'https://e-payment.postfinance.ch/ncol/test/orderstandard_utf8.asp', 'Form action',
+'In the production (PROD) environment, the URL for the action will be https://e-payment.postfinance.ch/ncol/prod/orderstandard_utf8.asp.');
 
 INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
 VALUES (15151, 'postFinancePaymentGateway', 'PF_RESULT_URL_HOME', 'http://@domain@/', '(Absolute) URL of your home page',
@@ -145,6 +145,30 @@ VALUES (15178, 'postFinancePaymentGateway', 'LANGUAGE_MAP', 'en=en_US,de=de_DE,r
 INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
 VALUES (15179, 'postFinancePaymentGateway', 'restrictToCustomerTags', null, 'Gateway restrictions (Customer tags)', 'Gateway restrictions (Customer tags)');
 
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15180, 'postFinancePaymentGateway', 'PF_DELIVERY_AND_INVOICE_ON', null, 'Enable invoice and delivery data',
+  'Invoice and delivery information will be sent with the order (ECOM_*)');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15181, 'postFinancePaymentGateway', 'PF_ITEMISED_ITEM_CAT', null, 'Enabled itemised data item category',
+  'Refer to PostFinance documentation on what values can be set (if not blank will be set for all itemised parameters)');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15182, 'postFinancePaymentGateway', 'PF_ITEMISED_SHIP_CAT', null, 'Enabled itemised data shipping category',
+  'Refer to PostFinance documentation on what values can be set (if not blank will be set for all itemised parameters)');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15184, 'postFinancePaymentGateway', 'PF_DELIVERY_AND_INVOICE_ADDR2_IS_NUMBER', null, 'Enable invoice and delivery data (line 2 is number)',
+  'When invoice parameters (ECOM_*) are generated address line 2 will be used as *STREET_NUMBER');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15185, 'postFinancePaymentGateway', 'PF_DELIVERY_AND_INVOICE_ADDR1_NUMBER_REGEX', null, 'Enable invoice and delivery data (line 1 regex)',
+  'When invoice parameters (ECOM_*) are generated regex is used on address line 1 to extract and populate *STREET_NUMBER');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15186, 'postFinancePaymentGateway', 'PF_ITEMISED_USE_TAX_AMOUNT', null, 'Enabled itemised data tax amount',
+  'By default ITEMVATCODEX parameters are set with tax rate. When set to true ITEMVATX sent instead with tax amount');
+
 
 
 INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
@@ -164,8 +188,8 @@ VALUES (15205, 'postFinanceManualPaymentGateway', 'name_de', 'PostFinance (Manue
 
 
 INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
-VALUES (15250, 'postFinanceManualPaymentGateway', 'PF_POST_URL', 'https://e-payment.postfinance.ch/ncol/test/orderstandard.asp', 'Form action',
-'In the production (PROD) environment, the URL for the action will be https://e- payment.postfinance.ch/ncol/prod/orderstandard.asp.');
+VALUES (15250, 'postFinanceManualPaymentGateway', 'PF_POST_URL', 'https://e-payment.postfinance.ch/ncol/test/orderstandard_utf8.asp', 'Form action',
+'In the production (PROD) environment, the URL for the action will be https://e-payment.postfinance.ch/ncol/prod/orderstandard_utf8.asp.');
 
 INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
 VALUES (15251, 'postFinanceManualPaymentGateway', 'PF_RESULT_URL_HOME', 'http://@domain@/', '(Absolute) URL of your home page',
@@ -292,6 +316,30 @@ VALUES (15278, 'postFinanceManualPaymentGateway', 'LANGUAGE_MAP', 'en=en_US,de=d
 
 INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
 VALUES (15279, 'postFinanceManualPaymentGateway', 'restrictToCustomerTags', null, 'Gateway restrictions (Customer tags)', 'Gateway restrictions (Customer tags)');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15280, 'postFinanceManualPaymentGateway', 'PF_DELIVERY_AND_INVOICE_ON', null, 'Enable invoice and delivery data',
+  'Invoice and delivery information will be sent with the order (ECOM_*)');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15281, 'postFinanceManualPaymentGateway', 'PF_ITEMISED_ITEM_CAT', null, 'Enabled itemised data item category',
+  'Refer to PostFinance documentation on what values can be set (if not blank will be set for all itemised parameters)');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15282, 'postFinanceManualPaymentGateway', 'PF_ITEMISED_SHIP_CAT', null, 'Enabled itemised data shipping category',
+  'Refer to PostFinance documentation on what values can be set (if not blank will be set for all itemised parameters)');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15284, 'postFinanceManualPaymentGateway', 'PF_DELIVERY_AND_INVOICE_ADDR2_IS_NUMBER', null, 'Enable invoice and delivery data (line 2 is number)',
+  'When invoice parameters (ECOM_*) are generated address line 2 will be used as *STREET_NUMBER');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15285, 'postFinanceManualPaymentGateway', 'PF_DELIVERY_AND_INVOICE_ADDR1_NUMBER_REGEX', null, 'Enable invoice and delivery data (line 1 regex)',
+  'When invoice parameters (ECOM_*) are generated regex is used on address line 1 to extract and populate *STREET_NUMBER');
+
+INSERT INTO TPAYMENTGATEWAYPARAMETER (PAYMENTGATEWAYPARAMETER_ID, PG_LABEL, P_LABEL, P_VALUE, P_NAME, P_DESCRIPTION)
+VALUES (15286, 'postFinanceManualPaymentGateway', 'PF_ITEMISED_USE_TAX_AMOUNT', null, 'Enabled itemised data tax amount',
+  'By default ITEMVATCODEX parameters are set with tax rate. When set to true ITEMVATX sent instead with tax amount');
 
 
 

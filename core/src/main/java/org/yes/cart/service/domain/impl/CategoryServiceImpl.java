@@ -22,10 +22,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yes.cart.dao.GenericDAO;
 import org.yes.cart.domain.entity.Category;
+import org.yes.cart.domain.misc.Pair;
+import org.yes.cart.search.dao.support.ShopCategoryRelationshipSupport;
 import org.yes.cart.service.domain.CategoryService;
-import org.yes.cart.util.DomainApiUtils;
-import org.yes.cart.util.TimeContext;
 import org.yes.cart.utils.HQLUtils;
+import org.yes.cart.utils.TimeContext;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -41,14 +42,19 @@ public class CategoryServiceImpl extends BaseGenericServiceImpl<Category> implem
 
     private final GenericDAO<Category, Long> categoryDao;
 
+    private final ShopCategoryRelationshipSupport shopCategoryRelationshipSupport;
+
     /**
      * Construct service to manage categories
      *
      * @param categoryDao     category dao to use
+     * @param shopCategoryRelationshipSupport support
      */
-    public CategoryServiceImpl(final GenericDAO<Category, Long> categoryDao) {
+    public CategoryServiceImpl(final GenericDAO<Category, Long> categoryDao,
+                               final ShopCategoryRelationshipSupport shopCategoryRelationshipSupport) {
         super(categoryDao);
         this.categoryDao = categoryDao;
+        this.shopCategoryRelationshipSupport = shopCategoryRelationshipSupport;
     }
 
 
@@ -126,13 +132,8 @@ public class CategoryServiceImpl extends BaseGenericServiceImpl<Category> implem
     public boolean isCategoryHasChildren(final long categoryId) {
         final List<Long> id = getCategoryIdAndLinkId(categoryId);
         if (id != null) {
-            List<Object> count = categoryDao.findQueryObjectByNamedQuery("CATEGORY.SUBCATEGORY.COUNT", id);
-            if (count != null && count.size() == 1) {
-                int qty = ((Number) count.get(0)).intValue();
-                if (qty > 0) {
-                    return true;
-                }
-            }
+            final int qty = categoryDao.findCountByNamedQuery("CATEGORY.SUBCATEGORY.COUNT", id);
+            return qty > 0;
         }
         return false;
     }
@@ -170,7 +171,7 @@ public class CategoryServiceImpl extends BaseGenericServiceImpl<Category> implem
         if (withAvailability) {
 
             final LocalDateTime now = now();
-            cats.removeIf(cat -> !DomainApiUtils.isObjectAvailableNow(!cat.isDisabled(), cat.getAvailablefrom(), cat.getAvailableto(), now));
+            cats.removeIf(cat -> !cat.isAvailable(now));
 
         }
         return cats;
@@ -195,6 +196,21 @@ public class CategoryServiceImpl extends BaseGenericServiceImpl<Category> implem
             return all;
         }
         return Collections.emptySet();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Set<Long> getAllCategoryIds(final Collection<String> guids) {
+        List<Long> list = (List) categoryDao.findQueryObjectByNamedQuery("CATEGORY.ID.BY.GUIDs", guids);
+        final Set<Long> all = new HashSet<>();
+
+        list.forEach(branchId -> {
+            all.addAll(shopCategoryRelationshipSupport.getCatalogCategoriesIds(branchId));
+        });
+
+        return all;
     }
 
     /**
@@ -230,53 +246,75 @@ public class CategoryServiceImpl extends BaseGenericServiceImpl<Category> implem
     }
 
 
+    private Pair<String, Object[]> findCategoryQuery(final boolean count,
+                                                     final String sort,
+                                                     final boolean sortDescending,
+                                                     final Map<String, List> filter) {
+
+        final Map<String, List> currentFilter = filter != null ? new HashMap<>(filter) : null;
+
+        final StringBuilder hqlCriteria = new StringBuilder();
+        final List<Object> params = new ArrayList<>();
+
+        if (count) {
+            hqlCriteria.append("select count(c.categoryId) from CategoryEntity c ");
+        } else {
+            hqlCriteria.append("select c from CategoryEntity c ");
+        }
+
+        final List categoryIds = currentFilter != null ? currentFilter.remove("categoryIds") : null;
+        if (categoryIds != null) {
+            hqlCriteria.append(" where (c.categoryId in (?1)) ");
+            params.add(categoryIds);
+        }
+
+        HQLUtils.appendFilterCriteria(hqlCriteria, params, "c", currentFilter);
+
+
+        if (StringUtils.isNotBlank(sort)) {
+
+            hqlCriteria.append(" order by c." + sort + " " + (sortDescending ? "desc" : "asc"));
+
+        }
+
+        return new Pair<>(
+                hqlCriteria.toString(),
+                params.toArray(new Object[params.size()])
+        );
+
+    }
+
+
+
+
     /**
      * {@inheritDoc}
      */
     @Override
-    public List<Category> findBy(final String code, final String name, final String uri, final int page, final int pageSize) {
+    public List<Category> findCategories(final int start, final int offset, final String sort, final boolean sortDescending, final Map<String, List> filter) {
 
-        final String codeP = HQLUtils.criteriaIlikeAnywhere(code);
-        final String nameP = HQLUtils.criteriaIlikeAnywhere(name);
-        final String uriP = HQLUtils.criteriaIlikeAnywhere(uri);
+        final Pair<String, Object[]> query = findCategoryQuery(false, sort, sortDescending, filter);
 
-        final Category root = proxy().getRootCategory();
-        List<Category> cats;
-        if ((codeP != null || nameP != null) && uriP != null) {
-            cats = getGenericDao().findRangeByNamedQuery("CATEGORIES.BY.CODE.NAME.URI", page * pageSize, pageSize, codeP, nameP, uriP);
-        } else if (codeP == null && nameP == null && uriP != null) {
-            cats = getGenericDao().findRangeByNamedQuery("CATEGORIES.BY.URI", page * pageSize, pageSize, uriP);
-        } else {
-            cats = getGenericDao().findRangeByCriteria(null, page * pageSize, pageSize);
-        }
-
-        final Iterator<Category> catsIt = cats.iterator();
-        while (catsIt.hasNext()) {
-            Category category = catsIt.next();
-            if (category.isRoot()) {
-                catsIt.remove();
-            } else {
-                final long currentCatId = category.getCategoryId();
-                while (category.getParentId() != root.getCategoryId()) {
-                    if (category.isRoot()) {
-                        // if this is root and not category root matches then this is content
-                        catsIt.remove();
-                        break;
-                    }
-                    category = proxy().findById(category.getParentId());
-                    if (category == null) {
-                        // could have happened if import created some reassignments and we loose path to root
-                        catsIt.remove();
-                        LOG.warn("Found orphan category {}", currentCatId);
-                        break;
-                    }
-                }
-            }
-        }
-        return cats;
+        return getGenericDao().findRangeByQuery(
+                query.getFirst(),
+                start, offset,
+                query.getSecond()
+        );
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int findCategoryCount(final Map<String, List> filter) {
 
+        final Pair<String, Object[]> query = findCategoryQuery(true, null, false, filter);
+
+        return getGenericDao().findCountByQuery(
+                query.getFirst(),
+                query.getSecond()
+        );
+    }
 
     /**
      * {@inheritDoc}

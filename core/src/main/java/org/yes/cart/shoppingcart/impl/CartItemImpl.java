@@ -21,7 +21,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.yes.cart.service.order.DeliveryBucket;
 import org.yes.cart.shoppingcart.CartItem;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.MoneyUtils;
 
 import java.math.BigDecimal;
 
@@ -383,6 +383,8 @@ public class CartItemImpl implements CartItem {
     public String toString() {
         return "CartItemImpl{" +
                 "productSkuCode='" + productSkuCode + '\'' +
+                ", supplierCode='" + supplierCode + '\'' +
+                ", deliveryGroup='" + deliveryGroup + '\'' +
                 ", quantity=" + quantity +
                 ", price=" + price +
                 '}';

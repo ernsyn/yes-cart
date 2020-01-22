@@ -23,7 +23,7 @@
     <turboFilter class="org.yes.cart.utils.log.AlertTurboFilter"/>
 
     <appender name="DEFAULT" class="ch.qos.logback.classic.sift.SiftingAppender">
-        <discriminator class="org.yes.cart.util.log.ShopCodeAndLevelLogDiscriminator"/>
+        <discriminator class="org.yes.cart.utils.log.ShopCodeAndLevelLogDiscriminator"/>
         <sift>
             <appender name="DEFAULT-${shopCode}" class="ch.qos.logback.core.rolling.RollingFileAppender">
                 <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
@@ -44,7 +44,7 @@
     </appender>
 
     <appender name="SHOPPAY" class="ch.qos.logback.classic.sift.SiftingAppender">
-        <discriminator class="org.yes.cart.util.log.ShopCodeLogDiscriminator"/>
+        <discriminator class="org.yes.cart.utils.log.ShopCodeLogDiscriminator"/>
         <sift>
             <appender name="SHOPPAY-${shopCode}" class="ch.qos.logback.core.rolling.RollingFileAppender">
                 <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
@@ -145,7 +145,7 @@
     </appender>
 
     <appender name="FTQ" class="ch.qos.logback.classic.sift.SiftingAppender">
-        <discriminator class="org.yes.cart.util.log.ShopCodeLogDiscriminator"/>
+        <discriminator class="org.yes.cart.utils.log.ShopCodeLogDiscriminator"/>
         <sift>
             <appender name="FTQ-${shopCode}" class="ch.qos.logback.core.rolling.RollingFileAppender">
                 <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
@@ -190,7 +190,23 @@
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
             <maxIndex>10</maxIndex>
-            <FileNamePattern>${catalina.base}/logs/yc-ws.config.%i.zip</FileNamePattern>
+            <FileNamePattern>${catalina.base}/logs/yc-config.%i.zip</FileNamePattern>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>10MB</MaxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <appender name="SAC" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--See also http://logback.qos.ch/manual/appenders.html#RollingFileAppender-->
+        <File>${catalina.base}/logs/yc-${shopCode}-sac.log</File>
+        <Append>true</Append>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %5p %c{1}:%L - %m%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <maxIndex>10</maxIndex>
+            <FileNamePattern>${catalina.base}/logs/yc-${shopCode}-sac.%i.zip</FileNamePattern>
         </rollingPolicy>
         <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
             <MaxFileSize>10MB</MaxFileSize>
@@ -280,9 +296,16 @@
     </logger>
     -->
 
-    <logger name="FTQ" level="INFO">
+    <logger name="org.yes.cart.web.support.request.impl.ServletRequestSecurityAccessControlServiceImpl" level="DEBUG">
+        <!-- DETAILED logs at DEBUG level -->
+        <!--<appender-ref ref="SAC"/>-->
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <logger name="FTQ" level="DEBUG">
         <!-- FTQ logs at DEBUG level, TRACE logs FTQ explanations -->
-        <appender-ref ref="FTQ"/>
+        <!--<appender-ref ref="FTQ"/>-->
+        <appender-ref ref="CONSOLE"/>
     </logger>
 
     <logger name="WS.IN" level="ERROR">

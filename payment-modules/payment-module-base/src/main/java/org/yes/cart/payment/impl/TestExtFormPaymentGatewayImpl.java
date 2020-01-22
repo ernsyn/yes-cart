@@ -31,7 +31,7 @@ import org.yes.cart.payment.dto.impl.BasicCallbackInfoImpl;
 import org.yes.cart.payment.dto.impl.PaymentGatewayFeatureImpl;
 import org.yes.cart.payment.dto.impl.PaymentImpl;
 import org.yes.cart.payment.persistence.entity.PaymentGatewayParameter;
-import org.yes.cart.util.HttpParamsUtils;
+import org.yes.cart.utils.HttpParamsUtils;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -73,14 +73,6 @@ public class TestExtFormPaymentGatewayImpl extends AbstractPaymentGatewayImpl
      */
     public static Map<String, PaymentGatewayParameter> getGatewayConfig() {
         return gatewayConfig;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getLabel() {
-        return "testExtFormPaymentGateway";
     }
 
     /**
@@ -152,14 +144,19 @@ public class TestExtFormPaymentGatewayImpl extends AbstractPaymentGatewayImpl
             responseCode = callbackResult.get(REFUND_RESPONSE_CODE_PARAM_KEY);
         }
         if ("1".equals(responseCode)) {
+            LOG.debug("Payment result is {}: {}", responseCode, CallbackAware.CallbackResult.OK);
             return CallbackAware.CallbackResult.OK;
         } else if ("2".equals(responseCode)) {
+            LOG.debug("Payment result is {}: {}", responseCode, CallbackAware.CallbackResult.UNSETTLED);
             return CallbackAware.CallbackResult.UNSETTLED;
         } else if ("3".equals(responseCode)) {
+            LOG.debug("Payment result is {}: {}", responseCode, CallbackAware.CallbackResult.PROCESSING);
             return CallbackAware.CallbackResult.PROCESSING;
         } else if ("4".equals(responseCode)) {
+            LOG.debug("Payment result is {}: {}", responseCode, CallbackAware.CallbackResult.MANUAL_REQUIRED);
             return CallbackAware.CallbackResult.MANUAL_REQUIRED;
         } else {
+            LOG.debug("Payment result is {}: {}", responseCode, CallbackAware.CallbackResult.FAILED);
             return CallbackAware.CallbackResult.FAILED;
         }
 

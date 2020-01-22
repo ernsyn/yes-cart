@@ -1,5 +1,22 @@
+/*
+ * Copyright 2009 - 2016 Denys Pavlov, Igor Azarnyi
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
 package org.yes.cart.service.vo.impl;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
@@ -7,10 +24,9 @@ import org.yes.cart.domain.dto.ProdTypeAttributeViewGroupDTO;
 import org.yes.cart.domain.dto.ProductTypeAttrDTO;
 import org.yes.cart.domain.dto.ProductTypeDTO;
 import org.yes.cart.domain.misc.MutablePair;
-import org.yes.cart.domain.vo.VoProductType;
-import org.yes.cart.domain.vo.VoProductTypeAttr;
-import org.yes.cart.domain.vo.VoProductTypeInfo;
-import org.yes.cart.domain.vo.VoProductTypeViewGroup;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
+import org.yes.cart.domain.vo.*;
 import org.yes.cart.service.dto.DtoAttributeService;
 import org.yes.cart.service.dto.DtoProdTypeAttributeViewGroupService;
 import org.yes.cart.service.dto.DtoProductTypeAttrService;
@@ -56,23 +72,39 @@ public class VoProductTypeServiceImpl implements VoProductTypeService {
      * {@inheritDoc}
      */
     @Override
-    public List<VoProductTypeInfo> getFiltered(final String filter, final int max) throws Exception {
+    public VoSearchResult<VoProductTypeInfo> getFilteredTypes(final VoSearchContext filter) throws Exception {
 
+        final VoSearchResult<VoProductTypeInfo> result = new VoSearchResult<>();
         final List<VoProductTypeInfo> results = new ArrayList<>();
+        result.setSearchContext(filter);
+        result.setItems(results);
 
-        final List<ProductTypeDTO> batch = dtoProductTypeService.findBy(filter, 0, max);
-        if (!batch.isEmpty()) {
-            results.addAll(voAssemblySupport.assembleVos(VoProductTypeInfo.class, ProductTypeDTO.class, batch));
+        final SearchContext searchContext = new SearchContext(
+                filter.getParameters(),
+                filter.getStart(),
+                filter.getSize(),
+                filter.getSortBy(),
+                filter.isSortDesc(),
+                "filter"
+        );
+
+
+        final SearchResult<ProductTypeDTO> batch = dtoProductTypeService.findProductTypes(searchContext);
+        if (!batch.getItems().isEmpty()) {
+            results.addAll(voAssemblySupport.assembleVos(VoProductTypeInfo.class, ProductTypeDTO.class, batch.getItems()));
         }
 
-        return results;
+        result.setTotal(batch.getTotal());
+
+        return result;
+
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public VoProductType getById(final long id) throws Exception {
+    public VoProductType getTypeById(final long id) throws Exception {
         final ProductTypeDTO typeDTO = dtoProductTypeService.getById(id);
         if (typeDTO != null /* && federationFacade.isCurrentUserSystemAdmin() */) {
             final VoProductType type = voAssemblySupport.assembleVo(VoProductType.class, ProductTypeDTO.class, new VoProductType(), typeDTO);
@@ -89,7 +121,7 @@ public class VoProductTypeServiceImpl implements VoProductTypeService {
      * {@inheritDoc}
      */
     @Override
-    public VoProductType update(final VoProductType vo) throws Exception {
+    public VoProductType updateType(final VoProductType vo) throws Exception {
         final ProductTypeDTO typeDTO = dtoProductTypeService.getById(vo.getProducttypeId());
         if (typeDTO != null && federationFacade.isCurrentUserSystemAdmin()) {
             dtoProductTypeService.update(
@@ -105,6 +137,7 @@ public class VoProductTypeServiceImpl implements VoProductTypeService {
             if (vo.getViewGroups() != null) {
                 for (final VoProductTypeViewGroup voGroup : vo.getViewGroups()) {
                     final ProdTypeAttributeViewGroupDTO dtoToUpdate = existing.get(voGroup.getProdTypeAttributeViewGroupId());
+                    voGroup.setProducttypeId(vo.getProducttypeId()); // ensure we do not change the product type
                     if (dtoToUpdate != null) {
                         // update mode
                         existing.remove(dtoToUpdate.getProdTypeAttributeViewGroupId());
@@ -117,7 +150,6 @@ public class VoProductTypeServiceImpl implements VoProductTypeService {
                         // insert mode
 
                         final ProdTypeAttributeViewGroupDTO newGroup = dtoProdTypeAttributeViewGroupService.getNew();
-                        newGroup.setProducttypeId(vo.getProducttypeId());
 
                         dtoProdTypeAttributeViewGroupService.create(
                                 voAssemblySupport.assembleDto(ProdTypeAttributeViewGroupDTO.class, VoProductTypeViewGroup.class, newGroup, voGroup)
@@ -133,20 +165,20 @@ public class VoProductTypeServiceImpl implements VoProductTypeService {
         } else {
             throw new AccessDeniedException("Access is denied");
         }
-        return getById(vo.getProducttypeId());
+        return getTypeById(vo.getProducttypeId());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public VoProductType create(final VoProductTypeInfo vo) throws Exception {
+    public VoProductType createType(final VoProductTypeInfo vo) throws Exception {
         if (federationFacade.isCurrentUserSystemAdmin()) {
             ProductTypeDTO typeDTO = dtoProductTypeService.getNew();
             typeDTO = dtoProductTypeService.create(
                     voAssemblySupport.assembleDto(ProductTypeDTO.class, VoProductTypeInfo.class, typeDTO, vo)
             );
-            return getById(typeDTO.getProducttypeId());
+            return getTypeById(typeDTO.getProducttypeId());
         } else {
             throw new AccessDeniedException("Access is denied");
         }
@@ -156,8 +188,14 @@ public class VoProductTypeServiceImpl implements VoProductTypeService {
      * {@inheritDoc}
      */
     @Override
-    public void remove(final long id) throws Exception {
+    public void removeType(final long id) throws Exception {
         if (federationFacade.isCurrentUserSystemAdmin()) {
+            final List<ProdTypeAttributeViewGroupDTO> groups = dtoProdTypeAttributeViewGroupService.getByProductTypeId(id);
+            if (CollectionUtils.isNotEmpty(groups)) {
+                for (final ProdTypeAttributeViewGroupDTO group : groups) {
+                    dtoProdTypeAttributeViewGroupService.remove(group.getProdTypeAttributeViewGroupId());
+                }
+            }
             dtoProductTypeService.remove(id);
         } else {
             throw new AccessDeniedException("Access is denied");
@@ -182,7 +220,7 @@ public class VoProductTypeServiceImpl implements VoProductTypeService {
      * {@inheritDoc}
      */
     @Override
-    public List<VoProductTypeAttr> update(final List<MutablePair<VoProductTypeAttr, Boolean>> vo) throws Exception {
+    public List<VoProductTypeAttr> updateTypeAttributes(final List<MutablePair<VoProductTypeAttr, Boolean>> vo) throws Exception {
 
         long typeId = 0L;
         if (federationFacade.isCurrentUserSystemAdmin()) {

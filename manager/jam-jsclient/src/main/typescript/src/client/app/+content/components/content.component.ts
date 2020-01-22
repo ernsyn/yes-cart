@@ -25,6 +25,8 @@ import { ContentMinSelectComponent } from './../../shared/content/index';
 import { AttributeValuesComponent } from './../../shared/attributes/index';
 import { LogUtil } from './../../shared/log/index';
 import { LRUCache } from './../../shared/model/internal/cache.model';
+import { Config } from './../../shared/config/env.config';
+
 
 @Component({
   selector: 'yc-content',
@@ -54,11 +56,9 @@ export class ContentComponent implements OnInit, OnDestroy {
 
   private selectedRow:AttrValueContentVO;
 
-  private initialising:boolean = false; // tslint:disable-line:no-unused-variable
   private delayedChange:Future;
 
   private contentForm:any;
-  private contentFormSub:any; // tslint:disable-line:no-unused-variable
 
   private winSub:any;
 
@@ -120,8 +120,8 @@ export class ContentComponent implements OnInit, OnDestroy {
       'rank': ['', YcValidators.requiredRank],
       'uitemplate': ['', YcValidators.nonBlankTrimmed],
       'disabled': [''],
-      'availablefrom': ['', YcValidators.validDate],
-      'availableto': ['', YcValidators.validDate],
+      'availablefrom': [''],
+      'availableto': [''],
       'uri': ['', validUri],
       'name': [''],
       'title': [''],
@@ -162,12 +162,12 @@ export class ContentComponent implements OnInit, OnDestroy {
   }
 
   formBind():void {
-    UiUtil.formBind(this, 'contentForm', 'contentFormSub', 'delayedChange', 'initialising');
+    UiUtil.formBind(this, 'contentForm', 'delayedChange');
   }
 
 
   formUnbind():void {
-    UiUtil.formUnbind(this, 'contentFormSub');
+    UiUtil.formUnbind(this, 'contentForm');
   }
 
   formChange():void {
@@ -188,7 +188,7 @@ export class ContentComponent implements OnInit, OnDestroy {
   @Input()
   set content(content:ContentWithBodyVO) {
 
-    UiUtil.formInitialise(this, 'initialising', 'contentForm', '_content', content);
+    UiUtil.formInitialise(this, 'contentForm', '_content', content);
     this._changes = [];
     this.visibleContentBodies = this.content != null ? this.getVisibleContentBodies(this.content.contentBodies) : [];
 
@@ -198,20 +198,18 @@ export class ContentComponent implements OnInit, OnDestroy {
     return this._content;
   }
 
-  get availableto():string {
-    return UiUtil.dateInputGetterProxy(this._content, 'availableto');
+  onAvailableFrom(event:FormValidationEvent<any>) {
+    if (event.valid) {
+      this.content.availablefrom = event.source;
+    }
+    UiUtil.formDataChange(this, 'contentForm', 'availablefrom', event);
   }
 
-  set availableto(availableto:string) {
-    UiUtil.dateInputSetterProxy(this._content, 'availableto', availableto);
-  }
-
-  get availablefrom():string {
-    return UiUtil.dateInputGetterProxy(this._content, 'availablefrom');
-  }
-
-  set availablefrom(availablefrom:string) {
-    UiUtil.dateInputSetterProxy(this._content, 'availablefrom', availablefrom);
+  onAvailableTo(event:FormValidationEvent<any>) {
+    if (event.valid) {
+      this.content.availableto = event.source;
+    }
+    UiUtil.formDataChange(this, 'contentForm', 'availableto', event);
   }
 
   onNameDataChange(event:FormValidationEvent<any>) {
@@ -310,7 +308,7 @@ export class ContentComponent implements OnInit, OnDestroy {
     };
 
     let id = 'cms' + Math.random();
-    let myWindow = window.open('/yes-manager/resources/assets/editor/tinymce/editor.html?lang=' + body.lang + '&id=' + id, 'CMS', 'width=1024,height=660');
+    let myWindow = window.open(Config.CONTEXT_PATH + '/client/assets/editor/tinymce/editor.html?lang=' + body.lang + '&id=' + id, 'CMS', 'width=1024,height=660');
 
     LogUtil.debug('ContentComponent onCMSEdit', msg);
 
@@ -409,7 +407,7 @@ export class ContentComponent implements OnInit, OnDestroy {
       // replace relative urls
       _preview = _preview.replace(/href=(['"])(?!http:\/\/)(?!https:\/\/)(?!\/\/)\/{0,1}([^'"]*)\1/gi, 'href=$1' + _previewBase + '$2$1  data-preview-url="rel" target="_blank"');
 
-      LogUtil.debug('ContentComponent getCMSPreview ', _preview);
+      // LogUtil.debug('ContentComponent getCMSPreview ', _preview);
 
       return _preview;
 

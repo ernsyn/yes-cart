@@ -27,8 +27,8 @@ import org.apache.wicket.markup.html.list.ListItem;
 import org.apache.wicket.markup.html.list.ListView;
 import org.apache.wicket.markup.html.panel.Fragment;
 import org.apache.wicket.markup.repeater.RepeatingView;
-import org.apache.wicket.model.AbstractReadOnlyModel;
 import org.apache.wicket.model.CompoundPropertyModel;
+import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.Model;
 import org.apache.wicket.model.PropertyModel;
 import org.apache.wicket.request.component.IRequestablePage;
@@ -38,7 +38,7 @@ import org.yes.cart.domain.entity.*;
 import org.yes.cart.domain.i18n.I18NModel;
 import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.service.order.impl.CustomerTypeAdapter;
-import org.yes.cart.util.ShopCodeContext;
+import org.yes.cart.utils.ShopCodeContext;
 import org.yes.cart.web.page.AbstractWebPage;
 import org.yes.cart.web.page.CheckoutPage;
 import org.yes.cart.web.page.component.BaseComponent;
@@ -125,24 +125,16 @@ public class RegisterPanel extends BaseComponent {
 
         final Component typeSelector = new RadioGroup<String>(
                 CUSTOMER_TYPE_RADIO_GROUP,
-                new PropertyModel<>(RegisterPanel.this, "customerType")) {
+                new PropertyModel<>(RegisterPanel.this, "customerType")) {{
+                    add(new FormComponentUpdatingBehavior() {
+                        @Override
+                        protected void onUpdate() {
+                            // Change the form
+                            RegisterPanel.this.get(REGISTER_FORM).replaceWith(new RegisterForm(REGISTER_FORM, customerType, target.getFirst(), target.getSecond()));
+                        }
+                    });
 
-            /**
-             * {@inheritDoc}
-             */
-            @Override
-            protected void onSelectionChanged(final String descriptor) {
-                // Change the form
-                RegisterPanel.this.get(REGISTER_FORM).replaceWith(new RegisterForm(REGISTER_FORM, customerType, target.getFirst(), target.getSecond()));
-            }
-
-
-            @Override
-            protected boolean wantOnSelectionChangedNotifications() {
-                return true;
-            }
-
-        }.add(
+        }}.add(
                 new ListView<Pair<String, I18NModel>>("customerTypeList", availableTypes) {
                     @Override
                     protected void populateItem(final ListItem<Pair<String, I18NModel>> customerTypeItem) {
@@ -288,7 +280,7 @@ public class RegisterPanel extends BaseComponent {
                  stateDropDownChoice = new DropDownChoice<>(
                         STATE,
                         new StateModel(new PropertyModel(countryAndState.get("stateCode"), "val"), stateList),
-                        stateList).setChoiceRenderer(new StateRenderer());
+                        stateList).setChoiceRenderer(new StateRenderer(getLocale().getLanguage()));
                 final boolean needState = !stateList.isEmpty();
                 stateDropDownChoice.setRequired(needState);
                 stateDropDownChoice.setVisible(needState);
@@ -301,12 +293,12 @@ public class RegisterPanel extends BaseComponent {
                 countryDropDownChoice = new DropDownChoice<Country>(
                         COUNTRY,
                         new CountryModel(new PropertyModel(countryAndState.get("countryCode"), "val"), countryList),
-                        countryList) {
-
+                        countryList);
+                countryDropDownChoice.add(new FormComponentUpdatingBehavior() {
                     @Override
-                    protected void onSelectionChanged(final Country country) {
-                        super.onSelectionChanged(country);
-                        stateDropDownChoice.setChoices(addressBookFacade.getStatesByCountry(country.getCountryCode()));
+                    protected void onUpdate() {
+                        final String countryCode = countryAndState.get("countryCode").getVal();
+                        stateDropDownChoice.setChoices(addressBookFacade.getStatesByCountry(countryCode));
                         final boolean needState = !stateDropDownChoice.getChoices().isEmpty();
                         stateDropDownChoice.setRequired(needState);
                         stateDropDownChoice.setVisible(needState);
@@ -314,13 +306,8 @@ public class RegisterPanel extends BaseComponent {
                             countryAndState.get("stateCode").setVal(StringUtils.EMPTY);
                         }
                     }
-
-                    @Override
-                    protected boolean wantOnSelectionChangedNotifications() {
-                        return true;
-                    }
-
-                }.setChoiceRenderer(new CountryRenderer());
+                });
+                countryDropDownChoice.setChoiceRenderer(new CountryRenderer(getLocale().getLanguage()));
                 countryDropDownChoice.setRequired(true);
             } else {
                 countryDropDownChoice = null;
@@ -461,7 +448,7 @@ public class RegisterPanel extends BaseComponent {
                 attrValue.getAttribute().getDisplayName(),
                 attrValue.getAttribute().getName());
 
-        return new Label(NAME, new AbstractReadOnlyModel<String>() {
+        return new Label(NAME, new IModel<String>() {
 
             private final I18NModel m = model;
 

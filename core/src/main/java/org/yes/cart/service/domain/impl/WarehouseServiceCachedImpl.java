@@ -26,6 +26,7 @@ import org.yes.cart.service.domain.WarehouseService;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * User: denispavlov
@@ -38,6 +39,12 @@ public class WarehouseServiceCachedImpl implements WarehouseService {
 
     public WarehouseServiceCachedImpl(final WarehouseService warehouseService) {
         this.warehouseService = warehouseService;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public List<Warehouse> findByShopId(final long shopId, final boolean includeDisabled) {
+        return warehouseService.findByShopId(shopId, includeDisabled);
     }
 
     /** {@inheritDoc} */
@@ -74,7 +81,6 @@ public class WarehouseServiceCachedImpl implements WarehouseService {
             "shopService-shopWarehouses",
             "shopService-shopWarehousesMap",
             "shopService-shopWarehousesIds",
-            "skuWarehouseService-productOnWarehouse",
             "skuWarehouseService-productSkusOnWarehouse"
     }, allEntries = true)
     public void assignWarehouse(final long warehouseId, final long shopId, final boolean soft) {
@@ -88,11 +94,22 @@ public class WarehouseServiceCachedImpl implements WarehouseService {
             "shopService-shopWarehouses",
             "shopService-shopWarehousesMap",
             "shopService-shopWarehousesIds",
-            "skuWarehouseService-productOnWarehouse",
             "skuWarehouseService-productSkusOnWarehouse"
     }, allEntries = true)
     public void unassignWarehouse(final long warehouseId, final long shopId, final boolean soft) {
         warehouseService.unassignWarehouse(warehouseId, shopId, soft);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public List<Warehouse> findWarehouses(final int start, final int offset, final String sort, final boolean sortDescending, final Set<Long> shops, final Map<String, List> filter) {
+        return warehouseService.findWarehouses(start, offset, sort, sortDescending, shops, filter);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public int findWarehouseCount(final Set<Long> shops, final Map<String, List> filter) {
+        return warehouseService.findWarehouseCount(shops, filter);
     }
 
     /** {@inheritDoc} */
@@ -129,7 +146,6 @@ public class WarehouseServiceCachedImpl implements WarehouseService {
             "shopService-shopWarehouses",
             "shopService-shopWarehousesMap",
             "shopService-shopWarehousesIds",
-            "skuWarehouseService-productOnWarehouse",
             "skuWarehouseService-productSkusOnWarehouse"
     }, allEntries = true)
     public Warehouse create(final Warehouse instance) {
@@ -142,7 +158,6 @@ public class WarehouseServiceCachedImpl implements WarehouseService {
             "shopService-shopWarehouses",
             "shopService-shopWarehousesMap",
             "shopService-shopWarehousesIds",
-            "skuWarehouseService-productOnWarehouse",
             "skuWarehouseService-productSkusOnWarehouse"
     }, allEntries = true)
     public Warehouse update(final Warehouse instance) {
@@ -155,7 +170,6 @@ public class WarehouseServiceCachedImpl implements WarehouseService {
             "shopService-shopWarehouses",
             "shopService-shopWarehousesMap",
             "shopService-shopWarehousesIds",
-            "skuWarehouseService-productOnWarehouse",
             "skuWarehouseService-productSkusOnWarehouse"
     }, allEntries = true)
     public void delete(final Warehouse instance) {

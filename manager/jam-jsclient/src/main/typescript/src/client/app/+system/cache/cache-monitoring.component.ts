@@ -15,7 +15,7 @@
  */
 import { Component, OnInit } from '@angular/core';
 import { CacheInfoVO } from './../../shared/model/index';
-import { SystemService, Util } from './../../shared/services/index';
+import { SystemService, UserEventBus, Util } from './../../shared/services/index';
 import { Futures, Future } from './../../shared/event/index';
 import { Config } from './../../shared/config/env.config';
 import { LogUtil } from './../../shared/log/index';
@@ -113,14 +113,14 @@ export class CacheMonitoringComponent implements OnInit {
     if (this.selectedRow != null) {
 
       let cache = this.selectedRow.cacheName;
-      let stats = !this.selectedRow.stats;
+      let enabled = this.selectedRow.disabled;
 
-      LogUtil.debug('CacheMonitoringComponent stats set: ' + stats, this.selectedRow);
+      LogUtil.debug('CacheMonitoringComponent flag set: ' + enabled, this.selectedRow);
 
       this.loading = true;
-      let _sub:any = this._systemService.saveCacheStatsFlag(cache, stats).subscribe(caches => {
+      let _sub:any = this._systemService.saveCacheFlag(cache, enabled).subscribe(caches => {
 
-        LogUtil.debug('CacheMonitoringComponent saveCacheStatsFlag', caches);
+        LogUtil.debug('CacheMonitoringComponent saveCacheFlag', caches);
         this.caches = caches;
         this.selectedRow = null;
         this.filterCaches();
@@ -153,7 +153,9 @@ export class CacheMonitoringComponent implements OnInit {
 
   protected onRefreshHandler() {
     LogUtil.debug('CacheMonitoringComponent refresh handler');
-    this.getCacheInfo();
+    if (UserEventBus.getUserEventBus().current() != null) {
+      this.getCacheInfo();
+    }
   }
 
   protected onFilterChange() {
@@ -189,7 +191,7 @@ export class CacheMonitoringComponent implements OnInit {
   }
 
   protected getHitsAndMissed(row:CacheInfoVO):string {
-    if (row.stats) {
+    if (!row.disabled) {
       if (row.hits <= 0) {
         return '0/' + row.misses;
       }
@@ -199,12 +201,12 @@ export class CacheMonitoringComponent implements OnInit {
   }
 
   protected getMemSize(row:CacheInfoVO):string {
-    return row.inMemorySize + (row.stats ? this.getHumanReadableSize(row.calculateInMemorySize) : '');
+    return row.inMemorySize + (row.disabled ? '' : this.getHumanReadableSize(row.calculateInMemorySize));
   }
 
   protected getDiskSize(row:CacheInfoVO):string {
     if (row.diskStoreSize > 0 || row.overflowToDisk) {
-      return row.diskStoreSize + (row.stats ? this.getHumanReadableSize(row.calculateOnDiskSize) : '');
+      return row.diskStoreSize + (row.disabled ? '' : this.getHumanReadableSize(row.calculateOnDiskSize));
     }
     return '';
   }
@@ -272,6 +274,12 @@ export class CacheMonitoringComponent implements OnInit {
     this.filterCaches();
   }
 
+  protected onHeavySelected() {
+    this.cacheFilter = '$10';
+    this.searchHelpShow = false;
+    this.filterCaches();
+  }
+
 
   private getCacheInfo() {
     LogUtil.debug('CacheMonitoringComponent get caches');
@@ -323,6 +331,15 @@ export class CacheMonitoringComponent implements OnInit {
         }
 
         this.filteredCaches = this.caches.sort((n1,n2) => (n2.cacheSize / n2.inMemorySizeMax) - (n1.cacheSize / n1.inMemorySizeMax)).slice(0, _hot);
+
+      } else if (_filter.indexOf('$') == 0) {
+
+        let _heavy = parseInt(_filter.substr(1));
+        if (isNaN(_heavy)) {
+          _heavy = 5;
+        }
+
+        this.filteredCaches = this.caches.sort((n1,n2) => (n2.calculateInMemorySize - n1.calculateInMemorySize)).slice(0, _heavy);
 
       } else {
         this.filteredCaches = this.caches.filter(cache =>

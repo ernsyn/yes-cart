@@ -45,7 +45,7 @@ public abstract class AbstractWsNodeServiceImpl implements NodeService, ServletC
     protected Logger log;
 
     private final Map<String, String> configuration = new HashMap<>();
-    private Node node = new NodeImpl(true, "-", null, "DEFAULT", "YCCLUSTER", "N/A", "", true);
+    private Node node = new NodeImpl(true, "ND0", null, "DEFAULT", "CL0", "N/A", "", true);
     private final List<Node> cluster = new CopyOnWriteArrayList<>();
     private final List<Node> blacklisted = new CopyOnWriteArrayList<>();
 
@@ -80,28 +80,28 @@ public abstract class AbstractWsNodeServiceImpl implements NodeService, ServletC
                 systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.IMPORT_JOB_TIMEOUT_MS, "60000")
         );
         all.put(
-                AttributeNamesKeys.System.SYSTEM_BACKDOOR_TIMEOUT_MS,
-                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_BACKDOOR_TIMEOUT_MS, "60000")
+                AttributeNamesKeys.System.SYSTEM_CONNECTOR_TIMEOUT_MS,
+                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_CONNECTOR_TIMEOUT_MS, "60000")
         );
         all.put(
-                AttributeNamesKeys.System.SYSTEM_BACKDOOR_PRODUCT_BULK_INDEX_TIMEOUT_MS,
-                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_BACKDOOR_PRODUCT_BULK_INDEX_TIMEOUT_MS, "60000")
+                AttributeNamesKeys.System.SYSTEM_CONNECTOR_PRODUCT_BULK_INDEX_TIMEOUT_MS,
+                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_CONNECTOR_PRODUCT_BULK_INDEX_TIMEOUT_MS, "60000")
         );
         all.put(
-                AttributeNamesKeys.System.SYSTEM_BACKDOOR_PRODUCT_SINGLE_INDEX_TIMEOUT_MS,
-                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_BACKDOOR_PRODUCT_SINGLE_INDEX_TIMEOUT_MS, "60000")
+                AttributeNamesKeys.System.SYSTEM_CONNECTOR_PRODUCT_SINGLE_INDEX_TIMEOUT_MS,
+                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_CONNECTOR_PRODUCT_SINGLE_INDEX_TIMEOUT_MS, "60000")
         );
         all.put(
-                AttributeNamesKeys.System.SYSTEM_BACKDOOR_SQL_TIMEOUT_MS,
-                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_BACKDOOR_SQL_TIMEOUT_MS, "60000")
+                AttributeNamesKeys.System.SYSTEM_CONNECTOR_QUERY_TIMEOUT_MS,
+                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_CONNECTOR_QUERY_TIMEOUT_MS, "60000")
         );
         all.put(
-                AttributeNamesKeys.System.SYSTEM_BACKDOOR_CACHE_TIMEOUT_MS,
-                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_BACKDOOR_CACHE_TIMEOUT_MS, "60000")
+                AttributeNamesKeys.System.SYSTEM_CONNECTOR_CACHE_TIMEOUT_MS,
+                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_CONNECTOR_CACHE_TIMEOUT_MS, "60000")
         );
         all.put(
-                AttributeNamesKeys.System.SYSTEM_BACKDOOR_IMAGE_TIMEOUT_MS,
-                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_BACKDOOR_IMAGE_TIMEOUT_MS, "60000")
+                AttributeNamesKeys.System.SYSTEM_CONNECTOR_IMAGE_TIMEOUT_MS,
+                systemService.getAttributeValueOrDefault(AttributeNamesKeys.System.SYSTEM_CONNECTOR_IMAGE_TIMEOUT_MS, "60000")
         );
         return all;
     }
@@ -286,7 +286,7 @@ public abstract class AbstractWsNodeServiceImpl implements NodeService, ServletC
                 configuration.get(BUILD_NO),
                 Boolean.valueOf(luceneDisabledValue)
         );
-        node.setChannel(configuration.get(CHANNEL_URI));
+        node.setChannel(configuration.get(CHANNEL));
         this.node = node;
         this.cluster.add(node);
 
@@ -294,7 +294,7 @@ public abstract class AbstractWsNodeServiceImpl implements NodeService, ServletC
 
         if (log.isInfoEnabled()) {
 
-            log.info("== WS statistics ==============================================");
+            log.info("== WS configurations ===========================================");
             log.info("");
             log.info("Node: {}", node);
 

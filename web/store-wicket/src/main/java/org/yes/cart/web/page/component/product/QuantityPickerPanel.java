@@ -46,11 +46,13 @@ public class QuantityPickerPanel extends BaseComponent {
 
     private final Long productId;
     private final String sku;
+    private final String supplier;
 
-    public QuantityPickerPanel(final String id, final Long productId, final String sku) {
+    public QuantityPickerPanel(final String id, final Long productId, final String sku, final String supplier) {
         super(id);
         this.productId = productId;
         this.sku = sku;
+        this.supplier = supplier;
     }
 
     @Override
@@ -58,11 +60,16 @@ public class QuantityPickerPanel extends BaseComponent {
 
         final ShoppingCart cart = getCurrentCart();
         final Product product = productServiceFacade.getProductById(productId);
-        final BigDecimal cartQty = cart.getProductSkuQuantity(sku);
-        final QuantityModel pqm = productServiceFacade.getProductQuantity(cartQty, product);
+        final BigDecimal cartQty = cart.getProductSkuQuantity(supplier, sku);
+        final QuantityModel pqm = productServiceFacade.getProductQuantity(
+                cartQty,
+                product,
+                cart.getShoppingContext().getCustomerShopId(),
+                supplier
+        );
 
         final String message;
-        if (!pqm.canOrderMore()) {
+        if (!pqm.isCanOrderMore()) {
 
             final Map<String, Object> params = new HashMap<>();
             params.put("cart", pqm.getCartQty().toPlainString());
@@ -70,7 +77,7 @@ public class QuantityPickerPanel extends BaseComponent {
             message = getLocalizer().getString("quantityPickerFullTooltip", this,
                     new Model<Serializable>(new ValueMap(params)));
 
-        } else if (pqm.hasMax()) {
+        } else if (pqm.isHasMax()) {
 
             final Map<String, Object> params = new HashMap<>();
             params.put("min", pqm.getMin().toPlainString());

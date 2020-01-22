@@ -16,8 +16,7 @@
 
 package org.yes.cart.service.vo;
 
-import org.yes.cart.domain.vo.VoCountry;
-import org.yes.cart.domain.vo.VoState;
+import org.yes.cart.domain.vo.*;
 
 import java.util.List;
 
@@ -31,24 +30,31 @@ public interface VoLocationService {
 
     /**
      * Get all vo in the system, filtered according to rights
+     *
      * @return all countries
+     *
      * @throws Exception errors
      */
-    List<VoCountry> getAllCountries() throws Exception;
+    VoSearchResult<VoCountryInfo> getFilteredCountries(VoSearchContext filter) throws Exception;
 
     /**
      * Get vo by id.
      *
      * @param id country id
+     *
      * @return vo
+     *
      * @throws Exception errors
      */
     VoCountry getCountryById(long id) throws Exception;
 
     /**
      * Create new vo
+     *
      * @param vo vo
+     *
      * @return persistent version
+     *
      * @throws Exception errors
      */
     VoCountry createCountry(VoCountry vo)  throws Exception;
@@ -56,8 +62,11 @@ public interface VoLocationService {
 
     /**
      * Update vo
+     *
      * @param vo vo
+     *
      * @return persistent version
+     *
      * @throws Exception errors
      */
     VoCountry updateCountry(VoCountry vo)  throws Exception;
@@ -67,6 +76,7 @@ public interface VoLocationService {
      * Remove vo.
      *
      * @param id country id
+     *
      * @throws Exception errors
      */
     void removeCountry(long id) throws Exception;
@@ -74,25 +84,43 @@ public interface VoLocationService {
 
     /**
      * Get all vo in the system, filtered according to rights
+     *
      * @param id country id
+     *
      * @return all states by country id
+     *
      * @throws Exception errors
      */
-    List<VoState> getAllStates(long id) throws Exception;
+    List<VoState> getCountryStatesAll(long id) throws Exception;
+
+
+    /**
+     * Get all vo in the system, filtered according to rights
+     *
+     * @return all countries states
+     *
+     * @throws Exception errors
+     */
+    VoSearchResult<VoState> getFilteredStates(VoSearchContext filter) throws Exception;
 
     /**
      * Get vo by id.
      *
      * @param id state id
+     *
      * @return vo
+     *
      * @throws Exception errors
      */
     VoState getStateById(long id) throws Exception;
 
     /**
      * Create new vo
+     *
      * @param vo vo
+     *
      * @return persistent version
+     *
      * @throws Exception errors
      */
     VoState createState(VoState vo)  throws Exception;
@@ -100,8 +128,11 @@ public interface VoLocationService {
 
     /**
      * Update vo
+     *
      * @param vo vo
+     *
      * @return persistent version
+     *
      * @throws Exception errors
      */
     VoState updateState(VoState vo)  throws Exception;
@@ -111,6 +142,7 @@ public interface VoLocationService {
      * Remove vo.
      *
      * @param id state id
+     *
      * @throws Exception errors
      */
     void removeState(long id) throws Exception;

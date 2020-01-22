@@ -21,7 +21,7 @@ import org.yes.cart.domain.entity.Product;
 import org.yes.cart.domain.entity.Shop;
 import org.yes.cart.domain.entity.ShopTopSeller;
 import org.yes.cart.service.domain.ShopTopSellerService;
-import org.yes.cart.util.TimeContext;
+import org.yes.cart.utils.TimeContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -71,7 +71,7 @@ public class ShopTopSellerServiceImpl extends BaseGenericServiceImpl<ShopTopSell
                 final String skuCode = (String) tuple[0];
                 final BigDecimal qty = (BigDecimal) tuple[1];
 
-                final Product product = productDao.findSingleByNamedQueryCached("PRODUCT.BY.SKU.CODE", skuCode);
+                final Product product = productDao.findSingleByNamedQuery("PRODUCT.BY.SKU.CODE", skuCode);
                 if (product != null) {
                     topSellersProducts.put(product.getProductId(), product);
 

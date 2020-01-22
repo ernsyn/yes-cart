@@ -22,7 +22,6 @@ import org.yes.cart.dao.GenericDAO;
 import org.yes.cart.dao.ResultsIteratorCallback;
 import org.yes.cart.domain.dto.ProductSearchResultNavDTO;
 import org.yes.cart.domain.dto.ProductSearchResultPageDTO;
-import org.yes.cart.domain.entity.Category;
 import org.yes.cart.domain.entity.Product;
 import org.yes.cart.domain.entity.ProductSku;
 import org.yes.cart.domain.misc.Pair;
@@ -31,7 +30,6 @@ import org.yes.cart.search.dto.FilteredNavigationRecordRequest;
 import org.yes.cart.search.dto.NavigationContext;
 import org.yes.cart.service.domain.ProductService;
 
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -73,24 +71,6 @@ public class ProductServiceCachedImpl implements ProductService {
     @Cacheable(value = "productService-defaultImage")
     public String getDefaultImage(final Long productId) {
         return productService.getDefaultImage(productId);
-    }
-
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public List<Product> findProductByCategory(final long categoryId) {
-        return productService.findProductByCategory(categoryId);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    @Cacheable(value = "productService-randomProductByCategory"/*, key = "category.getCategoryId()"*/)
-    public Product getRandomProductByCategory(final Category category) {
-        return productService.getRandomProductByCategory(category);
     }
 
 
@@ -198,16 +178,6 @@ public class ProductServiceCachedImpl implements ProductService {
         return productService.findProductQtyAll();
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public List<Product> findProductByCategory(final long categoryId,
-                                               final int firstResult,
-                                               final int maxResults) {
-        return productService.findProductByCategory(categoryId, firstResult, maxResults);
-    }
-
 
     /**
      * {@inheritDoc}
@@ -279,14 +249,6 @@ public class ProductServiceCachedImpl implements ProductService {
      * {@inheritDoc}
      */
     @Override
-    public List<Long> findProductIdsByUnavailableBefore(final LocalDateTime before) {
-        return productService.findProductIdsByUnavailableBefore(before);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public List<Long> findProductIdsByAttributeValue(final String attrCode, final String attrValue) {
         return productService.findProductIdsByAttributeValue(attrCode, attrValue);
     }
@@ -329,15 +291,6 @@ public class ProductServiceCachedImpl implements ProductService {
     @Override
     public String findSeoUriByProductSkuId(final Long skuId) {
         return productService.findSeoUriByProductSkuId(skuId);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    @Cacheable(value = "productService-productQtyByCategoryId")
-    public int getProductQty(final long categoryId) {
-        return productService.getProductQty(categoryId);
     }
 
 
@@ -448,6 +401,31 @@ public class ProductServiceCachedImpl implements ProductService {
      * {@inheritDoc}
      */
     @Override
+    public List<String> findProductSupplierCatalogCodes() {
+        return productService.findProductSupplierCatalogCodes();
+    }
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<Product> findProducts(final int start, final int offset, final String sort, final boolean sortDescending, final Map<String, List> filter) {
+        return productService.findProducts(start, offset, sort, sortDescending, filter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int findProductCount(final Map<String, List> filter) {
+        return productService.findProductCount(filter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public List<Product> findAll() {
         return productService.findAll();
     }
@@ -484,12 +462,10 @@ public class ProductServiceCachedImpl implements ProductService {
      */
     @Override
     @CacheEvict(value ={
-            "productService-randomProductByCategory",
             "productService-productByQuery",
             "productService-productSearchResultDTOByQuery",
             "productService-productQtyByQuery",
-            "productService-productByIdList",
-            "productService-productQtyByCategoryId"
+            "productService-productByIdList"
 
     }, allEntries = true)
     public Product create(final Product instance) {
@@ -501,7 +477,6 @@ public class ProductServiceCachedImpl implements ProductService {
     @CacheEvict(value ={
             "productService-skuById",
             "productService-defaultImage",
-            "productService-randomProductByCategory",
             "productService-productAttributes",
             "productService-allProductsAttributeValues",
             "productService-productCategoriesIds",
@@ -515,8 +490,7 @@ public class ProductServiceCachedImpl implements ProductService {
             "productService-productByQuery",
             "productService-productSearchResultDTOByQuery",
             "productService-productQtyByQuery",
-            "productService-productByIdList",
-            "productService-productQtyByCategoryId"
+            "productService-productByIdList"
 
     }, allEntries = true)
     public Product update(final Product instance) {
@@ -528,7 +502,6 @@ public class ProductServiceCachedImpl implements ProductService {
     @CacheEvict(value ={
             "productService-skuById",
             "productService-defaultImage",
-            "productService-randomProductByCategory",
             "productService-productAttributes",
             "productService-allProductsAttributeValues",
             "productService-productCategoriesIds",
@@ -542,8 +515,7 @@ public class ProductServiceCachedImpl implements ProductService {
             "productService-productByQuery",
             "productService-productSearchResultDTOByQuery",
             "productService-productQtyByQuery",
-            "productService-productByIdList",
-            "productService-productQtyByCategoryId"
+            "productService-productByIdList"
 
     }, allEntries = true)
     public void delete(final Product instance) {

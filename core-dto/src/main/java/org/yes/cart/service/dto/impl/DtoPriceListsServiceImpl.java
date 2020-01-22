@@ -23,21 +23,22 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.yes.cart.dao.GenericDAO;
 import org.yes.cart.domain.dto.PriceListDTO;
-import org.yes.cart.domain.dto.ShopDTO;
 import org.yes.cart.domain.dto.factory.DtoFactory;
 import org.yes.cart.domain.entity.CarrierSla;
 import org.yes.cart.domain.entity.ProductSku;
 import org.yes.cart.domain.entity.Shop;
 import org.yes.cart.domain.entity.SkuPrice;
 import org.yes.cart.domain.misc.Pair;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.exception.UnableToCreateInstanceException;
 import org.yes.cart.exception.UnmappedInterfaceException;
 import org.yes.cart.service.domain.PriceService;
+import org.yes.cart.service.domain.ShopService;
 import org.yes.cart.service.dto.DtoPriceListsService;
 import org.yes.cart.service.dto.DtoProductSkuService;
-import org.yes.cart.service.dto.DtoShopService;
-import org.yes.cart.util.MoneyUtils;
 import org.yes.cart.utils.HQLUtils;
+import org.yes.cart.utils.MoneyUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -49,9 +50,9 @@ import java.util.*;
  */
 public class DtoPriceListsServiceImpl implements DtoPriceListsService {
 
-    private final DtoShopService dtoShopService;
     private final DtoProductSkuService dtoProductSkuService;
     private final PriceService priceService;
+    private final ShopService shopService;
 
     private final GenericDAO<SkuPrice, Long> skuPriceDAO;
     private final GenericDAO<ProductSku, Long> productSkuDAO;
@@ -63,15 +64,15 @@ public class DtoPriceListsServiceImpl implements DtoPriceListsService {
 
     private final Assembler skuPriceAsm;
 
-    public DtoPriceListsServiceImpl(final DtoShopService dtoShopService,
-                                    final DtoProductSkuService dtoProductSkuService,
+    public DtoPriceListsServiceImpl(final DtoProductSkuService dtoProductSkuService,
                                     final PriceService priceService,
                                     final GenericDAO<ProductSku, Long> productSkuDAO,
                                     final GenericDAO<CarrierSla, Long> carrierSlaDAO,
                                     final GenericDAO<Shop, Long> shopDAO,
                                     final DtoFactory dtoFactory,
-                                    final AdaptersRepository adaptersRepository) {
-        this.dtoShopService = dtoShopService;
+                                    final AdaptersRepository adaptersRepository,
+                                    final ShopService shopService) {
+        this.shopService = shopService;
         this.dtoProductSkuService = dtoProductSkuService;
         this.priceService = priceService;
         this.carrierSlaDAO = carrierSlaDAO;
@@ -87,54 +88,42 @@ public class DtoPriceListsServiceImpl implements DtoPriceListsService {
 
     }
 
-
-    /** {@inheritDoc} */
-    @Override
-    public List<ShopDTO> getShops() throws UnmappedInterfaceException, UnableToCreateInstanceException {
-        return dtoShopService.getAll();
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public List<String> getShopCurrencies(final ShopDTO shop) throws UnmappedInterfaceException, UnableToCreateInstanceException {
-        if (shop == null) {
-            return new ArrayList<>();
-        }
-        final String currencies = dtoShopService.getSupportedCurrencies(shop.getShopId());
-        if (currencies == null) {
-            return new ArrayList<>();
-        }
-        return new ArrayList<>(Arrays.asList(currencies.split(",")));
-    }
-
     private final static char[] CODE = new char[] { '!' };
     private final static char[] TAG_OR_POLICY = new char[] { '#' };
 
-    /** {@inheritDoc} */
     @Override
-    public List<PriceListDTO> findBy(final long shopId, final String currency, final String filter, final int page, final int pageSize) throws UnmappedInterfaceException, UnableToCreateInstanceException {
+    public SearchResult<PriceListDTO> findPrices(final SearchContext filter) throws UnmappedInterfaceException, UnableToCreateInstanceException {
 
-        final List<PriceListDTO> priceList = new ArrayList<>();
+        final Map<String, List> params = filter.reduceParameters("filter", "shopCode", "currency");
+        final String textFilter = FilterSearchUtils.getStringFilter(params.get("filter"));
+        final String shopCode = FilterSearchUtils.getStringFilter(params.get("shopCode"));
+        final String currency = FilterSearchUtils.getStringFilter(params.get("currency"));
 
-        List<SkuPrice> entities;
+        final int pageSize = filter.getSize();
+        final int startIndex = filter.getStart() * pageSize;
 
-        if (shopId > 0 && StringUtils.isNotBlank(currency)) {
+        final PriceService priceService = this.priceService;
+
+        final Shop shop = shopService.getShopByCode(shopCode);
+
+        if (shop != null && StringUtils.isNotBlank(currency)) {
             // only allow lists for shop+currency selection
 
-            if (StringUtils.isNotBlank(filter)) {
+            final Map<String, List> currentFilter = new HashMap<>();
+            if (StringUtils.isNotBlank(textFilter)) {
 
-                final Pair<String, String> tagSearch = ComplexSearchUtils.checkSpecialSearch(filter, TAG_OR_POLICY);
-                final Pair<LocalDateTime, LocalDateTime> dateSearch = tagSearch == null ? ComplexSearchUtils.checkDateRangeSearch(filter) : null;
+                final Pair<String, String> tagSearch = ComplexSearchUtils.checkSpecialSearch(textFilter, TAG_OR_POLICY);
+                final Pair<LocalDateTime, LocalDateTime> dateSearch = tagSearch == null ? ComplexSearchUtils.checkDateRangeSearch(textFilter) : null;
 
                 if (tagSearch != null) {
 
                     // tag & policy search
                     final String tagOrPolicy = tagSearch.getSecond();
 
-                    final List<String> codes  = new ArrayList<>();
                     if ("shipping".equalsIgnoreCase(tagOrPolicy)) {
 
-                        final List<CarrierSla> carrierSlas = carrierSlaDAO.findByCriteria(" inner join fetch e.carrier c join fetch c.shops s where s.shop.shopId = ?1", shopId);
+                        final List<String> codes = new ArrayList<>();
+                        final List<CarrierSla> carrierSlas = carrierSlaDAO.findByCriteria(" inner join fetch e.carrier c join fetch c.shops s where s.shop.shopId = ?1", shop.getShopId());
                         if (CollectionUtils.isNotEmpty(carrierSlas)) {
                             for (final CarrierSla carrierSla : carrierSlas) {
                                 codes.add(carrierSla.getGuid());
@@ -147,30 +136,16 @@ public class DtoPriceListsServiceImpl implements DtoPriceListsService {
                             }
                         }
 
-                    }
-
-                    if (!codes.isEmpty()) {
-
-                        entities = skuPriceDAO.findRangeByCriteria(
-                                " where e.shop.shopId = ?1 and e.currency = ?2 and (lower(e.tag) like ?3 or lower(e.pricingPolicy) = ?4 or lower(e.ref) = ?4 or e.skuCode in (?5)) order by e.skuCode, e.quantity",
-                                page * pageSize, pageSize,
-                                shopId,
-                                currency,
-                                HQLUtils.criteriaIlikeAnywhere(tagOrPolicy),
-                                HQLUtils.criteriaIeq(tagOrPolicy),
-                                codes
-                        );
+                        SearchContext.JoinMode.OR.setMode(currentFilter);
+                        currentFilter.put("skuCode", Collections.singletonList(SearchContext.MatchMode.ANY.toParam(codes)));
+                        currentFilter.put("tag", Collections.singletonList(tagOrPolicy));
 
                     } else {
 
-                        entities = skuPriceDAO.findRangeByCriteria(
-                                " where e.shop.shopId = ?1 and e.currency = ?2 and (lower(e.tag) like ?3 or lower(e.pricingPolicy) = ?4 or lower(e.ref) = ?4) order by e.skuCode, e.quantity",
-                                page * pageSize, pageSize,
-                                shopId,
-                                currency,
-                                HQLUtils.criteriaIlikeAnywhere(tagOrPolicy),
-                                HQLUtils.criteriaIeq(tagOrPolicy)
-                        );
+                        SearchContext.JoinMode.OR.setMode(currentFilter);
+                        currentFilter.put("tag", Collections.singletonList(tagOrPolicy));
+                        currentFilter.put("pricingPolicy", Collections.singletonList(tagOrPolicy));
+                        currentFilter.put("ref", Collections.singletonList(tagOrPolicy));
 
                     }
 
@@ -179,24 +154,21 @@ public class DtoPriceListsServiceImpl implements DtoPriceListsService {
                     final LocalDateTime from = dateSearch.getFirst();
                     final LocalDateTime to = dateSearch.getSecond();
 
-                    // time search
-                    entities = skuPriceDAO.findRangeByCriteria(
-                            " where e.shop.shopId = ?1 and e.currency = ?2 and (?3 is null or e.salefrom >= ?3)  and (?4 is null or e.saleto <= ?4) order by e.skuCode, e.quantity",
-                            page * pageSize, pageSize,
-                            shopId,
-                            currency,
-                            from,
-                            to
-                    );
+                    if (from != null) {
+                        currentFilter.put("salefrom", Collections.singletonList(SearchContext.MatchMode.GE.toParam(from)));
+                    }
+                    if (to != null) {
+                        currentFilter.put("saleto", Collections.singletonList(SearchContext.MatchMode.LE.toParam(to)));
+                    }
 
                 } else {
 
-                    final Pair<String, String> byCode = ComplexSearchUtils.checkSpecialSearch(filter, CODE);
+                    final Pair<String, String> byCode = ComplexSearchUtils.checkSpecialSearch(textFilter, CODE);
 
                     if (byCode != null) {
 
                         final List<ProductSku> skus = productSkuDAO.findRangeByCriteria(
-                                " where lower(e.product.code) = ?1 or lower(e.product.manufacturerCode) = ?1 or lower(e.product.pimCode) = ?1 or lower(e.barCode) = ?1 or lower(e.manufacturerCode) = ?1",
+                                " where lower(e.code) like ?1 or lower(e.product.code) = ?1 or lower(e.product.manufacturerCode) = ?1 or lower(e.product.pimCode) = ?1 or lower(e.barCode) = ?1 or lower(e.manufacturerCode) = ?1",
                                 0, pageSize,
                                 HQLUtils.criteriaIeq(byCode.getSecond())
                         );
@@ -209,33 +181,22 @@ public class DtoPriceListsServiceImpl implements DtoPriceListsService {
 
                         if (skuCodes.isEmpty()) {
 
-                            entities = skuPriceDAO.findRangeByCriteria(
-                                    " where e.shop.shopId = ?1 and e.currency = ?2 and lower(e.skuCode) = ?3 order by e.skuCode",
-                                    page * pageSize, pageSize,
-                                    shopId,
-                                    currency,
-                                    HQLUtils.criteriaIeq(byCode.getSecond())
-                            );
+                            currentFilter.put("skuCode", Collections.singletonList(SearchContext.MatchMode.EQ.toParam(byCode.getSecond())));
 
                         } else {
 
-                            entities = skuPriceDAO.findRangeByCriteria(
-                                    " where e.shop.shopId = ?1 and e.currency = ?2 and (e.skuCode in (?3) or lower(e.skuCode) = ?4) order by e.skuCode",
-                                    page * pageSize, pageSize,
-                                    shopId,
-                                    currency,
-                                    skuCodes,
-                                    HQLUtils.criteriaIeq(byCode.getSecond())
-                            );
+                            SearchContext.JoinMode.OR.setMode(currentFilter);
+                            currentFilter.put("skuCode", Collections.singletonList(SearchContext.MatchMode.EQ.toParam(byCode.getSecond())));
+                            currentFilter.put("skuCode", Collections.singletonList(SearchContext.MatchMode.ANY.toParam(skuCodes)));
 
                         }
 
                     } else {
 
                         final List<ProductSku> skus = productSkuDAO.findRangeByCriteria(
-                                " where lower(e.product.code) like ?1 or lower(e.product.name) like ?1 or lower(e.name) like ?1",
+                                " where lower(e.code) like ?1 or lower(e.product.code) like ?1 or lower(e.product.name) like ?1 or lower(e.name) like ?1",
                                 0, pageSize,
-                                HQLUtils.criteriaIlikeAnywhere(filter)
+                                HQLUtils.criteriaIlikeAnywhere(textFilter)
                         );
 
                         final List<String> skuCodes = new ArrayList<>();
@@ -247,57 +208,52 @@ public class DtoPriceListsServiceImpl implements DtoPriceListsService {
                         final List<CarrierSla> slas = carrierSlaDAO.findRangeByCriteria(
                                 " where lower(e.name) like ?1",
                                 0, pageSize,
-                                HQLUtils.criteriaIlikeAnywhere(filter));
+                                HQLUtils.criteriaIlikeAnywhere(textFilter));
                         for (final CarrierSla sla : slas) {
                             skuCodes.add(sla.getGuid()); // codes from SLA match
                         }
 
                         if (skuCodes.isEmpty()) {
 
-                            entities = skuPriceDAO.findRangeByCriteria(
-                                    " where e.shop.shopId = ?1 and e.currency = ?2 and lower(e.skuCode) like ?3 order by e.skuCode",
-                                    page * pageSize, pageSize,
-                                    shopId,
-                                    currency,
-                                    HQLUtils.criteriaIlikeAnywhere(filter)
-                            );
+                            currentFilter.put("skuCode", Collections.singletonList(textFilter));
 
                         } else {
 
-                            entities = skuPriceDAO.findRangeByCriteria(
-                                    " where e.shop.shopId = ?1 and e.currency = ?2 and (e.skuCode in (?3) or lower(e.skuCode) like ?4) order by e.skuCode",
-                                    page * pageSize, pageSize,
-                                    shopId,
-                                    currency,
-                                    skuCodes,
-                                    HQLUtils.criteriaIlikeAnywhere(filter)
-                            );
+                            SearchContext.JoinMode.OR.setMode(currentFilter);
+                            currentFilter.put("skuCode", Collections.singletonList(textFilter));
+                            currentFilter.put("skuCode", Collections.singletonList(SearchContext.MatchMode.ANY.toParam(skuCodes)));
 
                         }
+
                     }
+
                 }
-            } else {
-
-                entities = skuPriceDAO.findRangeByCriteria(
-                        " where e.shop.shopId = ?1 and e.currency = ?2 order by e.skuCode",
-                        page * pageSize, pageSize,
-                        shopId,
-                        currency
-                );
 
             }
 
-            final Map<String, Object> adapters = adaptersRepository.getAll();
-            for (final SkuPrice entity : entities) {
-                final PriceListDTO dto = dtoFactory.getByIface(PriceListDTO.class);
-                skuPriceAsm.assembleDto(dto, entity, adapters, dtoFactory);
-                priceList.add(dto);
-            }
+            currentFilter.put("shopIds", Collections.singletonList(shop.getShopId()));
+            currentFilter.put("currencies", Collections.singletonList(currency));
 
+            final int count = priceService.findPriceCount(currentFilter);
+            if (count > startIndex) {
+
+                final List<PriceListDTO> entities = new ArrayList<>();
+                final List<SkuPrice> prices = priceService.findPrices(startIndex, pageSize, filter.getSortBy(), filter.isSortDesc(), currentFilter);
+
+                final Map<String, Object> adapters = adaptersRepository.getAll();
+                for (final SkuPrice entity : prices) {
+                    final PriceListDTO dto = dtoFactory.getByIface(PriceListDTO.class);
+                    skuPriceAsm.assembleDto(dto, entity, adapters, dtoFactory);
+                    entities.add(dto);
+                }
+
+                return new SearchResult<>(filter, entities, count);
+
+            }
         }
-
-        return priceList;
+        return new SearchResult<>(filter, Collections.emptyList(), 0);
     }
+
 
     /** {@inheritDoc} */
     @Override

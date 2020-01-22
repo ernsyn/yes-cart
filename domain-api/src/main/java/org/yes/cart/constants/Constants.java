@@ -86,6 +86,11 @@ public interface Constants {
     String[] DEFAULT_CATEGORYLIST_IMAGE_SIZE = new String[] { "280", "280" };
 
     /**
+     * Default customer image size
+     */
+    String[] DEFAULT_CUSTOMERLIST_IMAGE_SIZE = new String[] { "280", "280" };
+
+    /**
      * Default limit of featured panel
      */
     int FEATURED_LIST_SIZE = 15;
@@ -101,11 +106,17 @@ public interface Constants {
     int PRODUCT_COLUMNS_SIZE = 2;
 
     /**
+     * Default customer count in one row in list
+     */
+    int CUSTOMER_COLUMNS_SIZE = 2;
+
+    /**
      * Default sub categories count in one row on category and search pages
      */
     int SUBCATEGORIES_COLUMNS_SIZE = 2;
 
     String CATEGORY_IMAGE_REPOSITORY_URL_PATTERN    = "/imgvault/category/";
+    String CONTENT_IMAGE_REPOSITORY_URL_PATTERN     = "/imgvault/content/";
     String BRAND_IMAGE_REPOSITORY_URL_PATTERN       = "/imgvault/brand/";
     String CUSTOMER_IMAGE_REPOSITORY_URL_PATTERN    = "/imgvault/customer/";
     String PRODUCT_IMAGE_REPOSITORY_URL_PATTERN     = "/imgvault/product/";
@@ -113,6 +124,7 @@ public interface Constants {
     String SYSTEM_IMAGE_REPOSITORY_URL_PATTERN      = "/imgvault/system/";
 
     String CATEGORY_FILE_REPOSITORY_URL_PATTERN    = "/filevault/category/";
+    String CONTENT_FILE_REPOSITORY_URL_PATTERN     = "/filevault/content/";
     String BRAND_FILE_REPOSITORY_URL_PATTERN       = "/filevault/brand/";
     String CUSTOMER_FILE_REPOSITORY_URL_PATTERN    = "/filevault/customer/";
     String PRODUCT_FILE_REPOSITORY_URL_PATTERN     = "/filevault/product/";
@@ -120,6 +132,7 @@ public interface Constants {
     String SYSTEM_FILE_REPOSITORY_URL_PATTERN      = "/filevault/system/";
 
     String CATEGORY_SYSFILE_REPOSITORY_URL_PATTERN    = "/sysfilevault/category/";
+    String CONTENT_SYSFILE_REPOSITORY_URL_PATTERN     = "/sysfilevault/content/";
     String BRAND_SYSFILE_REPOSITORY_URL_PATTERN       = "/sysfilevault/brand/";
     String CUSTOMER_SYSFILE_REPOSITORY_URL_PATTERN    = "/sysfilevault/customer/";
     String PRODUCT_SYSFILE_REPOSITORY_URL_PATTERN     = "/sysfilevault/product/";
@@ -136,7 +149,13 @@ public interface Constants {
      * Sort options on page. In case if default value in root category not set
      * the default values will be used.
      */
-    List<String> DEFAULT_PAGE_SORT = Arrays.asList("displayName", "sku", "basePrice");
+    List<String> DEFAULT_PAGE_SORT_PRODUCT = Arrays.asList("displayName", "sku", "basePrice");
+
+    /**
+     * Sort options on page. In case if default value in root category not set
+     * the default values will be used.
+     */
+    List<String> DEFAULT_PAGE_SORT_CUSTOMER = Arrays.asList("lastname", "companyName1", "createdTimestamp");
 
     /**
      * Default customer password reset token expiry.

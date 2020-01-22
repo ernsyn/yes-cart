@@ -29,8 +29,8 @@ import org.yes.cart.domain.entity.*;
 import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.shoppingcart.CartItem;
 import org.yes.cart.shoppingcart.ShoppingCart;
-import org.yes.cart.util.DateUtils;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.DateUtils;
+import org.yes.cart.utils.MoneyUtils;
 import org.yes.cart.web.page.AbstractWebPage;
 import org.yes.cart.web.page.component.BaseComponent;
 import org.yes.cart.web.page.component.price.PriceView;
@@ -40,7 +40,7 @@ import org.yes.cart.web.support.entity.decorator.ProductSkuDecorator;
 import org.yes.cart.web.support.service.CategoryServiceFacade;
 import org.yes.cart.web.support.service.CheckoutServiceFacade;
 import org.yes.cart.web.support.service.ProductServiceFacade;
-import org.yes.cart.web.util.WicketUtil;
+import org.yes.cart.web.utils.WicketUtil;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -255,7 +255,7 @@ public class ShoppingCartPaymentVerificationView extends BaseComponent {
 
                                                 customerOrderDeliveryDetListItem
                                                         .add(
-                                                                links.newProductSkuLink(ITEM_NAME_LINK, linkId)
+                                                                links.newProductSkuLink(ITEM_NAME_LINK, det.getSupplierCode(), linkId)
                                                                         .add(new Label(ITEM_NAME_LINK_NAME, name))
                                                                         .setVisible(linkToProduct)
                                                         ).add(

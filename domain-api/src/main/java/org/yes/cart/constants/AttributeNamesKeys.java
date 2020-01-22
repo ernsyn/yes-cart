@@ -86,29 +86,29 @@ public interface AttributeNamesKeys {
          */
         String JOB_PRODUCT_OBSOLETE_BATCH_SIZE = "JOB_PROD_OBS_BATCH_SIZE";
         /**
-         * Timeout for backdoor WS call.
+         * Timeout for Connector WS call.
          */
-        String SYSTEM_BACKDOOR_TIMEOUT_MS = "SYSTEM_BACKDOOR_TIMEOUT_MS";
+        String SYSTEM_CONNECTOR_TIMEOUT_MS = "SYSTEM_CONNECTOR_TIMEOUT_MS";
         /**
-         * Timeout for backdoor WS call.
+         * Timeout for Connector WS call.
          */
-        String SYSTEM_BACKDOOR_PRODUCT_BULK_INDEX_TIMEOUT_MS = "SYSTEM_BACKDOOR_PRODB_IDX_TIMEOUT_MS";
+        String SYSTEM_CONNECTOR_PRODUCT_BULK_INDEX_TIMEOUT_MS = "SYSTEM_CONNECTOR_PRODB_IDX_TIMEOUT_MS";
         /**
-         * Timeout for backdoor WS call.
+         * Timeout for Connector WS call.
          */
-        String SYSTEM_BACKDOOR_PRODUCT_SINGLE_INDEX_TIMEOUT_MS = "SYSTEM_BACKDOOR_PRODS_IDX_TIMEOUT_MS";
+        String SYSTEM_CONNECTOR_PRODUCT_SINGLE_INDEX_TIMEOUT_MS = "SYSTEM_CONNECTOR_PRODS_IDX_TIMEOUT_MS";
         /**
-         * Timeout for backdoor WS call.
+         * Timeout for Connector WS call.
          */
-        String SYSTEM_BACKDOOR_SQL_TIMEOUT_MS = "SYSTEM_BACKDOOR_SQL_TIMEOUT_MS";
+        String SYSTEM_CONNECTOR_QUERY_TIMEOUT_MS = "SYSTEM_CONNECTOR_QUERY_TIMEOUT_MS";
         /**
-         * Timeout for backdoor WS call.
+         * Timeout for Connector WS call.
          */
-        String SYSTEM_BACKDOOR_CACHE_TIMEOUT_MS = "SYSTEM_BACKDOOR_CACHE_TIMEOUT_MS";
+        String SYSTEM_CONNECTOR_CACHE_TIMEOUT_MS = "SYSTEM_CONNECTOR_CACHE_TIMEOUT_MS";
         /**
-         * Timeout for backdoor WS call.
+         * Timeout for Connector WS call.
          */
-        String SYSTEM_BACKDOOR_IMAGE_TIMEOUT_MS = "SYSTEM_BACKDOOR_IMAGE_TIMEOUT_MS";
+        String SYSTEM_CONNECTOR_IMAGE_TIMEOUT_MS = "SYSTEM_CONNECTOR_IMAGE_TIMEOUT_MS";
         /**
          * Default (failover) directory for resources.
          */
@@ -157,6 +157,11 @@ public interface AttributeNamesKeys {
         String SYSTEM_EXTENSION_CFG_PROPERTIES = "SYSTEM_EXTENSION_CFG_PROPERTIES";
 
         /**
+         * System extension for security configurations
+         */
+        String SYSTEM_EXTENSION_CFG_SECURITY = "SYSTEM_EXTENSION_CFG_SECURITY";
+
+        /**
          * Batch size for expired accounts removal
          */
         String JOB_EXPIRE_GUESTS_BATCH_SIZE = "JOB_EXPIRE_GUESTS_BATCH_SIZE";
@@ -181,6 +186,15 @@ public interface AttributeNamesKeys {
          */
         String MANAGER_PASSWORD_REGEX = "MANAGER_PASSWORD_REGEX";
 
+        /**
+         * JWT encoding/decoding secret
+         */
+        String MANAGER_JWT_SECRET = "MANAGER_JWT_SECRET";
+
+        /**
+         * JWT expiry in minutes
+         */
+        String MANAGER_JWT_EXPIRY_MIN = "MANAGER_JWT_EXPIRY_MIN";
     }
 
 
@@ -374,6 +388,11 @@ public interface AttributeNamesKeys {
          * Customer types who can create shopping lists.
          */
         String SHOP_SF_SHOPPING_LIST_TYPES = "SHOP_SF_SHOPPING_LIST_TYPES";
+
+        /**
+         * Customer types who can use managed lists.
+         */
+        String SHOP_SF_MANAGED_LIST_TYPES = "SHOP_SF_MANAGED_LIST_TYPES";
 
         /**
          * Customer types who can leave per line remarks.
@@ -581,6 +600,20 @@ public interface AttributeNamesKeys {
          */
         String SHOP_SEARCH_SUGGEST_FADE_OUT = "SHOP_SEARCH_SUGGEST_FADE_OUT";
 
+
+        /**
+         * Comma separated list of product sorting options
+         */
+        String SHOP_CUSTOMER_SORT_OPTIONS = "SHOP_CUSTOMER_SORT_OPTIONS";
+
+        /** Customer image width in category.  */
+        String SHOP_CUSTOMER_IMAGE_WIDTH = "SHOP_CUSTOMER_IMAGE_WIDTH";
+        /** Customer image height in category.  */
+        String SHOP_CUSTOMER_IMAGE_HEIGHT = "SHOP_CUSTOMER_IMAGE_HEIGHT";
+
+        /** Customer columns in grid */
+        String SHOP_CUSTOMER_RECORDS_COLUMNS = "SHOP_CUSTOMER_RECORDS_COLUMNS";
+
         /**
          * Comma separated list of product sorting options
          */
@@ -739,6 +772,11 @@ public interface AttributeNamesKeys {
          */
         String SHOP_COUPON_CODE_LENGTH = "SHOP_COUPON_CODE_LENGTH";
 
+        /**
+         * Enable manager login in SF.
+         */
+        String SHOP_SF_LOGIN_MANAGER = "SHOP_SF_LOGIN_MANAGER";
+
     }
 
     interface Brand {
@@ -811,6 +849,9 @@ public interface AttributeNamesKeys {
 
     interface Cart {
 
+        // Constant to define manager customer
+        String CUSTOMER_TYPE_MANAGER = "MGR";
+
         // Constant to define Guest checkout customer
         String CUSTOMER_TYPE_GUEST = "B2G";
 
@@ -818,7 +859,7 @@ public interface AttributeNamesKeys {
         String CUSTOMER_TYPE_REGULAR = "B2C";
 
         // Regular B2B customer
-        String CUSTOMER_TYPE_B2B = "B2C";
+        String CUSTOMER_TYPE_B2B = "B2B";
 
         // B2B customer in scope of sub shop (multi B2B)
         String CUSTOMER_TYPE_B2BSUB = "B2E";
@@ -829,6 +870,7 @@ public interface AttributeNamesKeys {
         String ORDER_INFO_CUSTOMER_TYPE = "customerType";
         String ORDER_INFO_CUSTOMER_TAGS = "customerTags";
         String ORDER_INFO_CUSTOMER_SHOPPING_LIST_ON = "shoppingListsEnabled";
+        String ORDER_INFO_CUSTOMER_MANAGED_LIST_ON = "managedListsEnabled";
         String ORDER_INFO_CUSTOMER_REPEAT_ORDER_ON = "repeatOrderEnabled";
         String ORDER_INFO_CUSTOMER_SHOPPING_RFQ_ON = "rfqEnabled";
         String ORDER_INFO_CUSTOMER_SHOPPING_B2B_FORM_ON = "orderB2BFormEnabled";
@@ -854,6 +896,8 @@ public interface AttributeNamesKeys {
         String ORDER_INFO_B2B_ORDER_REMARKS_ID = "b2bRemarks";
         String ORDER_INFO_B2B_ORDER_LINE_REMARKS_ID = "b2bRemarksLine";
 
+        String ORDER_INFO_ORDER_LINE_MANAGED_LIST = "managedListLine";
+
         String ORDER_INFO_ORDER_ATTRIBUTE_ID = "attributeOrder";
         String ORDER_INFO_ORDER_LINE_ATTRIBUTE_ID = "attributeLine";
 
@@ -863,6 +907,9 @@ public interface AttributeNamesKeys {
 
         String ORDER_INFO_B2B_APPROVED_BY = "b2bApprovedBy";
         String ORDER_INFO_B2B_APPROVED_DATE = "b2bApprovedDate";
+
+        String ORDER_INFO_MANAGER_LOGIN_ON = "managerLoginOnBehalfEnabled";
+        String ORDER_INFO_MANAGER_CREATE_MANAGED_LISTS_ON = "managerCreateManagedListsEnabled";
 
     }
 

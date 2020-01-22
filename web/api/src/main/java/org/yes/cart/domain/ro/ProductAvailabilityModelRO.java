@@ -19,6 +19,7 @@ package org.yes.cart.domain.ro;
 import com.inspiresoftware.lib.dto.geda.annotations.Dto;
 import com.inspiresoftware.lib.dto.geda.annotations.DtoField;
 import com.inspiresoftware.lib.dto.geda.annotations.DtoVirtualField;
+import org.yes.cart.domain.ro.xml.impl.I18nMapAdapter;
 import org.yes.cart.domain.ro.xml.impl.QuantityMapAdapter;
 
 import javax.xml.bind.annotation.XmlElement;
@@ -26,6 +27,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.SortedSet;
 
@@ -50,6 +52,12 @@ public class ProductAvailabilityModelRO implements Serializable {
     private int availability;
     @DtoField(readOnly = true)
     private String defaultSkuCode;
+    @DtoField(readOnly = true)
+    private LocalDateTime releaseDate;
+    @DtoField(readOnly = true)
+    private LocalDateTime restockDate;
+    @DtoField(readOnly = true, converter = "i18nModelConverter")
+    private Map<String, String> restockNote;
     @DtoField(readOnly = true)
     private String firstAvailableSkuCode;
     @DtoField(readOnly = true)
@@ -99,6 +107,15 @@ public class ProductAvailabilityModelRO implements Serializable {
         this.defaultSkuCode = defaultSkuCode;
     }
 
+    @XmlElement(name = "release-date")
+    public LocalDateTime getReleaseDate() {
+        return releaseDate;
+    }
+
+    public void setReleaseDate(final LocalDateTime releaseDate) {
+        this.releaseDate = releaseDate;
+    }
+
     @XmlElement(name = "first-available-sku")
     public String getFirstAvailableSkuCode() {
         return firstAvailableSkuCode;
@@ -125,5 +142,24 @@ public class ProductAvailabilityModelRO implements Serializable {
 
     public void setAvailableToSellQuantity(final Map<String, BigDecimal> availableToSellQuantity) {
         this.availableToSellQuantity = availableToSellQuantity;
+    }
+
+    @XmlElement(name = "restock-date")
+    public LocalDateTime getRestockDate() {
+        return restockDate;
+    }
+
+    public void setRestockDate(final LocalDateTime restockDate) {
+        this.restockDate = restockDate;
+    }
+
+    @XmlJavaTypeAdapter(I18nMapAdapter.class)
+    @XmlElement(name = "restock-note")
+    public Map<String, String> getRestockNote() {
+        return restockNote;
+    }
+
+    public void setRestockNote(final Map<String, String> restockNote) {
+        this.restockNote = restockNote;
     }
 }

@@ -42,11 +42,9 @@ export class SKUComponent implements OnInit, OnDestroy {
 
   private selectedRow:AttrValueProductSkuVO;
 
-  private initialising:boolean = false; // tslint:disable-line:no-unused-variable
   private delayedChange:Future;
 
   private skuForm:any;
-  private skuFormSub:any; // tslint:disable-line:no-unused-variable
 
   @ViewChild('attributeValuesComponent')
   private attributeValuesComponent:AttributeValuesComponent;
@@ -113,6 +111,7 @@ export class SKUComponent implements OnInit, OnDestroy {
       'supplierCatalogCode': ['', YcValidators.noWhitespace],
       'barCode': ['', YcValidators.noWhitespace],
       'rank': ['', YcValidators.requiredRank],
+      'tag': ['', YcValidators.nonBlankTrimmed],
       'description': [''],
       'uri': ['', validUri],
       'name': [''],
@@ -128,12 +127,12 @@ export class SKUComponent implements OnInit, OnDestroy {
   }
 
   formBind():void {
-    UiUtil.formBind(this, 'skuForm', 'skuFormSub', 'delayedChange', 'initialising');
+    UiUtil.formBind(this, 'skuForm', 'delayedChange');
   }
 
 
   formUnbind():void {
-    UiUtil.formUnbind(this, 'skuFormSub');
+    UiUtil.formUnbind(this, 'skuForm');
   }
 
   formChange():void {
@@ -144,7 +143,7 @@ export class SKUComponent implements OnInit, OnDestroy {
   @Input()
   set sku(sku:ProductSkuVO) {
 
-    UiUtil.formInitialise(this, 'initialising', 'skuForm', '_sku', sku);
+    UiUtil.formInitialise(this, 'skuForm', '_sku', sku);
     this._changes = [];
     if (this._sku != null) {
       this.avPrototype = {

@@ -31,8 +31,8 @@ import org.yes.cart.payment.dto.PaymentMiscParam;
 import org.yes.cart.payment.dto.impl.BasicCallbackInfoImpl;
 import org.yes.cart.payment.dto.impl.PaymentGatewayFeatureImpl;
 import org.yes.cart.payment.dto.impl.PaymentImpl;
-import org.yes.cart.util.HttpParamsUtils;
-import org.yes.cart.util.log.Markers;
+import org.yes.cart.utils.HttpParamsUtils;
+import org.yes.cart.utils.log.Markers;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -254,10 +254,13 @@ public class LiqPayPaymentGatewayImpl extends AbstractLiqPayPaymentGatewayImpl
 
         if (success) {
             if ("wait_secure".equalsIgnoreCase(statusRes)) {
+                LOG.debug("Payment result is {}: {}", statusRes, CallbackAware.CallbackResult.UNSETTLED);
                 return CallbackAware.CallbackResult.UNSETTLED;
             }
+            LOG.debug("Payment result is {}: {}", statusRes, CallbackAware.CallbackResult.OK);
             return CallbackAware.CallbackResult.OK;
         }
+        LOG.debug("Payment result is {}: {}", statusRes, CallbackAware.CallbackResult.FAILED);
         return CallbackAware.CallbackResult.FAILED;
 
     }
@@ -304,7 +307,11 @@ public class LiqPayPaymentGatewayImpl extends AbstractLiqPayPaymentGatewayImpl
         params.put("currency", currencyCode);
         params.put("formDataOnly", "formDataOnly"); // YC specific
 
-        return api.cnb_form(params);
+        final String form = api.cnb_form(params);
+
+        LOG.debug("LiqPay form request: {}", form);
+
+        return form;
 
     }
 
@@ -450,14 +457,6 @@ public class LiqPayPaymentGatewayImpl extends AbstractLiqPayPaymentGatewayImpl
         payment.setShopperIpAddress(singleParamMap.get(PaymentMiscParam.CLIENT_IP));
 
         return payment;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getLabel() {
-        return "liqPayPaymentGateway";
     }
 
     /**

@@ -19,11 +19,12 @@ package org.yes.cart.service.mail.impl;
 import org.apache.commons.lang.StringUtils;
 import org.yes.cart.constants.AttributeNamesKeys;
 import org.yes.cart.constants.Constants;
-import org.yes.cart.domain.entity.Category;
+import org.yes.cart.domain.entity.Content;
 import org.yes.cart.service.domain.ContentService;
 import org.yes.cart.service.domain.ImageService;
 import org.yes.cart.service.domain.SystemService;
 import org.yes.cart.service.mail.MailTemplateResourcesProvider;
+import org.yes.cart.service.media.MediaFileNameStrategy;
 
 import java.io.IOException;
 import java.util.List;
@@ -38,13 +39,16 @@ import java.util.List;
 public class MailTemplateResourcesProviderShopContentImpl implements MailTemplateResourcesProvider {
 
     private final ContentService contentService;
+    private final MediaFileNameStrategy contentImageStrategy;
     private final SystemService systemService;
     private final ImageService imageService;
 
     public MailTemplateResourcesProviderShopContentImpl(final ContentService contentService,
+                                                        final MediaFileNameStrategy contentImageStrategy,
                                                         final SystemService systemService,
                                                         final ImageService imageService) {
         this.contentService = contentService;
+        this.contentImageStrategy = contentImageStrategy;
         this.systemService = systemService;
         this.imageService = imageService;
     }
@@ -98,7 +102,7 @@ public class MailTemplateResourcesProviderShopContentImpl implements MailTemplat
 
         if (contentId != null) {
 
-            final Category content = contentService.getById(contentId);
+            final Content content = contentService.getById(contentId);
 
             final byte[] localeSpecificImage = getImageAsBytes(content, AttributeNamesKeys.Category.CATEGORY_IMAGE + "_" + locale, contentFullUri);
             if (localeSpecificImage != null && localeSpecificImage.length > 0) {
@@ -116,18 +120,19 @@ public class MailTemplateResourcesProviderShopContentImpl implements MailTemplat
 
     }
 
-    private byte[] getImageAsBytes(final Category content, final String imageAttribute, final String contentFullUri) throws IOException {
+    private byte[] getImageAsBytes(final Content content, final String imageAttribute, final String contentFullUri) throws IOException {
         final String imageValue = content.getAttributeValueByCode(imageAttribute);
         if (StringUtils.isNotBlank(imageValue)) {
 
             final String path = systemService.getImageRepositoryDirectory();
+            final String urlPath = contentImageStrategy.getUrlPath();
 
-            if (imageService.isImageInRepository(imageValue, contentFullUri, Constants.CATEGORY_IMAGE_REPOSITORY_URL_PATTERN, path)) {
-                return imageService.imageToByteArray(imageValue, contentFullUri, Constants.CATEGORY_IMAGE_REPOSITORY_URL_PATTERN, path);
+            if (imageService.isImageInRepository(imageValue, contentFullUri, urlPath, path)) {
+                return imageService.imageToByteArray(imageValue, contentFullUri, urlPath, path);
             }
 
-            if (imageService.isImageInRepository(imageValue, content.getGuid(), Constants.CATEGORY_IMAGE_REPOSITORY_URL_PATTERN, path)) {
-                return imageService.imageToByteArray(imageValue, content.getGuid(), Constants.CATEGORY_IMAGE_REPOSITORY_URL_PATTERN, path);
+            if (imageService.isImageInRepository(imageValue, content.getGuid(), urlPath, path)) {
+                return imageService.imageToByteArray(imageValue, content.getGuid(), urlPath, path);
             }
 
         }

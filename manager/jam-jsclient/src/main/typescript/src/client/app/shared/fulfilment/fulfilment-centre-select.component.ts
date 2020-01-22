@@ -13,10 +13,11 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-import { Component,  OnInit, OnDestroy, Output, EventEmitter } from '@angular/core';
-import { FulfilmentCentreInfoVO } from './../model/index';
+import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild } from '@angular/core';
+import { FulfilmentCentreInfoVO, SearchContextVO } from './../model/index';
 import { FulfilmentService } from './../services/index';
-import { Futures, Future } from './../event/index';
+import { ModalComponent, ModalResult, ModalAction } from './../modal/index';
+import { Futures, Future, FormValidationEvent } from './../event/index';
 import { Config } from './../config/env.config';
 import { LogUtil } from './../log/index';
 
@@ -28,9 +29,15 @@ import { LogUtil } from './../log/index';
 
 export class FulfilmentCentreSelectComponent implements OnInit, OnDestroy {
 
-  @Output() dataSelected: EventEmitter<FulfilmentCentreInfoVO> = new EventEmitter<FulfilmentCentreInfoVO>();
+  @Output() dataSelected: EventEmitter<FormValidationEvent<FulfilmentCentreInfoVO>> = new EventEmitter<FormValidationEvent<FulfilmentCentreInfoVO>>();
 
-  private centres : FulfilmentCentreInfoVO[] = [];
+  private changed:boolean = false;
+
+  @ViewChild('centreModalDialog')
+  private centreModalDialog:ModalComponent;
+
+  private validForSelect:boolean = false;
+
   private filteredCentres : FulfilmentCentreInfoVO[] = [];
   private centreFilter : string;
 
@@ -38,11 +45,19 @@ export class FulfilmentCentreSelectComponent implements OnInit, OnDestroy {
 
   private delayedFiltering:Future;
   private delayedFilteringMs:number = Config.UI_INPUT_DELAY;
+  private filterCap:number = Config.UI_FILTER_CAP;
+
+  private centreFilterCapped:boolean = false;
+
+  private loading:boolean = false;
 
   constructor (private _centreService : FulfilmentService) {
     LogUtil.debug('FulfilmentCentreSelectComponent constructed');
+    let that = this;
+    this.delayedFiltering = Futures.perpetual(function() {
+      that.getAllCentres();
+    }, this.delayedFilteringMs);
   }
-
 
   ngOnDestroy() {
     LogUtil.debug('FulfilmentCentreSelectComponent ngOnDestroy');
@@ -50,19 +65,12 @@ export class FulfilmentCentreSelectComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     LogUtil.debug('FulfilmentCentreSelectComponent ngOnInit');
-    let that = this;
-    this.delayedFiltering = Futures.perpetual(function() {
-      that.filterCentres();
-    }, this.delayedFilteringMs);
-
-    this.getAllCentres();
-
   }
 
   protected onSelectClick(centre: FulfilmentCentreInfoVO) {
     LogUtil.debug('FulfilmentCentreSelectComponent onSelectClick', centre);
     this.selectedCentre = centre;
-    this.dataSelected.emit(this.selectedCentre);
+    this.validForSelect = true;
   }
 
   protected onFilterChange() {
@@ -76,37 +84,44 @@ export class FulfilmentCentreSelectComponent implements OnInit, OnDestroy {
     this.delayedFiltering.delay();
   }
 
-  private getAllCentres() {
-
-    let _sub:any = this._centreService.getAllFulfilmentCentres().subscribe( allcentres => {
-      LogUtil.debug('FulfilmentCentreSelectComponent getAllCentres', allcentres);
-      this.centres = allcentres;
-      this.filterCentres();
-      _sub.unsubscribe();
-    });
+  public showDialog() {
+    LogUtil.debug('CarrierSlaSelectComponent showDialog');
+    this.centreModalDialog.show();
+    this.delayedFiltering.delay();
   }
 
 
-  private filterCentres() {
-
-    let _filter = this.centreFilter ? this.centreFilter.toLowerCase() : null;
-
-    if (_filter) {
-      this.filteredCentres = this.centres.filter(centre =>
-        centre.code.toLowerCase().indexOf(_filter) !== -1 ||
-        centre.name.toLowerCase().indexOf(_filter) !== -1 ||
-        centre.description && centre.description.toLowerCase().indexOf(_filter) !== -1
-      );
-      LogUtil.debug('FulfilmentCentresComponent filterCentres', _filter);
-    } else {
-      this.filteredCentres = this.centres;
-      LogUtil.debug('FulfilmentCentresComponent filterCentres no filter');
+  protected onSelectConfirmationResult(modalresult: ModalResult) {
+    LogUtil.debug('CarrierSlaSelectComponent onSelectConfirmationResult modal result is ', modalresult);
+    if (ModalAction.POSITIVE === modalresult.action) {
+      this.dataSelected.emit({ source: this.selectedCentre, valid: true });
+      this.selectedCentre = null;
     }
+  }
 
-    if (this.filteredCentres === null) {
-      this.filteredCentres = [];
-    }
+  private getAllCentres() {
 
+    this.loading = true;
+    let _ctx:SearchContextVO = {
+      parameters : {
+        filter: [ this.centreFilter ]
+      },
+      start : 0,
+      size : this.filterCap,
+      sortBy : null,
+      sortDesc : false
+    };
+    let _sub:any = this._centreService.getFilteredFulfilmentCentres(_ctx).subscribe( allcentres => {
+      LogUtil.debug('FulfilmentCentreSelectComponent getAllCentres', allcentres);
+      this.selectedCentre = null;
+      this.changed = false;
+      this.validForSelect = false;
+      this.filteredCentres = allcentres;
+      this.filteredCentres = allcentres != null ? allcentres.items : [];
+      this.centreFilterCapped = allcentres != null && allcentres.total > this.filterCap;
+      this.loading = false;
+      _sub.unsubscribe();
+    });
   }
 
 }

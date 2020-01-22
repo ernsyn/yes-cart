@@ -23,13 +23,13 @@
     <parent>
         <groupId>org.yes</groupId>
         <artifactId>theme</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>3.7.0-SNAPSHOT</version>
     </parent>
 
     <groupId>org.yes</groupId>
     <artifactId>reports</artifactId>
     <packaging>pom</packaging>
-    <name>Yes cart themes: reports templates</name>
+    <name>Themes: reports templates</name>
 
     <build>
         <plugins>

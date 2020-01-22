@@ -34,7 +34,6 @@ export interface ManagerInfoVO {
 export interface ManagerShopLinkVO {
 
   managerId : number;
-
   shopId : number;
 
 }
@@ -42,18 +41,33 @@ export interface ManagerShopLinkVO {
 export interface ManagerRoleLinkVO {
 
   managerId : number;
+  code : string;
 
-  roleId : number;
+}
+
+export interface ManagerSupplierCatalogVO {
+
+  managerId : number;
+  code : string;
+
+}
+
+export interface ManagerCategoryCatalogVO {
+
+  managerId : number;
+  categoryId : number;
 
   code : string;
+  name : string;
 
 }
 
 export interface ManagerVO extends ManagerInfoVO {
 
   managerShops : Array<ManagerShopLinkVO>;
-
   managerRoles : Array<ManagerRoleLinkVO>;
+  managerSupplierCatalogs : Array<ManagerSupplierCatalogVO>;
+  managerCategoryCatalogs : Array<ManagerCategoryCatalogVO>;
 
 }
 
@@ -70,5 +84,42 @@ export interface UserVO {
   manager: ManagerVO;
   name: string;
   ui: any;
+
+}
+
+export interface JWT {
+
+  token: string;
+
+}
+
+export interface JWTDecoded {
+
+  aud: string;
+  exp: number;
+  iat: number;
+  iss: string;
+  rol: string[];
+  sub: string;
+
+}
+
+export interface JWTAuth {
+
+  jwt?: string;
+  decoded?: JWTDecoded;
+  status: number;
+  message?: string;
+
+}
+
+export interface LoginVO {
+
+  username:string;
+  password:string;
+  organisation?:string;
+
+  npassword?:string;
+  cpassword?:string;
 
 }

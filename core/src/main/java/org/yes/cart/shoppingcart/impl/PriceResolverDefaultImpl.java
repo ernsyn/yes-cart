@@ -16,6 +16,8 @@
 
 package org.yes.cart.shoppingcart.impl;
 
+import org.yes.cart.config.Configuration;
+import org.yes.cart.config.ConfigurationContext;
 import org.yes.cart.domain.entity.SkuPrice;
 import org.yes.cart.service.domain.PriceService;
 import org.yes.cart.shoppingcart.PriceResolver;
@@ -28,9 +30,11 @@ import java.util.List;
  * Date: 09/07/2017
  * Time: 17:04
  */
-public class PriceResolverDefaultImpl implements PriceResolver {
+public class PriceResolverDefaultImpl implements PriceResolver, Configuration {
 
     private final PriceService priceService;
+
+    private ConfigurationContext cfgContext;
 
     public PriceResolverDefaultImpl(final PriceService priceService) {
         this.priceService = priceService;
@@ -38,14 +42,56 @@ public class PriceResolverDefaultImpl implements PriceResolver {
 
     /** {@inheritDoc} */
     @Override
-    public SkuPrice getMinimalPrice(final Long productId, final String selectedSku, final long customerShopId, final Long masterShopId, final String currencyCode, final BigDecimal quantity, final boolean enforceTier, final String pricingPolicy) {
-        return this.priceService.getMinimalPrice(productId, selectedSku, customerShopId, masterShopId, currencyCode, quantity, enforceTier, pricingPolicy);
+    public SkuPrice getMinimalPrice(final Long productId,
+                                    final String selectedSku,
+                                    final long customerShopId,
+                                    final Long masterShopId,
+                                    final String currencyCode,
+                                    final BigDecimal quantity,
+                                    final boolean enforceTier,
+                                    final String pricingPolicy,
+                                    final String supplier) {
+
+        return this.priceService.getMinimalPrice(
+                productId,
+                selectedSku,
+                customerShopId,
+                masterShopId,
+                currencyCode,
+                quantity,
+                enforceTier,
+                pricingPolicy,
+                supplier);
     }
 
     /** {@inheritDoc} */
     @Override
-    public List<SkuPrice> getAllCurrentPrices(final Long productId, final String selectedSku, final long customerShopId, final Long masterShopId, final String currencyCode, final String pricingPolicy) {
-        return this.priceService.getAllCurrentPrices(productId, selectedSku, customerShopId, masterShopId, currencyCode, pricingPolicy);
+    public List<SkuPrice> getAllCurrentPrices(final Long productId,
+                                              final String selectedSku,
+                                              final long customerShopId,
+                                              final Long masterShopId,
+                                              final String currencyCode,
+                                              final String pricingPolicy,
+                                              final String supplier) {
+
+        return this.priceService.getAllCurrentPrices(
+                productId,
+                selectedSku,
+                customerShopId,
+                masterShopId,
+                currencyCode,
+                pricingPolicy,
+                supplier);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public ConfigurationContext getCfgContext() {
+        return cfgContext;
+    }
+
+    public void setCfgContext(final ConfigurationContext cfgContext) {
+        this.cfgContext = cfgContext;
     }
 
 }

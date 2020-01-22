@@ -29,7 +29,7 @@ import org.yes.cart.service.domain.CustomerService;
 import org.yes.cart.service.domain.ShopService;
 import org.yes.cart.service.order.DeliveryBucket;
 import org.yes.cart.shoppingcart.*;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.MoneyUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -324,7 +324,15 @@ public class DefaultAmountCalculationStrategy implements AmountCalculationStrate
                     final BigDecimal netPrice = money.getNet();
                     final BigDecimal grossPrice = money.getGross();
 
-                    cart.setProductSkuTax(item.getProductSkuCode(), netPrice, grossPrice, tax.getRate(), tax.getCode(), tax.isExcluded());
+                    cart.setProductSkuTax(
+                            item.getSupplierCode(),
+                            item.getProductSkuCode(),
+                            netPrice,
+                            grossPrice,
+                            tax.getRate(),
+                            tax.getCode(),
+                            tax.isExcluded()
+                    );
 
                 }
 

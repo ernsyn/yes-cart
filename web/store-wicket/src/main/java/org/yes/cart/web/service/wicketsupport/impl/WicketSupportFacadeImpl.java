@@ -16,12 +16,12 @@
 
 package org.yes.cart.web.service.wicketsupport.impl;
 
-import org.yes.cart.service.domain.ContentServiceTemplateSupport;
+import org.yes.cart.service.theme.templates.TemplateProcessor;
 import org.yes.cart.web.service.wicketsupport.LinksSupport;
 import org.yes.cart.web.service.wicketsupport.PaginationSupport;
 import org.yes.cart.web.service.wicketsupport.WicketSupportFacade;
 import org.yes.cart.web.support.constants.WebParametersKeys;
-import org.yes.cart.web.util.WicketUtil;
+import org.yes.cart.web.utils.WicketUtil;
 
 /**
  * User: denispavlov
@@ -32,12 +32,12 @@ public class WicketSupportFacadeImpl implements WicketSupportFacade {
 
     private final LinksSupport linksSupport;
     private final PaginationSupport paginationSupport;
-    private final ContentServiceTemplateSupport templateSupport;
+    private final TemplateProcessor templateSupport;
     private final WicketUtil wicketUtil;
 
     public WicketSupportFacadeImpl(final LinksSupport linksSupport,
                                    final PaginationSupport paginationSupport,
-                                   final ContentServiceTemplateSupport templateSupport,
+                                   final TemplateProcessor templateSupport,
                                    final WicketUtil wicketUtil) {
         this.linksSupport = linksSupport;
         this.paginationSupport = paginationSupport;

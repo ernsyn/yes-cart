@@ -23,10 +23,12 @@ import org.yes.cart.constants.DtoServiceSpringKeys;
 import org.yes.cart.domain.dto.TaxConfigDTO;
 import org.yes.cart.domain.dto.TaxDTO;
 import org.yes.cart.domain.dto.factory.DtoFactory;
+import org.yes.cart.domain.misc.SearchContext;
 import org.yes.cart.service.dto.DtoTaxConfigService;
 import org.yes.cart.service.dto.DtoTaxService;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.*;
@@ -53,55 +55,13 @@ public class DtoTaxConfigServiceImplTezt extends BaseCoreDBTestCase {
 
 
     @Test
-    public void testFindByParameters() throws Exception {
+    public void testFindTaxConfigs() throws Exception {
+
         TaxDTO taxDTO = getDto();
         taxDTO = dtoTaxService.create(taxDTO);
 
-        TaxConfigDTO taxConfigDTO1 = getDto(taxDTO, "CC_TEST1");
-        taxConfigDTO1 = dtoTaxConfigService.create(taxConfigDTO1);
-
-        TaxConfigDTO taxConfigDTO2 = getDto(taxDTO, "CC_TEST2");
-        taxConfigDTO2 = dtoTaxConfigService.create(taxConfigDTO2);
-
-        // retrieve specific
-        List<TaxConfigDTO> taxCfgs = dtoTaxConfigService.findByTaxId(
-                taxDTO.getTaxId(),
-                null,
-                null,
-                "CC_TEST1");
-
-        assertNotNull(taxCfgs);
-        assertEquals(1, taxCfgs.size());
-
-        // retrieve all
-        taxCfgs = dtoTaxConfigService.findByTaxId(
-                taxDTO.getTaxId(),
-                null,
-                null,
-                null);
-
-        assertNotNull(taxCfgs);
-        assertEquals(2, taxCfgs.size());
-
-        // retrieve non-existent
-        taxCfgs = dtoTaxConfigService.findByTaxId(
-                taxDTO.getTaxId(),
-                "zzzz",
-                null,
-                null);
-
-        assertNotNull(taxCfgs);
-        assertEquals(0, taxCfgs.size());
-
-        dtoTaxConfigService.remove(taxConfigDTO1.getTaxConfigId());
-        dtoTaxConfigService.remove(taxConfigDTO2.getTaxConfigId());
-        dtoTaxService.remove(taxDTO.getTaxId());
-    }
-
-    @Test
-    public void testFindBy() throws Exception {
-        TaxDTO taxDTO = getDto();
-        taxDTO = dtoTaxService.create(taxDTO);
+        final String shopCode = taxDTO.getShopCode();
+        final String currency = taxDTO.getCurrency();
 
         TaxConfigDTO taxConfigDTO1 = getDto(taxDTO, "CC_TEST1", "UA");
         taxConfigDTO1 = dtoTaxConfigService.create(taxConfigDTO1);
@@ -110,46 +70,75 @@ public class DtoTaxConfigServiceImplTezt extends BaseCoreDBTestCase {
         taxConfigDTO2 = dtoTaxConfigService.create(taxConfigDTO2);
 
         // retrieve specific
-        List<TaxConfigDTO> taxCfgs = dtoTaxConfigService.findBy(
-                taxDTO.getTaxId(),
-                "!CC_TEST1",
-                0,
-                10);
+        final SearchContext filterByCode = createSearchContext("productCode", false, 0, 20,
+                "filter", "!CC_TEST1",
+                "shopCode", shopCode,
+                "currency", currency
+        );
+        List<TaxConfigDTO> taxCfgs = dtoTaxConfigService.findTaxConfigs(filterByCode).getItems();
+
+        assertNotNull(taxCfgs);
+        assertTrue(taxCfgs.size() > 1);
+        assertTrue(taxCfgs.toString(), taxCfgs.stream().allMatch(tc -> "CC_TEST1".equals(tc.getProductCode())));
+
+        // retrieve specific by tax Id
+        final SearchContext filterByCodeByTax = createSearchContext("productCode", false, 0, 20,
+                "filter", "!CC_TEST1",
+                "taxIds", Collections.singletonList(taxDTO.getTaxId())
+        );
+        taxCfgs = dtoTaxConfigService.findTaxConfigs(filterByCodeByTax).getItems();
 
         assertNotNull(taxCfgs);
         assertEquals(1, taxCfgs.size());
-        assertEquals("CC_TEST1", taxCfgs.get(0).getProductCode());
+        assertTrue(taxCfgs.toString(), taxCfgs.stream().allMatch(tc -> "CC_TEST1".equals(tc.getProductCode())));
 
         // retrieve all
-        taxCfgs = dtoTaxConfigService.findBy(
-                taxDTO.getTaxId(),
-                "#CC_TEST",
-                0,
-                10);
+        final SearchContext filterAllCodes = createSearchContext("productCode", false, 0, 20,
+                "filter", "#CC_TEST",
+                "shopCode", shopCode,
+                "currency", currency
+        );
+        taxCfgs = dtoTaxConfigService.findTaxConfigs(filterAllCodes).getItems();
 
         assertNotNull(taxCfgs);
-        assertEquals(2, taxCfgs.size());
+        assertFalse(taxCfgs.isEmpty());
+        assertTrue(taxCfgs.toString(), taxCfgs.stream().allMatch(tc -> tc.getProductCode().startsWith("CC_TEST")));
 
         // retrieve by country
-        taxCfgs = dtoTaxConfigService.findBy(
-                taxDTO.getTaxId(),
-                "@ua",
-                0,
-                10);
+        final SearchContext filterByCountry = createSearchContext("productCode", false, 0, 20,
+                "filter", "@ua",
+                "shopCode", shopCode,
+                "currency", currency
+        );
+        taxCfgs = dtoTaxConfigService.findTaxConfigs(filterByCountry).getItems();
 
         assertNotNull(taxCfgs);
-        assertEquals(1, taxCfgs.size());
-        assertEquals("UA", taxCfgs.get(0).getCountryCode());
+        assertFalse(taxCfgs.isEmpty());
+        assertTrue(taxCfgs.toString(), taxCfgs.stream().allMatch(tc -> "UA".equals(tc.getCountryCode())));
 
         // retrieve partial
-        taxCfgs = dtoTaxConfigService.findBy(
-                taxDTO.getTaxId(),
-                "CC",
-                0,
-                10);
+        final SearchContext filterPartial = createSearchContext("productCode", false, 0, 20,
+                "filter", "CC",
+                "shopCode", shopCode,
+                "currency", currency
+        );
+        taxCfgs = dtoTaxConfigService.findTaxConfigs(filterPartial).getItems();
 
         assertNotNull(taxCfgs);
-        assertEquals(2, taxCfgs.size());
+        assertFalse(taxCfgs.isEmpty());
+        assertTrue(taxCfgs.toString(), taxCfgs.stream().allMatch(tc -> tc.getProductCode().contains("CC")));
+
+
+        // invalid shop
+        final SearchContext filterInvalid = createSearchContext("productCode", false, 0, 20,
+                "shopCode", "ZZZZ",
+                "currency", currency
+        );
+        taxCfgs = dtoTaxConfigService.findTaxConfigs(filterInvalid).getItems();
+
+        assertNotNull(taxCfgs);
+        assertTrue(taxCfgs.isEmpty());
+
 
         dtoTaxConfigService.remove(taxConfigDTO1.getTaxConfigId());
         dtoTaxConfigService.remove(taxConfigDTO2.getTaxConfigId());
@@ -162,7 +151,7 @@ public class DtoTaxConfigServiceImplTezt extends BaseCoreDBTestCase {
 
         TaxDTO taxDTO = dtoTaxService.getById(1010L);
 
-        TaxConfigDTO taxConfigDTO1 = getDto(taxDTO, "CC_TEST1");
+        TaxConfigDTO taxConfigDTO1 = getDto(taxDTO, "ZZ_TEST1");
         taxConfigDTO1 = dtoTaxConfigService.create(taxConfigDTO1);
 
         assertTrue(taxDTO.getTaxId() > 0);
@@ -174,7 +163,7 @@ public class DtoTaxConfigServiceImplTezt extends BaseCoreDBTestCase {
 
         TaxDTO taxDTO = dtoTaxService.getById(1010L);
 
-        TaxConfigDTO taxConfigDTO1 = getDto(taxDTO, "CC_TEST1");
+        TaxConfigDTO taxConfigDTO1 = getDto(taxDTO, "ZZ_TEST1");
         taxConfigDTO1 = dtoTaxConfigService.create(taxConfigDTO1);
 
         assertTrue(taxConfigDTO1.getTaxConfigId() > 0);
@@ -190,7 +179,7 @@ public class DtoTaxConfigServiceImplTezt extends BaseCoreDBTestCase {
 
         TaxDTO taxDTO = dtoTaxService.getById(1010L);
 
-        TaxConfigDTO taxConfigDTO1 = getDto(taxDTO, "CC_TEST1");
+        TaxConfigDTO taxConfigDTO1 = getDto(taxDTO, "ZZ_TEST1");
         taxConfigDTO1 = dtoTaxConfigService.create(taxConfigDTO1);
 
         assertTrue(taxConfigDTO1.getTaxConfigId() > 0);
@@ -204,7 +193,7 @@ public class DtoTaxConfigServiceImplTezt extends BaseCoreDBTestCase {
     private TaxDTO getDto() {
 
         TaxDTO taxDTO = dtoFactory.getByIface(TaxDTO.class);
-        taxDTO.setShopCode("SHOP10");
+        taxDTO.setShopCode("SHOIP1");
         taxDTO.setCurrency("EUR");
         taxDTO.setCode("TESTCODE");
         taxDTO.setTaxRate(new BigDecimal("20.00"));

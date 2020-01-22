@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2009 Denys Pavlov, Igor Azarnyi
   ~
@@ -20,10 +21,10 @@
     <parent>
         <groupId>org.yes</groupId>
         <artifactId>search</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>3.7.0-SNAPSHOT</version>
     </parent>
     <artifactId>search-disabled</artifactId>
-    <name>Yes cart search: disabled provider</name>
+    <name>Search: disabled provider</name>
     <dependencies>
         <dependency>
             <groupId>org.yes</groupId>

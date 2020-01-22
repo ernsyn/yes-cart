@@ -16,7 +16,7 @@
 
 package org.yes.cart.service.domain;
 
-import org.yes.cart.domain.entity.Category;
+import org.yes.cart.domain.entity.Content;
 
 import java.util.List;
 import java.util.Map;
@@ -26,7 +26,7 @@ import java.util.Set;
  * User: Denis Pavlov
  * Date: 27-June-2013
  */
-public interface ContentService extends GenericService<Category> {
+public interface ContentService extends GenericService<Content> {
 
     /**
      * Get the root content for shop.
@@ -35,7 +35,7 @@ public interface ContentService extends GenericService<Category> {
      *
      * @return root content (or null).
      */
-    Category getRootContent(long shopId);
+    Content getRootContent(long shopId);
 
     /**
      * Create root content for shop.
@@ -44,7 +44,15 @@ public interface ContentService extends GenericService<Category> {
      *
      * @return root content.
      */
-    Category createRootContent(final long shopId);
+    Content createRootContent(final long shopId);
+
+    /**
+     * Get all content including child content, that belong to given shop.
+     *
+     * @param shopId given shop
+     * @return linear representation of category tree
+     */
+    Set<Long> getShopContentIds(long shopId);
 
     /**
      * Get the "template variation" template (No fail over).
@@ -61,7 +69,7 @@ public interface ContentService extends GenericService<Category> {
      * @param contentId given parent content PK
      * @return list of child content
      */
-    List<Category> getChildContent(long contentId);
+    List<Content> getChildContent(long contentId);
 
     /**
      * Get the child content without recursion, only one level down.
@@ -70,7 +78,7 @@ public interface ContentService extends GenericService<Category> {
      * @param withAvailability with availability date range filtering or not
      * @return list of child content
      */
-    List<Category> findChildContentWithAvailability(long contentId, boolean withAvailability);
+    List<Content> findChildContentWithAvailability(long contentId, boolean withAvailability);
 
     /**
      * Get the child contents with recursion.
@@ -79,22 +87,7 @@ public interface ContentService extends GenericService<Category> {
      * @param contentId given contentId
      * @return list of child content
      */
-    Set<Category> getChildContentRecursive(long contentId);
-
-
-    /**
-     * Get contents by criteria.
-     *
-     * @param shopId shop id
-     * @param code code (GUID)
-     * @param name base name
-     * @param uri URI
-     * @param page page number starting from 0
-     * @param pageSize size of page
-     *
-     * @return one page of results
-     */
-    List<Category> findBy(long shopId, String code, String name, String uri, int page, int pageSize);
+    Set<Content> getChildContentRecursive(long contentId);
 
     /**
      * Get content body for a particular content.
@@ -124,7 +117,7 @@ public interface ContentService extends GenericService<Category> {
      *
      * @param contentId content id
      * @param locale locale to get body for
-     * @param context runtime content passed from web module (e.g. current category, product, shopping cart etc)
+     * @param context runtime content passed from web module (e.g. current content, product, shopping cart etc)
      *
      * @return body or null if none exists for this locale or if content is not available
      */
@@ -136,7 +129,7 @@ public interface ContentService extends GenericService<Category> {
      *
      * @param contentUri content URI
      * @param locale locale to get body for
-     * @param context runtime content passed from web module (e.g. current category, product, shopping cart etc)
+     * @param context runtime content passed from web module (e.g. current content, product, shopping cart etc)
      *
      * @return body or null if none exists for this locale or if content is not available
      */
@@ -157,25 +150,25 @@ public interface ContentService extends GenericService<Category> {
     String getContentAttributeRecursive(String locale, long contentId, String attributeName, String defaultValue);
 
     /**
-     * Get the values of given attributes. If value not present in given category
-     * failover to parent category will be used.  In case if attribute value for first
-     * attribute will be found, the rest values also will be collected form the same category.
+     * Get the values of given attributes. If value not present in given content
+     * failover to parent content will be used.  In case if attribute value for first
+     * attribute will be found, the rest values also will be collected form the same content.
      *
      *
      * @param locale         locale for localised value (or null for raw value)
      * @param contentId      given content
      * @param attributeNames set of attributes, to collect values.
-     * @return value of given attribute name or defaultValue if value not found in category hierarchy
+     * @return value of given attribute name or defaultValue if value not found in content hierarchy
      */
     String[] getContentAttributeRecursive(final String locale, long contentId, String[] attributeNames);
 
     /**
-     * Get category by id.
+     * Get content by id.
      *
-     * @param categoryId given category id
-     * @return category
+     * @param contentId given content id
+     * @return content
      */
-    Category getById(long categoryId);
+    Content getById(long contentId);
 
     /**
      * Get content id by given seo uri
@@ -202,6 +195,14 @@ public interface ContentService extends GenericService<Category> {
     String findSeoUriByContentId(Long contentId);
 
     /**
+     * Get content id by given seo uri
+     *
+     * @param seoUriOrGuid given seo urior guid
+     * @return content id if found otherwise null
+     */
+    Content findContentIdBySeoUriOrGuid(String seoUriOrGuid);
+
+    /**
      * Does given sub content belong to tree with given parent <code>topContent</code>.
      *
      * @param topContentId given root for content tree.
@@ -210,6 +211,35 @@ public interface ContentService extends GenericService<Category> {
      * @return true in case if content belongs to tree that starts from <code>topContent</code>
      */
     boolean isContentHasSubcontent(long topContentId, long subContentId);
+
+
+
+    /**
+     * Find content by given search criteria. Search will be performed using like operation.
+     *
+     * @param start             start
+     * @param offset            page size
+     * @param sort              optional sort property
+     * @param sortDescending    optional sort property direction
+     * @param filter            optional filters (e.g. name, guid)
+     *
+     * @return list of content.
+     */
+    List<Content> findContent(int start,
+                              int offset,
+                              String sort,
+                              boolean sortDescending,
+                              Map<String, List> filter);
+
+    /**
+     * Find content by given search criteria. Search will be performed using like operation.
+     *
+     * @param filter            optional filters (e.g. name, guid)
+     *
+     * @return count
+     */
+    int findContentCount(Map<String, List> filter);
+
 
 
 }

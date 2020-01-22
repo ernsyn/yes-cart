@@ -32,9 +32,16 @@ import java.util.Map;
 public interface ClusterService {
 
     /**
+     * Get current Node.
+     *
+     * @return current node
+     */
+    Node getCurrentNode();
+
+    /**
      * All registered nodes in this cluster.
      *
-     * E.g. if we have JAM, YES0, YES1 and YES2 nodes
+     * E.g. if we have JAM, SF0, SF1 and SF2 nodes
      * this methods should return four nodes.
      *
      * @param context web service context
@@ -145,38 +152,24 @@ public interface ClusterService {
 
 
     /**
-     * Execute sql and return result.
-     * DML operating also allowed, in this case result has quantity of affected rows.
+     * Map of supported queries by node.
      *
-     * @param context web service context
-     * @param query query ot execute.
-     * @param node node (0..n) on which to run the query
-     *
-     * @return list of rows
+     * @return map of supported queries
      */
-    List<Object[]> sqlQuery(AsyncContext context, String query, String node);
+    Map<String, List<String>> supportedQueries(AsyncContext context);
+
 
     /**
-     * Execute hsql and return result.
+     * Execute query and return result.
      *
      * @param context web service context
-     * @param query query ot execute.
+     * @param type type of query.
+     * @param query query to execute.
      * @param node node (0..n) on which to run the query
      *
      * @return list of rows
      */
-    List<Object[]> hsqlQuery(AsyncContext context, String query, String node);
-
-    /**
-     * Execute ft query and return result.
-     *
-     * @param context web service context
-     * @param query query ot execute.
-     * @param node node (0..n) on which to run the query
-     *
-     * @return list of rows
-     */
-    List<Object[]> ftQuery(AsyncContext context, String query, String node);
+    List<Object[]> runQuery(AsyncContext context, String type, String query, String node);
 
     /**
      * Reload system configurations.
@@ -215,7 +208,7 @@ public interface ClusterService {
      * @param context web service context
      * @param name name of cache to evict
      */
-    Map<String, Boolean> enableStats(AsyncContext context, String name);
+    Map<String, Boolean> enableCache(AsyncContext context, String name);
 
     /**
      * Disable cache statistics by name.
@@ -223,7 +216,7 @@ public interface ClusterService {
      * @param context web service context
      * @param name name of cache to evict
      */
-    Map<String, Boolean> disableStats(AsyncContext context, String name);
+    Map<String, Boolean> disableCache(AsyncContext context, String name);
 
     /**
      * Get platform alerts

@@ -20,12 +20,14 @@ import org.yes.cart.domain.dto.CustomerOrderDTO;
 import org.yes.cart.domain.dto.CustomerOrderDeliveryDTO;
 import org.yes.cart.domain.dto.CustomerOrderDeliveryDetailDTO;
 import org.yes.cart.domain.misc.Result;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.exception.UnableToCreateInstanceException;
 import org.yes.cart.exception.UnmappedInterfaceException;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * User: Igor Azarny iazarny@yahoo.com
@@ -38,6 +40,7 @@ public interface DtoCustomerOrderService extends GenericDTOService<CustomerOrder
      * Confirm customer will to pay via carrie or confirm status of bank payment.
      *
      * @param orderNum             unique order number. not pk value.
+     *
      * @return result object
      */
     Result updateOrderSetConfirmed(String orderNum);
@@ -56,6 +59,7 @@ public interface DtoCustomerOrderService extends GenericDTOService<CustomerOrder
      * For more details see org.yes.cart.payment.PaymentGateway interface and his implementations.
      *
      * @param orderNum             unique order number. not pk value.
+     *
      * @return result object
      */
     Result updateOrderSetCancelled(String orderNum);
@@ -66,6 +70,7 @@ public interface DtoCustomerOrderService extends GenericDTOService<CustomerOrder
      *
      * @param orderNum             unique order number. not pk value.
      * @param message              manual operation message
+     *
      * @return result object
      */
     Result updateOrderSetCancelledManual(String orderNum, String message);
@@ -77,6 +82,7 @@ public interface DtoCustomerOrderService extends GenericDTOService<CustomerOrder
      * @param orderNum    unique order number. not pk value.
      * @param deliveryNum unique delivery number in order scope. not pk value.
      * @param newRefNo    new reference number
+     *
      * @return result object
      */
     Result updateExternalDeliveryRefNo(String orderNum, String deliveryNum, String newRefNo);
@@ -90,6 +96,7 @@ public interface DtoCustomerOrderService extends GenericDTOService<CustomerOrder
      * @param deliveryNum       unique delivery number in order scope. not pk value.
      * @param currentStatus     from status
      * @param destinationStatus to status
+     *
      * @return result object
      */
     Result updateDeliveryStatus(String orderNum, String deliveryNum, String currentStatus, String destinationStatus);
@@ -103,6 +110,7 @@ public interface DtoCustomerOrderService extends GenericDTOService<CustomerOrder
      * @param currentStatus     from status
      * @param destinationStatus to status
      * @param message           manual operation message
+     *
      * @return result object
      */
     Result updateDeliveryStatusManual(String orderNum, String deliveryNum, String currentStatus, String destinationStatus, String message);
@@ -111,7 +119,9 @@ public interface DtoCustomerOrderService extends GenericDTOService<CustomerOrder
      * Get list of delivery details for given order number.
      *
      * @param orderNum order number
+     *
      * @return list of delivery details.
+     *
      * @throws UnmappedInterfaceException in case of dto mapping error
      * @throws UnableToCreateInstanceException
      *                                    in case of dto mapping error
@@ -124,7 +134,9 @@ public interface DtoCustomerOrderService extends GenericDTOService<CustomerOrder
      * slave details objects.
      *
      * @param orderNum order number
+     *
      * @return list of deliveries.
+     *
      * @throws UnmappedInterfaceException in case of dto mapping error
      * @throws UnableToCreateInstanceException
      *                                    in case of dto mapping error
@@ -138,7 +150,9 @@ public interface DtoCustomerOrderService extends GenericDTOService<CustomerOrder
      *
      * @param orderNum order number
      * @param deliveryNum optional delivery number filter
+     *
      * @return list of deliveries.
+     *
      * @throws UnmappedInterfaceException in case of dto mapping error
      * @throws UnableToCreateInstanceException
      *                                    in case of dto mapping error
@@ -151,47 +165,21 @@ public interface DtoCustomerOrderService extends GenericDTOService<CustomerOrder
     /**
      * Find customer's order by given criteria.
      *
-     * @param customerId  customer id. Rest of parameters will be ignored, if customerId more that 0.
-     * @param firstName   optional to perform search using like by first name
-     * @param lastName    optional to perform search using like by last name
-     * @param email       optional to perform search using like by email
-     * @param orderStatus optional order status
-     * @param fromDate    optional order created from
-     * @param toDate      optional order created to
-     * @param orderNum    optional to perform search using like by order number
-     * @return list of customer's order dtos
+     * @param orderNum    to perform search using like by order number
+     *
+     * @return customer order
      */
-    List<CustomerOrderDTO> findCustomerOrdersByCriteria(
-            long customerId,
-            String firstName,
-            String lastName,
-            String email,
-            String orderStatus,
-            LocalDateTime fromDate,
-            LocalDateTime toDate,
-            String orderNum
-    ) throws UnmappedInterfaceException, UnableToCreateInstanceException;
+    CustomerOrderDTO findByOrderNumber(String orderNum)
+            throws UnmappedInterfaceException, UnableToCreateInstanceException;
 
     /**
      * Get orders by filter.
      *
-     * @param filter filter
-     * @param page start page
-     * @param pageSize page size
-     * @return list of orders
-     */
-    List<CustomerOrderDTO> findBy(String filter, int page, int pageSize) throws UnmappedInterfaceException, UnableToCreateInstanceException;
-
-    /**
-     * Get orders by filter.
+     * @param filter    filter
      *
-     * @param filter filter
-     * @param statuses statuses
-     * @param page start page
-     * @param pageSize page size
      * @return list of orders
      */
-    List<CustomerOrderDTO> findBy(String filter, List<String> statuses, int page, int pageSize) throws UnmappedInterfaceException, UnableToCreateInstanceException;
+    SearchResult<CustomerOrderDTO> findOrders(SearchContext filter) throws UnmappedInterfaceException, UnableToCreateInstanceException;
 
     /**
      * Get localized name for all payment gateways on this server.

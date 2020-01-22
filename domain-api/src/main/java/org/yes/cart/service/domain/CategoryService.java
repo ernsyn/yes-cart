@@ -18,8 +18,7 @@ package org.yes.cart.service.domain;
 
 import org.yes.cart.domain.entity.Category;
 
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * User: Igor Azarny iazarny@yahoo.com
@@ -80,19 +79,6 @@ public interface CategoryService extends GenericService<Category> {
     boolean isCategoryHasChildren(long categoryId);
 
     /**
-     * Get categories by criteria.
-     *
-     * @param code code (GUID)
-     * @param name base name
-     * @param uri URI
-     * @param page page number starting from 0
-     * @param pageSize size of page
-     *
-     * @return one page of results
-     */
-    List<Category> findBy(String code, String name, String uri, int page, int pageSize);
-
-    /**
      * Get the child categories without recursion, only one level down.
      *
      * @param categoryId given categoryId
@@ -117,6 +103,15 @@ public interface CategoryService extends GenericService<Category> {
      * @return list of child categories
      */
     Set<Category> getChildCategoriesRecursive(long categoryId);
+
+    /**
+     * Get all ids for all categories represented by given GUIDs.
+     *
+     * @param guids GUIDs of category branches
+     *
+     * @return set of ids
+     */
+    Set<Long> getAllCategoryIds(Collection<String> guids);
 
     /**
      * Get the child categories with recursion.
@@ -203,6 +198,34 @@ public interface CategoryService extends GenericService<Category> {
      * @return true in case if category belongs to tree that starts from <code>topCategory</code>
      */
     boolean isCategoryHasSubcategory(long topCategoryId, long subCategoryId);
+
+
+    /**
+     * Find categories by given search criteria. Search will be performed using like operation.
+     *
+     * @param start             start
+     * @param offset            page size
+     * @param sort              optional sort property
+     * @param sortDescending    optional sort property direction
+     * @param filter            optional filters (e.g. name, guid)
+     *
+     * @return list of categories.
+     */
+    List<Category> findCategories(int start,
+                                  int offset,
+                                  String sort,
+                                  boolean sortDescending,
+                                  Map<String, List> filter);
+
+    /**
+     * Find categories by given search criteria. Search will be performed using like operation.
+     *
+     * @param filter            optional filters (e.g. name, guid)
+     *
+     * @return count
+     */
+    int findCategoryCount(Map<String, List> filter);
+
 
 
 }

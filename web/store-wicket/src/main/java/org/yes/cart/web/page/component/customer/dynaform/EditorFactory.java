@@ -19,7 +19,6 @@ package org.yes.cart.web.page.component.customer.dynaform;
 import org.apache.commons.lang.StringUtils;
 import org.apache.wicket.Component;
 import org.apache.wicket.MarkupContainer;
-import org.apache.wicket.model.AbstractReadOnlyModel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.Model;
 import org.apache.wicket.model.PropertyModel;
@@ -27,8 +26,9 @@ import org.springframework.core.convert.TypeDescriptor;
 import org.yes.cart.domain.entity.AttrValueWithAttribute;
 import org.yes.cart.domain.i18n.I18NModel;
 import org.yes.cart.domain.i18n.impl.FailoverStringI18NModel;
+import org.yes.cart.domain.i18n.impl.StringI18NModel;
 import org.yes.cart.domain.misc.Pair;
-import org.yes.cart.utils.impl.ExtendedConversionService;
+import org.yes.cart.service.misc.impl.ExtendedConversionService;
 import org.yes.cart.web.page.component.customer.dynaform.editor.*;
 
 import java.io.Serializable;
@@ -68,7 +68,7 @@ public class EditorFactory implements Serializable {
 
         final String prop = attrValue.getAttribute().getVal();
 
-        final IModel<String> labelModel = new AbstractReadOnlyModel<String>() {
+        final IModel<String> labelModel = new IModel<String>() {
 
             private final I18NModel m = nameModel;
 
@@ -89,11 +89,11 @@ public class EditorFactory implements Serializable {
 
         if ("CommaSeparatedList".equals(bType)) {
 
-            final I18NModel choices = new FailoverStringI18NModel(
-                    attrValue.getAttribute().getChoiceData(),
-                    attrValue.getAttribute().getChoiceData());
+            final I18NModel choices = new StringI18NModel(
+                    attrValue.getAttribute().getChoiceData()
+            );
 
-            final IModel<List<Pair<String, String>>> enumChoices = new AbstractReadOnlyModel<List<Pair<String, String>>>() {
+            final IModel<List<Pair<String, String>>> enumChoices = new IModel<List<Pair<String,String>>>() {
 
                 private final I18NModel m = choices;
 

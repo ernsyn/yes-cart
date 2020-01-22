@@ -42,7 +42,7 @@ import org.yes.cart.web.page.component.js.ServerSideJs;
 import org.yes.cart.web.support.constants.StorefrontServiceSpringKeys;
 import org.yes.cart.web.support.service.ContentServiceFacade;
 import org.yes.cart.web.support.service.CustomerServiceFacade;
-import org.yes.cart.web.support.util.HttpUtil;
+import org.yes.cart.web.support.utils.HttpUtil;
 
 /**
  *
@@ -89,7 +89,7 @@ public class WishListPage extends AbstractWebPage {
             if (cart.getLogonState() == ShoppingCart.LOGGED_IN && ((AuthenticatedWebSession) getSession()).isSignedIn()) {
                 email = cart.getCustomerEmail();
                 customer = customerServiceFacade.getCustomerByEmail(getCurrentShop(), email);
-                publicKey = customerServiceFacade.getCustomerPublicKey(customer);
+                publicKey = customer != null ? customerServiceFacade.getCustomerPublicKey(customer) : null;
             } else {
                 email = "";
                 customer = null;

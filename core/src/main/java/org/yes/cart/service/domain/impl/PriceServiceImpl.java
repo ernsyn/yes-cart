@@ -21,11 +21,11 @@ import org.apache.commons.lang.StringUtils;
 import org.yes.cart.dao.GenericDAO;
 import org.yes.cart.domain.entity.SkuPrice;
 import org.yes.cart.domain.misc.Pair;
-import org.yes.cart.domain.misc.SkuPriceQuantityComparatorImpl;
 import org.yes.cart.service.domain.PriceService;
-import org.yes.cart.util.DomainApiUtils;
-import org.yes.cart.util.MoneyUtils;
-import org.yes.cart.util.TimeContext;
+import org.yes.cart.service.domain.SkuPriceQuantityComparator;
+import org.yes.cart.utils.HQLUtils;
+import org.yes.cart.utils.MoneyUtils;
+import org.yes.cart.utils.TimeContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -62,13 +62,14 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
                                     final String currencyCode,
                                     final BigDecimal quantity,
                                     final boolean enforceTier,
-                                    final String pricingPolicy) {
+                                    final String pricingPolicy,
+                                    final String supplier) {
 
         final List<Pair<String, SkuPrice>> skuPrices;
         if (selectedSku == null && productId != null) {
-            skuPrices = getSkuPrices(productId, customerShopId, masterShopId, currencyCode, pricingPolicy);
+            skuPrices = getSkuPrices(productId, customerShopId, masterShopId, currencyCode, pricingPolicy, supplier);
         } else if (selectedSku != null) {
-            skuPrices = getSkuPrices(selectedSku, customerShopId, masterShopId, currencyCode, pricingPolicy);
+            skuPrices = getSkuPrices(selectedSku, customerShopId, masterShopId, currencyCode, pricingPolicy, supplier);
         } else {
             skuPrices = Collections.emptyList();
         }
@@ -132,7 +133,7 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
         return rez.getSecond();
     }
 
-    private static final Comparator<SkuPrice> SORT_PRICE_BY_QUANTITY = new SkuPriceQuantityComparatorImpl();
+    private static final Comparator<SkuPrice> SORT_PRICE_BY_QUANTITY = new SkuPriceQuantityComparator();
 
     /**
      * {@inheritDoc}
@@ -143,13 +144,14 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
                                               final long customerShopId,
                                               final Long masterShopId,
                                               final String currencyCode,
-                                              final String pricingPolicy) {
+                                              final String pricingPolicy,
+                                              final String supplier) {
 
         final List<Pair<String, SkuPrice>> skuPrices;
         if (selectedSku == null && productId != null) {
-            skuPrices = getSkuPrices(productId, customerShopId, masterShopId, currencyCode, pricingPolicy);
+            skuPrices = getSkuPrices(productId, customerShopId, masterShopId, currencyCode, pricingPolicy, supplier);
         } else if (selectedSku != null) {
-            skuPrices = getSkuPrices(selectedSku, customerShopId, masterShopId, currencyCode, pricingPolicy);
+            skuPrices = getSkuPrices(selectedSku, customerShopId, masterShopId, currencyCode, pricingPolicy, supplier);
         } else {
             skuPrices = Collections.emptyList();
         }
@@ -196,7 +198,7 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
         final LocalDateTime now = now();
         for (Pair<String, SkuPrice> skuPrice : skuPrices) {
 
-            if (DomainApiUtils.isObjectAvailableNow(true, skuPrice.getSecond().getSalefrom(), skuPrice.getSecond().getSaleto(), now)) {
+            if (skuPrice.getSecond().isAvailable(now)) {
                 allPrices.add(skuPrice);
             }
 
@@ -217,6 +219,7 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
      * @param masterShopId    optional fallback shop filter
      * @param currencyCode    currency code
      * @param pricingPolicy   optional pricing policy
+     * @param supplier        optional supplier
      *
      * @return list of sku prices
      */
@@ -224,9 +227,17 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
                                               final long customerShopId,
                                               final Long masterShopId,
                                               final String currencyCode,
-                                              final String pricingPolicy) {
+                                              final String pricingPolicy,
+                                              final String supplier) {
 
-        return getSkuPriceFilteredByShopCurrency(skuCode, customerShopId, masterShopId, currencyCode, pricingPolicy);
+        return getSkuPriceFilteredByShopCurrency(
+                skuCode,
+                customerShopId,
+                masterShopId,
+                currencyCode,
+                pricingPolicy,
+                supplier
+        );
 
     }
 
@@ -238,6 +249,7 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
      * @param masterShopId    optional fallback shop filter
      * @param currencyCode    currency code
      * @param pricingPolicy   optional pricing policy
+     * @param supplier        optional supplier
      *
      * @return list of sku prices
      */
@@ -245,9 +257,17 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
                                               final long customerShopId,
                                               final Long masterShopId,
                                               final String currencyCode,
-                                              final String pricingPolicy) {
+                                              final String pricingPolicy,
+                                              final String supplier) {
 
-        return getSkuPriceFilteredByShopCurrency(productId, customerShopId, masterShopId, currencyCode, pricingPolicy);
+        return getSkuPriceFilteredByShopCurrency(
+                productId,
+                customerShopId,
+                masterShopId,
+                currencyCode,
+                pricingPolicy,
+                supplier
+        );
 
     }
 
@@ -275,75 +295,82 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
         return result;
     }
 
-    private List<Pair<String, SkuPrice>> getSkuPriceFilteredByShopCurrency(final String skuCode,
-                                                                           final long customerShopId,
-                                                                           final Long masterShopId,
-                                                                           final String currencyCode,
-                                                                           final String pricingPolicy) {
+    List<Pair<String, SkuPrice>> getSkuPriceFilteredByShopCurrency(final String skuCode,
+                                                                   final long customerShopId,
+                                                                   final Long masterShopId,
+                                                                   final String currencyCode,
+                                                                   final String pricingPolicy,
+                                                                   final String supplier) {
 
         final List<SkuPrice> prices;
-        if (StringUtils.isNotBlank(pricingPolicy)) {
-            if (masterShopId != null) {
-                prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.CODE.AND.CURRENCY.AND.SHOPS.AND.POLICY",
-                        skuCode, currencyCode, customerShopId, masterShopId, pricingPolicy);
-            } else {
-                prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.CODE.AND.CURRENCY.AND.SHOP.AND.POLICY",
-                        skuCode, currencyCode, customerShopId, pricingPolicy);
-            }
+        if (masterShopId != null) {
+            prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.CODE.AND.CURRENCY.AND.SHOPS",
+                    skuCode, currencyCode, customerShopId, masterShopId);
         } else {
-            if (masterShopId != null) {
-                prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.CODE.AND.CURRENCY.AND.SHOPS",
-                        skuCode, currencyCode, customerShopId, masterShopId);
-            } else {
-                prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.CODE.AND.CURRENCY.AND.SHOP",
-                        skuCode, currencyCode, customerShopId);
-            }
+            prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.CODE.AND.CURRENCY.AND.SHOP",
+                    skuCode, currencyCode, customerShopId);
         }
+
+        return getValidPricePairs(prices, pricingPolicy, supplier);
+
+    }
+
+    List<Pair<String, SkuPrice>> getSkuPriceFilteredByShopCurrency(final long productId,
+                                                                   final long customerShopId,
+                                                                   final Long masterShopId,
+                                                                   final String currencyCode,
+                                                                   final String pricingPolicy,
+                                                                   final String supplier) {
+
+        final List<SkuPrice> prices;
+        if (masterShopId != null) {
+            prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.PRODUCT.AND.CURRENCY.AND.SHOPS",
+                    productId, currencyCode, customerShopId, masterShopId);
+        } else {
+            prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.PRODUCT.AND.CURRENCY.AND.SHOP",
+                    productId, currencyCode, customerShopId);
+        }
+
+        return getValidPricePairs(prices, pricingPolicy, supplier);
+
+    }
+
+
+    private List<Pair<String, SkuPrice>> getValidPricePairs(final List<SkuPrice> prices,
+                                                            final String pricingPolicy,
+                                                            final String supplier) {
+
         if (CollectionUtils.isNotEmpty(prices)) {
+
+            final boolean usePolicy = StringUtils.isNotBlank(pricingPolicy);
+            final boolean useSupplier = StringUtils.isNotBlank(supplier);
             final List<Pair<String, SkuPrice>> rez = new ArrayList<>(prices.size());
+
             for (final SkuPrice price : prices) {
-                rez.add(new Pair<>(price.getSkuCode(), price));
+
+                if (    // POLICY:
+                        (
+                                // Non-specific (available to all)
+                                StringUtils.isEmpty(price.getPricingPolicy()) ||
+                                // OR enforce policy and policy is exact match
+                                (usePolicy && pricingPolicy.equals(price.getPricingPolicy()))
+                        ) &&
+                        // SUPPLIER:
+                        (
+                                // Non-specific (available to all)
+                                StringUtils.isEmpty(price.getSupplier()) ||
+                                // OR enforce supplier and supplier is exact match
+                                (useSupplier && supplier.equals(price.getSupplier()))
+                        )
+                ) {
+                    rez.add(new Pair<>(price.getSkuCode(), price));
+                }
             }
             return rez;
         }
         return Collections.emptyList();
-
     }
 
-    private List<Pair<String, SkuPrice>> getSkuPriceFilteredByShopCurrency(final long productId,
-                                                                           final long customerShopId,
-                                                                           final Long masterShopId,
-                                                                           final String currencyCode,
-                                                                           final String pricingPolicy) {
-
-        final List<SkuPrice> prices;
-        if (StringUtils.isNotBlank(pricingPolicy)) {
-            if (masterShopId != null) {
-                prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.PRODUCT.AND.CURRENCY.AND.SHOPS.AND.POLICY",
-                        productId, currencyCode, customerShopId, masterShopId, pricingPolicy);
-            } else {
-                prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.PRODUCT.AND.CURRENCY.AND.SHOP.AND.POLICY",
-                        productId, currencyCode, customerShopId, pricingPolicy);
-            }
-        } else {
-            if (masterShopId != null) {
-                prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.PRODUCT.AND.CURRENCY.AND.SHOPS",
-                        productId, currencyCode, customerShopId, masterShopId);
-            } else {
-                prices = getGenericDao().findByNamedQuery("SKUPRICE.BY.PRODUCT.AND.CURRENCY.AND.SHOP",
-                        productId, currencyCode, customerShopId);
-            }
-        }
-        if (CollectionUtils.isNotEmpty(prices)) {
-            final List<Pair<String, SkuPrice>> rez = new ArrayList<>(prices.size());
-            for (final SkuPrice price : prices) {
-                rez.add(new Pair<>(price.getSkuCode(), price));
-            }
-            return rez;
-        }
-        return Collections.emptyList();
-
-    }
 
     /**
      * {@inheritDoc}
@@ -360,26 +387,6 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
         }
 
         return Collections.emptyList();
-    }
-
-
-    /**
-     * Nice rounding for digits.
-     *
-     * @param toNicefy digit to make it nice
-     * @return nicefied digit
-     */
-    BigDecimal niceBigDecimal(final BigDecimal toNicefy) {
-        Integer intValue = toNicefy.intValue();
-        String intAsString = intValue.toString();
-
-        int tailZeroCount = intAsString.length() / 2;
-        if (tailZeroCount == 0) {
-            tailZeroCount = intAsString.length();
-
-        }
-
-        return new BigDecimal(intValue).setScale(-1 * tailZeroCount, BigDecimal.ROUND_HALF_UP);
     }
 
     /**
@@ -410,11 +417,85 @@ public class PriceServiceImpl extends BaseGenericServiceImpl<SkuPrice> implement
         }
     }
 
+
+
+
+    private Pair<String, Object[]> findPriceQuery(final boolean count,
+                                                  final String sort,
+                                                  final boolean sortDescending,
+                                                  final Map<String, List> filter) {
+
+        final Map<String, List> currentFilter = filter != null ? new HashMap<>(filter) : null;
+
+        final StringBuilder hqlCriteria = new StringBuilder();
+        final List<Object> params = new ArrayList<>();
+
+        if (count) {
+            hqlCriteria.append("select count(p.skuPriceId) from SkuPriceEntity p ");
+        } else {
+            hqlCriteria.append("select p from SkuPriceEntity p ");
+        }
+
+        final List shopIds = currentFilter != null ? currentFilter.remove("shopIds") : null;
+        if (shopIds != null) {
+            hqlCriteria.append(" where (p.shop.shopId in (?1)) ");
+            params.add(shopIds);
+        }
+        final List currencies = currentFilter != null ? currentFilter.remove("currencies") : null;
+        if (currencies != null) {
+            if (params.isEmpty()) {
+                hqlCriteria.append(" where (p.currency in ?1) ");
+            } else {
+                hqlCriteria.append(" and (p.currency in ?2) ");
+            }
+            params.add(currencies);
+        }
+
+
+        HQLUtils.appendFilterCriteria(hqlCriteria, params, "p", currentFilter);
+
+        if (StringUtils.isNotBlank(sort)) {
+
+            hqlCriteria.append(" order by p." + sort + " " + (sortDescending ? "desc" : "asc"));
+
+        }
+
+        return new Pair<>(
+                hqlCriteria.toString(),
+                params.toArray(new Object[params.size()])
+        );
+
+    }
+
+
+
+
     /**
      * {@inheritDoc}
      */
     @Override
-    public void refresh(final String shopCode, final String currency) {
-        // not supported
+    public List<SkuPrice> findPrices(final int start, final int offset, final String sort, final boolean sortDescending, final Map<String, List> filter) {
+
+        final Pair<String, Object[]> query = findPriceQuery(false, sort, sortDescending, filter);
+
+        return getGenericDao().findRangeByQuery(
+                query.getFirst(),
+                start, offset,
+                query.getSecond()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int findPriceCount(final Map<String, List> filter) {
+
+        final Pair<String, Object[]> query = findPriceQuery(true, null, false, filter);
+
+        return getGenericDao().findCountByQuery(
+                query.getFirst(),
+                query.getSecond()
+        );
     }
 }

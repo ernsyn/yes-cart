@@ -28,6 +28,7 @@ import org.yes.cart.service.domain.ProductService;
 import org.yes.cart.service.domain.ShopService;
 import org.yes.cart.shoppingcart.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -100,15 +101,17 @@ public class RemoveSkuFromWishListEventCommandImpl extends AbstractSkuCartComman
     protected void execute(final MutableShoppingCart shoppingCart,
                            final ProductSku productSku,
                            final String skuCode,
+                           final String supplier,
+                           final BigDecimal qty,
                            final Map<String, Object> parameters) {
 
-        if (productSku != null && ShoppingCart.LOGGED_IN == shoppingCart.getLogonState()) {
+        if (ShoppingCart.LOGGED_IN == shoppingCart.getLogonState()) {
 
             final Long pk = getItemIdValue(parameters);
 
             if (pk != null) {
 
-                removeWishListItem(shoppingCart, productSku, pk);
+                removeWishListItem(shoppingCart, pk);
 
                 /*
                     We do not need it for demo but if we have dependency of promotions on wish list items
@@ -122,7 +125,7 @@ public class RemoveSkuFromWishListEventCommandImpl extends AbstractSkuCartComman
         }
     }
 
-    private void removeWishListItem(final ShoppingCart shoppingCart, final ProductSku productSku, final long pk) {
+    private void removeWishListItem(final ShoppingCart shoppingCart, final long pk) {
 
         final Shop shop = getShopService().getById(shoppingCart.getShoppingContext().getShopId());
         if (shop == null) {

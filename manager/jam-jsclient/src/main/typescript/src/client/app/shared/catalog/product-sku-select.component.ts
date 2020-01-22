@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 import { Component, OnInit, OnDestroy, Output, EventEmitter, ViewChild } from '@angular/core';
-import { ProductSkuVO } from './../model/index';
+import { ProductSkuVO, SearchContextVO } from './../model/index';
 import { PIMService } from './../services/index';
 import { ModalComponent, ModalResult, ModalAction } from './../modal/index';
 import { Futures, Future, FormValidationEvent } from './../event/index';
@@ -54,6 +54,10 @@ export class ProductSkuSelectComponent implements OnInit, OnDestroy {
 
   constructor (private _productService : PIMService) {
     LogUtil.debug('ProductSkuSelectComponent constructed');
+    let that = this;
+    this.delayedFiltering = Futures.perpetual(function() {
+      that.getAllProductSkus();
+    }, this.delayedFilteringMs);
   }
 
   ngOnDestroy() {
@@ -62,11 +66,6 @@ export class ProductSkuSelectComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     LogUtil.debug('ProductSkuSelectComponent ngOnInit');
-    let that = this;
-    this.delayedFiltering = Futures.perpetual(function() {
-      that.getAllProductSkus();
-    }, this.delayedFilteringMs);
-
   }
 
   onSelectClick(producttype: ProductSkuVO) {
@@ -106,13 +105,22 @@ export class ProductSkuSelectComponent implements OnInit, OnDestroy {
 
     if (!this.productSkuFilterRequired) {
       this.loading = true;
-      let _sub:any = this._productService.getFilteredProductSkus(this.productSkuFilter, this.filterCap).subscribe(allproducts => {
+      let _ctx:SearchContextVO = {
+        parameters : {
+          filter: [ this.productSkuFilter ]
+        },
+        start : 0,
+        size : this.filterCap,
+        sortBy : 'code',
+        sortDesc : false
+      };
+      let _sub:any = this._productService.getFilteredProductSkus(_ctx).subscribe(allproducts => {
         LogUtil.debug('ProductSkuSelectComponent getAllProductSkus', allproducts);
         this.selectedProductSku = null;
         this.changed = false;
         this.validForSelect = false;
-        this.filteredProductSkus = allproducts;
-        this.productSkuFilterCapped = this.filteredProductSkus.length >= this.filterCap;
+        this.filteredProductSkus = allproducts != null ? allproducts.items : [];
+        this.productSkuFilterCapped = allproducts != null && allproducts.total > this.filterCap;
         this.loading = false;
         _sub.unsubscribe();
       });

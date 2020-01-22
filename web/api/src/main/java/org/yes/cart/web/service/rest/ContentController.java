@@ -16,16 +16,15 @@
 
 package org.yes.cart.web.service.rest;
 
+import io.swagger.annotations.Api;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import org.yes.cart.constants.AttributeGroupNames;
-import org.yes.cart.domain.entity.Attribute;
-import org.yes.cart.domain.entity.Category;
+import org.yes.cart.domain.entity.Content;
 import org.yes.cart.domain.misc.Pair;
-import org.yes.cart.domain.ro.AttrValueCategoryRO;
+import org.yes.cart.domain.ro.AttrValueContentRO;
 import org.yes.cart.domain.ro.BreadcrumbRO;
 import org.yes.cart.domain.ro.ContentListRO;
 import org.yes.cart.domain.ro.ContentRO;
@@ -51,6 +50,7 @@ import java.util.*;
  * Time: 23:42
  */
 @Controller
+@Api(value = "Content", tags = "content")
 @RequestMapping("/content")
 public class ContentController {
 
@@ -77,14 +77,14 @@ public class ContentController {
         final long contentId = bookmarkMixin.resolveContentId(content);
         final long contentShopId = cartMixin.getCurrentShopId();
 
-        final Category contentEntity = contentServiceFacade.getContent(contentId, contentShopId);
+        final Content contentEntity = contentServiceFacade.getContent(contentId, contentShopId);
 
         if (contentEntity != null && !CentralViewLabel.INCLUDE.equals(contentEntity.getUitemplate())) {
 
-            final ContentRO cntRO = mappingMixin.map(contentEntity, ContentRO.class, Category.class);
-            cntRO.setBreadcrumbs(generateBreadcrumbs(cntRO.getCategoryId(), contentShopId));
+            final ContentRO cntRO = mappingMixin.map(contentEntity, ContentRO.class, Content.class);
+            cntRO.setBreadcrumbs(generateBreadcrumbs(cntRO.getContentId(), contentShopId));
             removeContentBodyAttributes(cntRO);
-            cntRO.setContentBody(generateContentBody(cntRO.getCategoryId(), contentShopId, contentParams));
+            cntRO.setContentBody(generateContentBody(cntRO.getContentId(), contentShopId, contentParams));
             final Pair<String, String> templates = resolveTemplate(cntRO);
             if (templates != null) {
                 cntRO.setUitemplate(templates.getFirst());
@@ -99,7 +99,7 @@ public class ContentController {
     }
 
     /**
-     * Interface: GET /yes-api/rest/content/view/{id}
+     * Interface: GET /api/rest/content/view/{id}
      * <p>
      * <p>
      * Display content. uitemplate is is correctly resolved using central view resolver.
@@ -204,7 +204,8 @@ public class ContentController {
             method = RequestMethod.GET,
             produces =  { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody ContentRO viewContent(@PathVariable(value = "id") final String content,
+    public @ResponseBody ContentRO viewContent(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                               final @PathVariable(value = "id")String content,
                                                final HttpServletRequest request,
                                                final HttpServletResponse response) {
 
@@ -216,7 +217,7 @@ public class ContentController {
 
 
     /**
-     * Interface: PUT /yes-api/rest/content/view/{id}
+     * Interface: PUT /api/rest/content/view/{id}
      * <p>
      * <p>
      * Display dynamic content. uitemplate is is correctly resolved using central view resolver.
@@ -292,8 +293,9 @@ public class ContentController {
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE },
             consumes = MediaType.APPLICATION_JSON_VALUE
     )
-    public @ResponseBody ContentRO viewContent(@PathVariable(value = "id") final String content,
-                                               @RequestBody final Map<String, Object> params,
+    public @ResponseBody ContentRO viewContent(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                               final @PathVariable(value = "id") String content,
+                                               final @RequestBody Map<String, Object> params,
                                                final HttpServletRequest request,
                                                final HttpServletResponse response) {
 
@@ -304,7 +306,7 @@ public class ContentController {
     }
 
     /**
-     * Interface: PUT /yes-api/rest/content/view/{id}
+     * Interface: PUT /api/rest/content/view/{id}
      * <p>
      * <p>
      * Display dynamic content. uitemplate is is correctly resolved using central view resolver.
@@ -384,8 +386,9 @@ public class ContentController {
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE },
             consumes = MediaType.APPLICATION_XML_VALUE
     )
-    public @ResponseBody ContentRO viewContentXML(@PathVariable(value = "id") final String content,
-                                                  @RequestBody final XMLParamsRO params,
+    public @ResponseBody ContentRO viewContentXML(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                  final @PathVariable(value = "id") String content,
+                                                  final @RequestBody XMLParamsRO params,
                                                   final HttpServletRequest request,
                                                   final HttpServletResponse response) {
 
@@ -402,15 +405,15 @@ public class ContentController {
 
         final String lang = cartMixin.getCurrentCart().getCurrentLocale();
 
-        final List<Category> menu = contentServiceFacade.getCurrentContentMenu(contentId, contentShopId, lang);
+        final List<Content> menu = contentServiceFacade.getCurrentContentMenu(contentId, contentShopId, lang);
 
         if (!menu.isEmpty()) {
 
-            final List<ContentRO> cnts = mappingMixin.map(menu, ContentRO.class, Category.class);
+            final List<ContentRO> cnts = mappingMixin.map(menu, ContentRO.class, Content.class);
             if (cnts.size() > 0) {
 
                 for (final ContentRO cnt : cnts) {
-                    final List<BreadcrumbRO> crumbs = generateBreadcrumbs(cnt.getCategoryId(), contentShopId);
+                    final List<BreadcrumbRO> crumbs = generateBreadcrumbs(cnt.getContentId(), contentShopId);
                     cnt.setBreadcrumbs(crumbs);
                     removeContentBodyAttributes(cnt);
                 }
@@ -426,7 +429,7 @@ public class ContentController {
     }
 
     /**
-     * Interface: GET /yes-api/rest/content/menu/{id}
+     * Interface: GET /api/rest/content/menu/{id}
      * <p>
      * <p>
      * Display content menu. uitemplate is taken from the object without failover.
@@ -493,7 +496,8 @@ public class ContentController {
             method = RequestMethod.GET,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
-    public @ResponseBody List<ContentRO> listContent(@PathVariable(value = "id") final String content,
+    public @ResponseBody List<ContentRO> listContent(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                     final @PathVariable(value = "id") String content,
                                                      final HttpServletRequest request,
                                                      final HttpServletResponse response) {
 
@@ -505,7 +509,7 @@ public class ContentController {
     }
 
     /**
-     * Interface: GET /yes-api/rest/content/menu/{id}
+     * Interface: GET /api/rest/content/menu/{id}
      * <p>
      * <p>
      * Display content menu. uitemplate is taken from the object without failover.
@@ -579,7 +583,8 @@ public class ContentController {
             method = RequestMethod.GET,
             produces = MediaType.APPLICATION_XML_VALUE
     )
-    public @ResponseBody ContentListRO listContentXML(@PathVariable(value = "id") final String content,
+    public @ResponseBody ContentListRO listContentXML(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                      final @PathVariable(value = "id") String content,
                                                       final HttpServletRequest request,
                                                       final HttpServletResponse response) {
 
@@ -593,7 +598,7 @@ public class ContentController {
 
     private Pair<String, String> resolveTemplate(final ContentRO catRO) {
         final Map params = new HashMap();
-        params.put(WebParametersKeys.CONTENT_ID, String.valueOf(catRO.getCategoryId()));
+        params.put(WebParametersKeys.CONTENT_ID, String.valueOf(catRO.getContentId()));
         return centralViewResolver.resolveMainPanelRendererLabel(params);
     }
 
@@ -607,13 +612,13 @@ public class ContentController {
 
         while(true) {
 
-            Category cat = contentServiceFacade.getContent(current, shopId);
+            Content cat = contentServiceFacade.getContent(current, shopId);
 
             if (cat == null || CentralViewLabel.INCLUDE.equals(cat.getUitemplate()) || cat.isRoot()) {
                 break;
             }
 
-            final BreadcrumbRO crumb = mappingMixin.map(cat, BreadcrumbRO.class, Category.class);
+            final BreadcrumbRO crumb = mappingMixin.map(cat, BreadcrumbRO.class, Content.class);
             crumbs.add(crumb);
 
             current = cat.getParentId();
@@ -628,19 +633,11 @@ public class ContentController {
 
     private void removeContentBodyAttributes(final ContentRO content) {
 
-        final Set<AttrValueCategoryRO> attrs = content.getAttributes();
+        final Set<AttrValueContentRO> attrs = content.getAttributes();
         if (attrs != null) {
 
-            final List<Attribute> cntAttrs = attributeService.getAvailableAttributesByGroupCodeStartsWith(
-                    AttributeGroupNames.CATEGORY, "CONTENT_BODY_");
-            if (!cntAttrs.isEmpty()) {
-                final List<Long> cntAttrsIds = new ArrayList<>();
-                for (final Attribute cntAttr : cntAttrs) {
-                    cntAttrsIds.add(cntAttr.getId());
-                }
+            attrs.removeIf(val -> val.getAttributeCode().startsWith("CONTENT_BODY_"));
 
-                attrs.removeIf(val -> cntAttrsIds.contains(val.getAttributeId()));
-            }
         }
 
     }

@@ -40,7 +40,7 @@ import org.yes.cart.service.domain.MailService;
 import org.yes.cart.service.domain.PassPhraseGenerator;
 import org.yes.cart.service.mail.MailComposer;
 import org.yes.cart.service.theme.ThemeService;
-import org.yes.cart.util.TimeContext;
+import org.yes.cart.utils.TimeContext;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -258,6 +258,7 @@ public class CustomerRegistrationAspect extends BaseNotificationAspect {
         registrationMessage.setShopCode(shop.getCode());
         registrationMessage.setShopName(shop.getName());
         registrationMessage.setShopUrl(transformShopUrls(shop));
+        registrationMessage.setShopSecureUrl(transformShopSecureUrls(shop));
 
         if (registeredPerson instanceof Customer) {
             final Customer customer = (Customer) registeredPerson;
@@ -338,6 +339,12 @@ public class CustomerRegistrationAspect extends BaseNotificationAspect {
     private Set<String> transformShopUrls(final Shop shop) {
         final Set<String> rez = new HashSet<>();
         rez.add(shop.getDefaultShopUrl());
+        return rez;
+    }
+
+    private Set<String> transformShopSecureUrls(final Shop shop) {
+        final Set<String> rez = new HashSet<>();
+        rez.add(shop.getDefaultShopSecureUrl());
         return rez;
     }
 

@@ -14,9 +14,9 @@
  *    limitations under the License.
  */
 import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
-import { OrganisationService, ShopEventBus } from './../shared/services/index';
+import { OrganisationService, CatalogService, ShopEventBus, UserEventBus } from './../shared/services/index';
 import { ModalComponent, ModalResult, ModalAction } from './../shared/modal/index';
-import { ManagerInfoVO, ManagerVO, ShopVO, RoleVO } from './../shared/model/index';
+import { ManagerInfoVO, ManagerVO, ShopVO, RoleVO, ProductSupplierCatalogVO } from './../shared/model/index';
 import { FormValidationEvent } from './../shared/event/index';
 import { LogUtil } from './../shared/log/index';
 
@@ -41,6 +41,7 @@ export class OrganisationManagerComponent implements OnInit, OnDestroy {
 
   private shops:Array<ShopVO> = [];
   private roles:Array<RoleVO> = [];
+  private suppliers:Array<ProductSupplierCatalogVO> = [];
 
   @ViewChild('deleteConfirmationModalDialog')
   private deleteConfirmationModalDialog:ModalComponent;
@@ -59,7 +60,8 @@ export class OrganisationManagerComponent implements OnInit, OnDestroy {
   private changed:boolean = false;
   private validForSave:boolean = false;
 
-  constructor(private _organisationService:OrganisationService) {
+  constructor(private _organisationService:OrganisationService,
+              private _catalogService:CatalogService) {
     LogUtil.debug('OrganisationManagerComponent constructed');
     this.shopAllSub = ShopEventBus.getShopEventBus().shopsUpdated$.subscribe(shopsevt => {
       this.shops = shopsevt;
@@ -71,13 +73,12 @@ export class OrganisationManagerComponent implements OnInit, OnDestroy {
       managerId: 0,
       email: '', firstName: '', lastName: '', enabled: false,
       companyName1: null, companyName2: null, companyDepartment: null,
-      managerShops: [], managerRoles: []
+      managerShops: [], managerRoles: [], managerSupplierCatalogs: [], managerCategoryCatalogs: []
     };
   }
 
   ngOnInit() {
     LogUtil.debug('OrganisationManagerComponent ngOnInit');
-    this.getAllRoles();
     this.onRefreshHandler();
   }
 
@@ -90,7 +91,13 @@ export class OrganisationManagerComponent implements OnInit, OnDestroy {
 
   protected onRefreshHandler() {
     LogUtil.debug('OrganisationManagerComponent refresh handler');
-    this.getAllManagers();
+    if (UserEventBus.getUserEventBus().current() != null) {
+      if (this.roles == null || this.roles.length == 0) {
+        this.getAllRoles();
+      } else {
+        this.getAllManagers();
+      }
+    }
   }
 
   protected onManagerSelected(data:ManagerVO) {
@@ -304,10 +311,16 @@ export class OrganisationManagerComponent implements OnInit, OnDestroy {
   private getAllRoles() {
     this.loading = true;
     let _sub:any = this._organisationService.getAllRoles().subscribe( allroles => {
-      LogUtil.debug('OrganisationManagerComponent getAllManagers', allroles);
+      LogUtil.debug('OrganisationManagerComponent getAllRoles', allroles);
       this.roles = allroles;
-      this.loading = false;
       _sub.unsubscribe();
+      let _sub2:any = this._catalogService.getAllProductSuppliersCatalogs().subscribe(allsup => {
+        LogUtil.debug('OrganisationManagerComponent getAllProductSuppliersCatalogs', allsup);
+        this.suppliers = allsup;
+        this.loading = false;
+        _sub2.unsubscribe();
+        this.getAllManagers();
+      });
     });
   }
 

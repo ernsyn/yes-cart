@@ -18,6 +18,7 @@ package org.yes.cart.shoppingcart.support.tokendriven.impl;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.codehaus.groovy.util.ListHashMap;
 import org.yes.cart.domain.entity.Address;
 import org.yes.cart.domain.entity.ShoppingCartState;
 import org.yes.cart.service.domain.AddressService;
@@ -56,39 +57,47 @@ public class CartUpdateProcessorImpl implements CartUpdateProcessor {
 
         // 1. Need to find this cart by guid in db
         ShoppingCartState dbState = shoppingCartStateService.findByGuid(shoppingCart.getGuid());
+        boolean wasNull = false;
         if (dbState == null) {
+            wasNull = true;
             dbState = shoppingCartStateService.getGenericDao().getEntityFactory().getByIface(ShoppingCartState.class);
             dbState.setGuid(shoppingCart.getGuid());
             dbState.setOrdernum(shoppingCart.getOrdernum());
         }
 
+        final long shopId = shoppingCart.getShoppingContext().getShopId();
+        final boolean managed = shoppingCart.getShoppingContext().isManagedCart();
+
         // 2. If this is for logged in cart now but was anonymous we have just logged in
-        if (shoppingCart.getLogonState() == ShoppingCart.LOGGED_IN && StringUtils.isBlank(dbState.getCustomerEmail())) {
+        if (shoppingCart.getLogonState() == ShoppingCart.LOGGED_IN && (wasNull || StringUtils.isBlank(dbState.getCustomerEmail()))) {
 
             // 3. Make sure we save the customer email
             dbState.setCustomerEmail(shoppingCart.getCustomerEmail());
 
-            // 4. Copy all items from old carts to current and delete them
-            final List<ShoppingCartState> oldCartStates = shoppingCartStateService.findByCustomerEmail(shoppingCart.getCustomerEmail());
-            final Map<String, Object> cmdParams = new HashMap<>();
-            for (final ShoppingCartState oldCartState : oldCartStates) {
-                // 4.1. Skip same cart
-                if (dbState.getGuid().equals(oldCartState.getGuid())) {
-                    continue;
-                }
-                final ShoppingCart oldCart = restoreStateInternal(oldCartState.getState());
-                // 4.2. Merge only valid restored carts that are not
-                if (oldCart != null) {
-                    // 4.3. Only merge carts from the same shop as we may have mismatch on SKU's
-                    if (shoppingCart.getShoppingContext().getShopCode().equals(oldCart.getShoppingContext().getShopCode())) {
+            if (!managed) {
+                // 4. Copy all items from old carts to current and delete them
+                final List<ShoppingCartState> oldCartStates = shoppingCartStateService.findByCustomerEmail(shoppingCart.getCustomerEmail(), shopId);
+                final Map<String, Object> cmdParams = new HashMap<>();
+                for (final ShoppingCartState oldCartState : oldCartStates) {
+                    // 4.1. Skip same cart OR managed carts
+                    if (dbState.getGuid().equals(oldCartState.getGuid()) || (oldCartState.getManaged() != null && oldCartState.getManaged())) {
+                        continue;
+                    }
+                    final ShoppingCart oldCart = restoreStateInternal(oldCartState.getState());
+                    // 4.2. Merge only valid restored carts that are not
+                    if (oldCart != null) {
+                        // 4.3. Only merge carts from the same shop as we may have mismatch on SKU's
+                        if (shoppingCart.getShoppingContext().getShopCode().equals(oldCart.getShoppingContext().getShopCode())) {
 
-                        mergeNonGiftSKU(shoppingCart, oldCart, cmdParams);
-                        mergeCouponCodes(shoppingCart, oldCart, cmdParams);
-                        mergeShoppingContext(shoppingCart, oldCart, cmdParams);
-                        mergeOrderInfo(shoppingCart, oldCart, cmdParams);
+                            mergeNonGiftSKU(shoppingCart, oldCart, cmdParams);
+                            mergeCouponCodes(shoppingCart, oldCart, cmdParams);
+                            mergeShoppingContext(shoppingCart, oldCart, cmdParams);
+                            performOrderSplittingBeforeShipping(shoppingCart, oldCart, cmdParams);
+                            mergeOrderInfo(shoppingCart, oldCart, cmdParams);
 
-                        // 4.4. Remove merged cart state
-                        shoppingCartStateService.delete(oldCartState);
+                            // 4.4. Remove merged cart state
+                            shoppingCartStateService.delete(oldCartState);
+                        }
                     }
                 }
             }
@@ -96,22 +105,40 @@ public class CartUpdateProcessorImpl implements CartUpdateProcessor {
 
         // 5. Store new state
         dbState.setEmpty(shoppingCart.getCartItemsCount() == 0);
+        dbState.setShopId(shopId);
+        dbState.setManaged(managed);
         dbState.setState(saveState(shoppingCart));
 
         // 6. Persist
-        if (dbState.getShoppingCartStateId() > 0L) {
-            shoppingCartStateService.update(dbState);
-        } else {
-            shoppingCartStateService.create(dbState);
+        if (dbState.getState() != null && dbState.getState().length > 0) {
+            if (dbState.getShoppingCartStateId() > 0L) {
+                shoppingCartStateService.update(dbState);
+            } else {
+                shoppingCartStateService.create(dbState);
+            }
         }
 
     }
+
+    private void performOrderSplittingBeforeShipping(final ShoppingCart shoppingCart, final ShoppingCart oldCart, final Map<String, Object> cmdParams) {
+
+        if (shoppingCart.getCartItemsCount() > 0) {
+
+            cmdParams.clear();
+            cmdParams.put(ShoppingCartCommand.CMD_SPLITCARTITEMS, ShoppingCartCommand.CMD_SPLITCARTITEMS);
+
+            shoppingCartCommandFactory.execute(ShoppingCartCommand.CMD_SPLITCARTITEMS, shoppingCart, cmdParams);
+
+        }
+
+    }
+
 
     private void mergeOrderInfo(final ShoppingCart shoppingCart, final ShoppingCart oldCart, final Map<String, Object> cmdParams) {
 
         final OrderInfo oldCartInfo = oldCart.getOrderInfo();
 
-        final Map<String, Long> slaSelection = shoppingCart.getCarrierSlaId();
+        final Map<String, Long> slaSelection = oldCart.getCarrierSlaId();
         final StringBuilder slaSelectionParam = new StringBuilder();
         for (final Map.Entry<String, Long> sla : slaSelection.entrySet()) {
             if (slaSelectionParam.length() > 0) {
@@ -168,9 +195,18 @@ public class CartUpdateProcessorImpl implements CartUpdateProcessor {
 
             // replay new ones
             if (CollectionUtils.isNotEmpty(thisCartSku)) {
-                cmdParams.clear();
-                cmdParams.put(ShoppingCartCommand.CMD_INTERNAL_VIEWSKU, thisCartSku);
-                shoppingCartCommandFactory.execute(shoppingCart, cmdParams);
+                final Map<String, List<String>> skuAndSupplier = new ListHashMap<>();
+                for (final String viewedSku : thisCartSku) {
+                    final int pos = viewedSku.indexOf("|");
+                    if (pos != -1) {
+                        final String skuCode = viewedSku.substring(0, pos);
+                        final String skuSupplier = viewedSku.substring(pos + 1);
+                        cmdParams.clear();
+                        cmdParams.put(ShoppingCartCommand.CMD_INTERNAL_VIEWSKU, skuCode);
+                        cmdParams.put(ShoppingCartCommand.CMD_P_SUPPLIER, skuSupplier);
+                        shoppingCartCommandFactory.execute(shoppingCart, cmdParams);
+                    }
+                }
             }
 
         }
@@ -204,12 +240,15 @@ public class CartUpdateProcessorImpl implements CartUpdateProcessor {
 
         for (final CartItem cartItem : oldCart.getCartItemList()) {
             // Only merge non gifts and items that are NOT already in the cart
-            if (!cartItem.isGift() && shoppingCart.indexOfProductSku(cartItem.getProductSkuCode()) == -1) {
+            if (!cartItem.isGift() &&
+                    StringUtils.isNotBlank(cartItem.getSupplierCode()) &&
+                    shoppingCart.indexOfProductSku(cartItem.getSupplierCode(), cartItem.getProductSkuCode()) == -1) {
 
                 cmdParams.clear();
 
                 cmdParams.put(ShoppingCartCommand.CMD_ADDTOCART, cartItem.getProductSkuCode());
-                cmdParams.put(ShoppingCartCommand.CMD_ADDTOCART_P_QTY, cartItem.getQty().toPlainString());
+                cmdParams.put(ShoppingCartCommand.CMD_P_SUPPLIER, cartItem.getSupplierCode());
+                cmdParams.put(ShoppingCartCommand.CMD_P_QTY, cartItem.getQty().toPlainString());
 
                 shoppingCartCommandFactory.execute(shoppingCart, cmdParams);
 

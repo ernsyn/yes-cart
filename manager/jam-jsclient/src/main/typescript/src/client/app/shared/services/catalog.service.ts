@@ -16,9 +16,15 @@
 
 
 import { Injectable } from '@angular/core';
-import { Http, Headers, RequestOptions, Response } from '@angular/http';
+import { Http, Response } from '@angular/http';
 import { Config } from '../config/env.config';
-import { BrandVO, AttrValueBrandVO, ProductTypeInfoVO, ProductTypeVO, ProductTypeAttrVO, BasicCategoryVO, CategoryVO, AttrValueCategoryVO, Pair } from '../model/index';
+import {
+  BrandVO, AttrValueBrandVO,
+  ProductTypeInfoVO, ProductTypeVO, ProductTypeAttrVO,
+  BasicCategoryVO, CategoryVO, AttrValueCategoryVO,
+  Pair, SearchContextVO, SearchResultVO,
+  ProductSupplierCatalogVO
+} from '../model/index';
 import { ErrorEventBus } from './error-event-bus.service';
 import { Util } from './util';
 import { LogUtil } from './../log/index';
@@ -45,14 +51,13 @@ export class CatalogService {
    * Get list of all brands, which are accessible to manage or view,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
-  getFilteredBrands(filter:string, max:number) {
+  getFilteredBrands(filter:SearchContextVO) {
 
-    let body = filter;
-    let headers = new Headers({ 'Content-Type': 'text/plain; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
+    let body = JSON.stringify(filter);
 
-    return this.http.post(this._serviceBaseUrl + '/brand/filtered/' + max, body, options)
-        .map(res => <BrandVO[]> this.json(res))
+    return this.http.post(this._serviceBaseUrl + '/brand/filtered', body,
+            Util.requestOptions())
+        .map(res => <SearchResultVO<BrandVO>> this.json(res))
         .catch(this.handleError);
   }
 
@@ -61,7 +66,7 @@ export class CatalogService {
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getBrandById(brandId:number) {
-    return this.http.get(this._serviceBaseUrl + '/brand/' + brandId)
+    return this.http.get(this._serviceBaseUrl + '/brand/' + brandId, Util.requestOptions())
       .map(res => <BrandVO> this.json(res))
       .catch(this.handleError);
   }
@@ -74,15 +79,13 @@ export class CatalogService {
   saveBrand(brand:BrandVO) {
 
     let body = JSON.stringify(brand);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
     if (brand.brandId > 0) {
-      return this.http.post(this._serviceBaseUrl + '/brand', body, options)
+      return this.http.post(this._serviceBaseUrl + '/brand', body, Util.requestOptions())
         .map(res => <BrandVO> this.json(res))
         .catch(this.handleError);
     } else {
-      return this.http.put(this._serviceBaseUrl + '/brand', body, options)
+      return this.http.put(this._serviceBaseUrl + '/brand', body, Util.requestOptions())
         .map(res => <BrandVO> this.json(res))
         .catch(this.handleError);
     }
@@ -95,10 +98,8 @@ export class CatalogService {
    * @returns {Observable<R>}
    */
   removeBrand(brand:BrandVO) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/brand/' + brand.brandId, options)
+    return this.http.delete(this._serviceBaseUrl + '/brand/' + brand.brandId, Util.requestOptions())
       .catch(this.handleError);
   }
 
@@ -109,7 +110,7 @@ export class CatalogService {
    * @returns {Observable<R>}
    */
   getBrandAttributes(id:number) {
-    return this.http.get(this._serviceBaseUrl + '/brand/attributes/' + id)
+    return this.http.get(this._serviceBaseUrl + '/brand/attributes/' + id, Util.requestOptions())
       .map(res => <AttrValueBrandVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -122,9 +123,7 @@ export class CatalogService {
    */
   saveBrandAttributes(attrs:Array<Pair<AttrValueBrandVO, boolean>>) {
     let body = JSON.stringify(attrs);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
-    return this.http.post(this._serviceBaseUrl + '/brand/attributes', body, options)
+    return this.http.post(this._serviceBaseUrl + '/brand/attributes', body, Util.requestOptions())
       .map(res => <AttrValueBrandVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -136,14 +135,13 @@ export class CatalogService {
    * Get list of all product types, which are accessible to manage or view,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
-  getFilteredProductTypes(filter:string, max:number) {
+  getFilteredProductTypes(filter:SearchContextVO) {
 
-    let body = filter;
-    let headers = new Headers({ 'Content-Type': 'text/plain; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
+    let body = JSON.stringify(filter);
 
-    return this.http.post(this._serviceBaseUrl + '/producttypes/filtered/' + max, body, options)
-      .map(res => <ProductTypeInfoVO[]> this.json(res))
+    return this.http.post(this._serviceBaseUrl + '/producttypes/filtered', body,
+        Util.requestOptions())
+      .map(res => <SearchResultVO<ProductTypeInfoVO>> this.json(res))
       .catch(this.handleError);
   }
 
@@ -152,7 +150,7 @@ export class CatalogService {
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getProductTypeById(productTypeId:number) {
-    return this.http.get(this._serviceBaseUrl + '/producttype/' + productTypeId)
+    return this.http.get(this._serviceBaseUrl + '/producttype/' + productTypeId, Util.requestOptions())
       .map(res => <ProductTypeVO> this.json(res))
       .catch(this.handleError);
   }
@@ -165,15 +163,13 @@ export class CatalogService {
   saveProductType(productType:ProductTypeVO) {
 
     let body = JSON.stringify(productType);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
     if (productType.producttypeId > 0) {
-      return this.http.post(this._serviceBaseUrl + '/producttype', body, options)
+      return this.http.post(this._serviceBaseUrl + '/producttype', body, Util.requestOptions())
         .map(res => <ProductTypeVO> this.json(res))
         .catch(this.handleError);
     } else {
-      return this.http.put(this._serviceBaseUrl + '/producttype', body, options)
+      return this.http.put(this._serviceBaseUrl + '/producttype', body, Util.requestOptions())
         .map(res => <ProductTypeVO> this.json(res))
         .catch(this.handleError);
     }
@@ -186,10 +182,8 @@ export class CatalogService {
    * @returns {Observable<R>}
    */
   removeProductType(productType:ProductTypeInfoVO) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/producttype/' + productType.producttypeId, options)
+    return this.http.delete(this._serviceBaseUrl + '/producttype/' + productType.producttypeId, Util.requestOptions())
       .catch(this.handleError);
   }
 
@@ -200,7 +194,7 @@ export class CatalogService {
    * @returns {Observable<R>}
    */
   getProductTypeAttributes(id:number) {
-    return this.http.get(this._serviceBaseUrl + '/producttype/attributes/' + id)
+    return this.http.get(this._serviceBaseUrl + '/producttype/attributes/' + id, Util.requestOptions())
       .map(res => <ProductTypeAttrVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -213,12 +207,22 @@ export class CatalogService {
    */
   saveProductTypeAttributes(attrs:Array<Pair<ProductTypeAttrVO, boolean>>) {
     let body = JSON.stringify(attrs);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
-    return this.http.post(this._serviceBaseUrl + '/producttype/attributes', body, options)
+    return this.http.post(this._serviceBaseUrl + '/producttype/attributes', body, Util.requestOptions())
       .map(res => <ProductTypeAttrVO[]> this.json(res))
       .catch(this.handleError);
   }
+
+
+  /**
+   * Get list of all product supplier catalogs, which are accessible to manage or view,
+   * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
+   */
+  getAllProductSuppliersCatalogs() {
+    return this.http.get(this._serviceBaseUrl + '/productsuppliercatalogs/all', Util.requestOptions())
+      .map(res => <ProductSupplierCatalogVO[]> this.json(res))
+      .catch(this.handleError);
+  }
+
 
 
   /**
@@ -226,7 +230,7 @@ export class CatalogService {
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getAllCategories() {
-    return this.http.get(this._serviceBaseUrl + '/category/all')
+    return this.http.get(this._serviceBaseUrl + '/category/all', Util.requestOptions())
       .map(res => <CategoryVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -242,11 +246,11 @@ export class CatalogService {
       expand.forEach(node => {
         param += node + '|';
       });
-      return this.http.get(this._serviceBaseUrl + '/category/branch/' + root + '/?expand=' + encodeURIComponent(param))
+      return this.http.get(this._serviceBaseUrl + '/category/branch/' + root + '/?expand=' + encodeURIComponent(param), Util.requestOptions())
         .map(res => <CategoryVO[]> this.json(res))
         .catch(this.handleError);
     }
-    return this.http.get(this._serviceBaseUrl + '/category/branch/' + root + '/')
+    return this.http.get(this._serviceBaseUrl + '/category/branch/' + root + '/', Util.requestOptions())
       .map(res => <CategoryVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -260,7 +264,7 @@ export class CatalogService {
     expand.forEach(node => {
       param += node + '|';
     });
-    return this.http.get(this._serviceBaseUrl + '/category/branchpaths/?expand=' + encodeURIComponent(param))
+    return this.http.get(this._serviceBaseUrl + '/category/branchpaths/?expand=' + encodeURIComponent(param), Util.requestOptions())
       .map(res => <number[]> this.json(res))
       .catch(this.handleError);
   }
@@ -270,14 +274,13 @@ export class CatalogService {
    * Get list of all filtered categories, which are accessible to manage or view,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
-  getFilteredCategories(filter:string, max:number) {
+  getFilteredCategories(filter:SearchContextVO) {
 
-    let body = filter;
-    let headers = new Headers({ 'Content-Type': 'text/plain; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
+    let body = JSON.stringify(filter);
 
-    return this.http.post(this._serviceBaseUrl + '/category/filtered/' + max, body, options)
-      .map(res => <CategoryVO[]> this.json(res))
+    return this.http.post(this._serviceBaseUrl + '/category/filtered', body,
+        Util.requestOptions())
+      .map(res => <SearchResultVO<CategoryVO>> this.json(res))
       .catch(this.handleError);
   }
 
@@ -286,7 +289,7 @@ export class CatalogService {
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getCategoryById(categoryId:number) {
-    return this.http.get(this._serviceBaseUrl + '/category/' + categoryId)
+    return this.http.get(this._serviceBaseUrl + '/category/' + categoryId, Util.requestOptions())
       .map(res => <CategoryVO> this.json(res))
       .catch(this.handleError);
   }
@@ -301,10 +304,8 @@ export class CatalogService {
   createCategory(newCat:BasicCategoryVO, parentId : number) {
     let cat = newCat.guid ? {'guid' : newCat.guid, 'name' : newCat.name, 'parentId' : parentId } : {'name' : newCat.name, 'parentId' : parentId };
     let body = JSON.stringify(cat);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.put(this._serviceBaseUrl + '/category', body, options)
+    return this.http.put(this._serviceBaseUrl + '/category', body, Util.requestOptions())
       .map(res => <CategoryVO> this.json(res))
       .catch(this.handleError);
   }
@@ -318,15 +319,13 @@ export class CatalogService {
   saveCategory(category:CategoryVO) {
 
     let body = JSON.stringify(category);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
     if (category.categoryId > 0) {
-      return this.http.post(this._serviceBaseUrl + '/category', body, options)
+      return this.http.post(this._serviceBaseUrl + '/category', body, Util.requestOptions())
         .map(res => <CategoryVO> this.json(res))
         .catch(this.handleError);
     } else {
-      return this.http.put(this._serviceBaseUrl + '/category', body, options)
+      return this.http.put(this._serviceBaseUrl + '/category', body, Util.requestOptions())
         .map(res => <CategoryVO> this.json(res))
         .catch(this.handleError);
     }
@@ -340,10 +339,8 @@ export class CatalogService {
    * @returns {Observable<R>}
    */
   removeCategory(category:CategoryVO) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/category/' + category.categoryId, options)
+    return this.http.delete(this._serviceBaseUrl + '/category/' + category.categoryId, Util.requestOptions())
       .catch(this.handleError);
   }
 
@@ -354,7 +351,7 @@ export class CatalogService {
    * @returns {Observable<R>}
    */
   getCategoryAttributes(id:number) {
-    return this.http.get(this._serviceBaseUrl + '/category/attributes/' + id)
+    return this.http.get(this._serviceBaseUrl + '/category/attributes/' + id, Util.requestOptions())
       .map(res => <AttrValueCategoryVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -367,9 +364,7 @@ export class CatalogService {
    */
   saveCategoryAttributes(attrs:Array<Pair<AttrValueCategoryVO, boolean>>) {
     let body = JSON.stringify(attrs);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
-    return this.http.post(this._serviceBaseUrl + '/category/attributes', body, options)
+    return this.http.post(this._serviceBaseUrl + '/category/attributes', body, Util.requestOptions())
       .map(res => <AttrValueCategoryVO[]> this.json(res))
       .catch(this.handleError);
   }

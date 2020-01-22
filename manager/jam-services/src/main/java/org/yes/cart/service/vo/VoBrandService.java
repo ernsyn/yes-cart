@@ -17,7 +17,10 @@
 package org.yes.cart.service.vo;
 
 import org.yes.cart.domain.misc.MutablePair;
-import org.yes.cart.domain.vo.*;
+import org.yes.cart.domain.vo.VoAttrValueBrand;
+import org.yes.cart.domain.vo.VoBrand;
+import org.yes.cart.domain.vo.VoSearchContext;
+import org.yes.cart.domain.vo.VoSearchResult;
 
 import java.util.List;
 
@@ -28,51 +31,63 @@ public interface VoBrandService {
 
     /**
      * Get all brands in the system, filtered by criteria and according to rights, up to max
+     *
      * @return list of brands
+     *
      * @throws Exception errors
      */
-    List<VoBrand> getFiltered(String filter, int max) throws Exception;
+    VoSearchResult<VoBrand> getFilteredBrands(VoSearchContext filter) throws Exception;
 
     /**
      * Get brand by id.
      *
      * @param id brand id
+     *
      * @return brand vo
+     *
      * @throws Exception errors
      */
-    VoBrand getById(long id) throws Exception;
+    VoBrand getBrandById(long id) throws Exception;
 
     /**
      * Update given brand.
      *
      * @param vo brand to update
+     *
      * @return updated instance
+     *
      * @throws Exception errors
      */
-    VoBrand update(VoBrand vo) throws Exception;
+    VoBrand updateBrand(VoBrand vo) throws Exception;
 
     /**
      * Create new brand
      *
      * @param vo given instance to persist
+     *
      * @return persisted instance
+     *
      * @throws Exception errors
      */
-    VoBrand create(VoBrand vo) throws Exception;
+    VoBrand createBrand(VoBrand vo) throws Exception;
 
     /**
      * Remove brand by id.
      *
      * @param id brand id
+     *
      * @throws Exception errors
      */
-    void remove(long id) throws Exception;
+    void removeBrand(long id) throws Exception;
 
 
     /**
      * Get supported attributes by given brand
+     *
      * @param brandId given brand id
+     *
      * @return attributes
+     *
      * @throws Exception errors
      */
     List<VoAttrValueBrand> getBrandAttributes(long brandId) throws Exception;
@@ -82,10 +97,12 @@ public interface VoBrandService {
      * Update the brand attributes.
      *
      * @param vo brand attributes to update, boolean indicates if this attribute is to be removed (true) or not (false)
+     *
      * @return brand attributes.
+     *
      * @throws Exception errors
      */
-    List<VoAttrValueBrand> update(List<MutablePair<VoAttrValueBrand, Boolean>> vo) throws Exception;
+    List<VoAttrValueBrand> updateBrandAttributes(List<MutablePair<VoAttrValueBrand, Boolean>> vo) throws Exception;
 
 
 }

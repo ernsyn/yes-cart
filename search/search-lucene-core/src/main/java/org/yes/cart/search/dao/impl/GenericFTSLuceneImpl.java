@@ -37,7 +37,7 @@ import org.yes.cart.search.dao.GenericFTS;
 import org.yes.cart.search.dao.LuceneIndexProvider;
 import org.yes.cart.search.dto.FilteredNavigationRecordRequest;
 import org.yes.cart.search.query.impl.AsIsAnalyzer;
-import org.yes.cart.util.log.Markers;
+import org.yes.cart.utils.log.Markers;
 
 import java.util.*;
 
@@ -91,14 +91,14 @@ public class GenericFTSLuceneImpl implements GenericFTS<Long, org.apache.lucene.
     @Override
     public List<Long> fullTextSearch(final Query query) {
 
-        LOGFTQ.debug("Run count query {}", query);
+        LOGFTQ.debug("Run query {}", query);
 
         final List<Long> pks = new ArrayList<>();
 
         IndexSearcher searcher = this.luceneIndexProvider.provideIndexReader();
         try {
             final TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
-            if (topDocs.totalHits > 0) {
+            if (topDocs.totalHits.value > 0) {
                 for (final ScoreDoc hit : topDocs.scoreDocs) {
                     final Document doc = searcher.doc(hit.doc, PKS);
                     pks.add(Long.valueOf(doc.get("_PK")));
@@ -124,7 +124,7 @@ public class GenericFTSLuceneImpl implements GenericFTS<Long, org.apache.lucene.
     @Override
     public List<Long> fullTextSearch(final Query query, final int firstResult, final int maxResults, final String sortFieldName, final boolean reverse) {
 
-        LOGFTQ.debug("Run count query {}", query);
+        LOGFTQ.debug("Run query {}", query);
 
         final List<Long> pks = new ArrayList<>();
 
@@ -138,7 +138,7 @@ public class GenericFTSLuceneImpl implements GenericFTS<Long, org.apache.lucene.
             } else {
                 topDocs = searcher.search(query, firstResult + maxResults);
             }
-            if (topDocs.totalHits > 0) {
+            if (topDocs.totalHits.value > 0) {
                 for (int i = firstResult; i < firstResult + maxResults; i++) {
                     final ScoreDoc hit = topDocs.scoreDocs[i];
                     final Document doc = searcher.doc(hit.doc, PKS);
@@ -167,7 +167,7 @@ public class GenericFTSLuceneImpl implements GenericFTS<Long, org.apache.lucene.
     @Override
     public Pair<List<Object[]>, Integer> fullTextSearch(final Query query, final int firstResult, final int maxResults, final String sortFieldName, final boolean reverse, final String... fields) {
 
-        LOGFTQ.debug("Run count query {}", query);
+        LOGFTQ.debug("Run query {}", query);
 
         Pair<List<Object[]>, Integer> result = EMPTY;
         int lastResult = maxResults < 0 ? Integer.MAX_VALUE : firstResult + maxResults;
@@ -183,9 +183,9 @@ public class GenericFTSLuceneImpl implements GenericFTS<Long, org.apache.lucene.
             } else {
                 topDocs = searcher.search(query, lastResult);
             }
-            if (topDocs.totalHits > firstResult) {
+            if (topDocs.totalHits.value > firstResult) {
 
-                lastResult = lastResult > topDocs.totalHits ? topDocs.totalHits : lastResult;
+                lastResult = lastResult > topDocs.totalHits.value ? (int) topDocs.totalHits.value : lastResult;
 
                 final List<Object[]> resItems = new ArrayList<>(lastResult - firstResult);
 
@@ -200,7 +200,7 @@ public class GenericFTSLuceneImpl implements GenericFTS<Long, org.apache.lucene.
                     logExplanation(searcher, query, sort, hit.doc);
                 }
 
-                return new Pair<>(resItems, topDocs.totalHits);
+                return new Pair<>(resItems, (int) topDocs.totalHits.value);
             }
         } catch (IllegalStateException ise) {
             LOG.warn("Failed to run query " + query + ", caused: " + ise.getMessage());
@@ -355,7 +355,7 @@ public class GenericFTSLuceneImpl implements GenericFTS<Long, org.apache.lucene.
 
                     }
                 } catch (IllegalArgumentException | IllegalStateException iae) {
-                    LOG.warn(Markers.alert(), "Failed to create facet for request " + request + ", caused: " + iae.getMessage());
+                    LOG.debug(Markers.alert(), "Failed to create facet for request " + request + ", caused: " + iae.getMessage());
                 } catch (Exception exp) {
                     LOG.error(Markers.alert(), "Failed to create facet for request " + request + ", caused: " + exp.getMessage(), exp);
                 }

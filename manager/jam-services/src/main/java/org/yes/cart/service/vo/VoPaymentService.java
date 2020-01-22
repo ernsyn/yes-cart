@@ -17,6 +17,8 @@
 package org.yes.cart.service.vo;
 
 import org.yes.cart.domain.vo.VoPayment;
+import org.yes.cart.domain.vo.VoSearchContext;
+import org.yes.cart.domain.vo.VoSearchResult;
 
 import java.util.List;
 
@@ -27,19 +29,15 @@ import java.util.List;
  */
 public interface VoPaymentService {
 
-
     /**
      * Get all payments for given filter
      *
      * @param filter filter
-     * @param operations operations
-     * @param statuses statuses
-     * @param max max results
      *
      * @return orders
      *
      * @throws Exception errors
      */
-    List<VoPayment> getFiltered(String filter, List<String> operations, List<String> statuses, int max) throws Exception;
+    VoSearchResult<VoPayment> getFilteredPayments(VoSearchContext filter) throws Exception;
 
 }

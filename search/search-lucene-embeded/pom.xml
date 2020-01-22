@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2009 Denys Pavlov, Igor Azarnyi
   ~
@@ -20,10 +21,10 @@
     <parent>
         <groupId>org.yes</groupId>
         <artifactId>search</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>3.7.0-SNAPSHOT</version>
     </parent>
     <artifactId>search-lucene-embeded</artifactId>
-    <name>Yes cart search: Lucene embeded provider</name>
+    <name>Search: Lucene embeded provider</name>
     <dependencies>
         <dependency>
             <groupId>org.yes</groupId>
@@ -72,7 +73,7 @@
 
         <dependency>
             <groupId>org.yes</groupId>
-            <artifactId>persistence</artifactId>
+            <artifactId>persistence-core-hibernate</artifactId>
             <version>${project.parent.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>

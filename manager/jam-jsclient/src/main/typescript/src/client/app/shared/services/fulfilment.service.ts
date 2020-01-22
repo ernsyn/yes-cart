@@ -16,9 +16,13 @@
 
 
 import { Injectable } from '@angular/core';
-import { Http, Headers, RequestOptions, Response } from '@angular/http';
+import { Http, Response } from '@angular/http';
 import { Config } from '../config/env.config';
-import { FulfilmentCentreInfoVO, FulfilmentCentreVO, ShopFulfilmentCentreVO, InventoryVO } from '../model/index';
+import {
+  FulfilmentCentreInfoVO, FulfilmentCentreVO, ShopFulfilmentCentreVO,
+  InventoryVO,
+  SearchContextVO, SearchResultVO
+} from '../model/index';
 import { ErrorEventBus } from './error-event-bus.service';
 import { Util } from './util';
 import { LogUtil } from './../log/index';
@@ -45,18 +49,23 @@ export class FulfilmentService {
    * Get list of all fulfilment centres, which are accessible to manage or view,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
-  getAllFulfilmentCentres() {
-    return this.http.get(this._serviceBaseUrl + '/centre/all')
-      .map(res => <FulfilmentCentreVO[]> this.json(res))
+  getFilteredFulfilmentCentres(filter:SearchContextVO) {
+
+    let body = JSON.stringify(filter);
+
+    return this.http.post(this._serviceBaseUrl + '/centre/filtered', body,
+      Util.requestOptions())
+      .map(res => <SearchResultVO<FulfilmentCentreVO>> this.json(res))
       .catch(this.handleError);
   }
+
 
   /**
    * Get list of all fulfilment centres, which are accessible to manage or view,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getShopFulfilmentCentres(shopId:number) {
-    return this.http.get(this._serviceBaseUrl + '/centre/shop/' + shopId)
+    return this.http.get(this._serviceBaseUrl + '/centre/shop/' + shopId, Util.requestOptions())
       .map(res => <ShopFulfilmentCentreVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -66,7 +75,7 @@ export class FulfilmentService {
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getFulfilmentCentreById(centreId:number) {
-    return this.http.get(this._serviceBaseUrl + '/centre/' + centreId)
+    return this.http.get(this._serviceBaseUrl + '/centre/' + centreId, Util.requestOptions())
       .map(res => <ShopFulfilmentCentreVO> this.json(res))
       .catch(this.handleError);
   }
@@ -79,15 +88,13 @@ export class FulfilmentService {
   saveFulfilmentCentre(centre:FulfilmentCentreVO) {
 
     let body = JSON.stringify(centre);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
     if (centre.warehouseId > 0) {
-      return this.http.post(this._serviceBaseUrl + '/centre', body, options)
+      return this.http.post(this._serviceBaseUrl + '/centre', body, Util.requestOptions())
         .map(res => <FulfilmentCentreVO> this.json(res))
         .catch(this.handleError);
     } else {
-      return this.http.put(this._serviceBaseUrl + '/centre', body, options)
+      return this.http.put(this._serviceBaseUrl + '/centre', body, Util.requestOptions())
         .map(res => <FulfilmentCentreVO> this.json(res))
         .catch(this.handleError);
     }
@@ -101,10 +108,8 @@ export class FulfilmentService {
      */
   createFulfilmentCentre(centre:FulfilmentCentreInfoVO, shopId : number) {
     let body = JSON.stringify(centre);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.put(this._serviceBaseUrl + '/centre/shop/' + shopId, body, options)
+    return this.http.put(this._serviceBaseUrl + '/centre/shop/' + shopId, body, Util.requestOptions())
       .map(res => <FulfilmentCentreVO> this.json(res))
       .catch(this.handleError);
   }
@@ -118,10 +123,8 @@ export class FulfilmentService {
   saveShopFulfilmentCentres(centres:Array<ShopFulfilmentCentreVO>) {
 
     let body = JSON.stringify(centres);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.post(this._serviceBaseUrl + '/centre/shop', body, options)
+    return this.http.post(this._serviceBaseUrl + '/centre/shop', body, Util.requestOptions())
       .map(res => <Array<ShopFulfilmentCentreVO>> this.json(res))
       .catch(this.handleError);
   }
@@ -133,10 +136,8 @@ export class FulfilmentService {
    * @returns {Observable<R>}
    */
   removeFulfilmentCentre(centre:FulfilmentCentreVO) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/centre/' + centre.warehouseId, options)
+    return this.http.delete(this._serviceBaseUrl + '/centre/' + centre.warehouseId, Util.requestOptions())
       .catch(this.handleError);
   }
 
@@ -145,14 +146,13 @@ export class FulfilmentService {
    * Get list of all inventory, which are accessible to manage or view,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
-  getFilteredInventory(centre:FulfilmentCentreInfoVO, filter:string, max:number) {
+  getFilteredInventory(filter:SearchContextVO) {
 
-    let body = filter;
-    let headers = new Headers({ 'Content-Type': 'text/plain; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
+    let body = JSON.stringify(filter);
 
-    return this.http.post(this._serviceBaseUrl + '/inventory/centre/' + centre.warehouseId + '/filtered/' + max, body, options)
-      .map(res => <InventoryVO[]> this.json(res))
+    return this.http.post(this._serviceBaseUrl + '/inventory/centre/filtered', body,
+          Util.requestOptions())
+      .map(res => <SearchResultVO<InventoryVO>> this.json(res))
       .catch(this.handleError);
   }
 
@@ -162,7 +162,7 @@ export class FulfilmentService {
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getInventoryById(inventoryId:number) {
-    return this.http.get(this._serviceBaseUrl + '/inventory/' + inventoryId)
+    return this.http.get(this._serviceBaseUrl + '/inventory/' + inventoryId, Util.requestOptions())
       .map(res => <InventoryVO> this.json(res))
       .catch(this.handleError);
   }
@@ -176,15 +176,13 @@ export class FulfilmentService {
   saveInventory(inventory:InventoryVO) {
 
     let body = JSON.stringify(inventory);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
     if (inventory.skuWarehouseId > 0) {
-      return this.http.post(this._serviceBaseUrl + '/inventory', body, options)
+      return this.http.post(this._serviceBaseUrl + '/inventory', body, Util.requestOptions())
         .map(res => <InventoryVO> this.json(res))
         .catch(this.handleError);
     } else {
-      return this.http.put(this._serviceBaseUrl + '/inventory', body, options)
+      return this.http.put(this._serviceBaseUrl + '/inventory', body, Util.requestOptions())
         .map(res => <InventoryVO> this.json(res))
         .catch(this.handleError);
     }
@@ -197,10 +195,8 @@ export class FulfilmentService {
    * @returns {Observable<R>}
    */
   removeInventory(inventory:InventoryVO) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/inventory/' + inventory.skuWarehouseId, options)
+    return this.http.delete(this._serviceBaseUrl + '/inventory/' + inventory.skuWarehouseId, Util.requestOptions())
       .catch(this.handleError);
   }
 

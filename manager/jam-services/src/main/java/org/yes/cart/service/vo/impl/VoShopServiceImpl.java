@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.yes.cart.constants.AttributeNamesKeys;
-import org.yes.cart.constants.Constants;
 import org.yes.cart.domain.dto.AttrValueShopDTO;
 import org.yes.cart.domain.dto.ShopAliasDTO;
 import org.yes.cart.domain.dto.ShopDTO;
@@ -31,6 +30,7 @@ import org.yes.cart.domain.dto.ShopUrlDTO;
 import org.yes.cart.domain.dto.impl.ShopAliasDTOImpl;
 import org.yes.cart.domain.dto.impl.ShopUrlDTOImpl;
 import org.yes.cart.domain.entity.Country;
+import org.yes.cart.domain.i18n.I18NModel;
 import org.yes.cart.domain.misc.MutablePair;
 import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.domain.vo.*;
@@ -124,9 +124,6 @@ public class VoShopServiceImpl implements VoShopService {
                 new VoAttributesCRUDTemplate<VoAttrValueShop, AttrValueShopDTO>(
                         VoAttrValueShop.class,
                         AttrValueShopDTO.class,
-                        Constants.SHOP_IMAGE_REPOSITORY_URL_PATTERN,
-                        Constants.SHOP_FILE_REPOSITORY_URL_PATTERN,
-                        Constants.SHOP_SYSFILE_REPOSITORY_URL_PATTERN,
                         this.dtoShopService,
                         this.dtoAttributeService,
                         this.voAssemblySupport,
@@ -312,7 +309,7 @@ public class VoShopServiceImpl implements VoShopService {
 
             addShopCurrencies(summary, configShopId);
 
-            addShopLocations(summary, configShopId);
+            addShopLocations(summary, configShopId, lang);
 
             addShopUrls(summary, configShopId);
 
@@ -385,6 +382,8 @@ public class VoShopServiceImpl implements VoShopService {
                 masterAttrsMap, AttributeNamesKeys.Shop.SHOP_COOKIE_POLICY_ENABLE, lang, false));
         summary.setAnonymousBrowsing(getBooleanShopAttributeConfig(
                 masterAttrsMap, AttributeNamesKeys.Shop.SHOP_SF_REQUIRE_LOGIN, lang, true));
+        summary.setManagerLogin(getBooleanShopAttributeConfig(
+                masterAttrsMap, AttributeNamesKeys.Shop.SHOP_SF_LOGIN_MANAGER, lang, false));
 
         final MutablePair<String, String> sessionExpiry = getShopAttributeConfig(
                 masterAttrsMap, AttributeNamesKeys.Shop.CART_SESSION_EXPIRY_SECONDS, lang, "21600");
@@ -467,6 +466,8 @@ public class VoShopServiceImpl implements VoShopService {
                 getCsvShopAttributeConfig(subAttrsMap, AttributeNamesKeys.Shop.SHOP_SF_B2B_ORDER_FORM_TYPES, lang);
         final MutablePair<String, List<String>> shoppingLists =
                 getCsvShopAttributeConfig(subAttrsMap, AttributeNamesKeys.Shop.SHOP_SF_SHOPPING_LIST_TYPES, lang);
+        final MutablePair<String, List<String>> managedLists =
+                getCsvShopAttributeConfig(subAttrsMap, AttributeNamesKeys.Shop.SHOP_SF_MANAGED_LIST_TYPES, lang);
         final MutablePair<String, List<String>> addressBookDisabled =
                 getCsvShopAttributeConfig(subAttrsMap, AttributeNamesKeys.Shop.SHOP_ADDRESSBOOK_DISABLED_CUSTOMER_TYPES, lang);
         final MutablePair<String, List<String>> addressBookBillingDisabled =
@@ -490,6 +491,7 @@ public class VoShopServiceImpl implements VoShopService {
         additionalTypes.addAll(orderLineRemarks.getSecond());
         additionalTypes.addAll(orderForm.getSecond());
         additionalTypes.addAll(shoppingLists.getSecond());
+        additionalTypes.addAll(managedLists.getSecond());
         additionalTypes.addAll(addressBookDisabled.getSecond());
         additionalTypes.addAll(addressBookBillingDisabled.getSecond());
         if (CollectionUtils.isNotEmpty(additionalTypes)) {
@@ -519,6 +521,7 @@ public class VoShopServiceImpl implements VoShopService {
         summary.setCustomerTypesB2BOrderLineRemarks(orderLineRemarks);
         summary.setCustomerTypesB2BOrderForm(orderForm);
         summary.setCustomerTypesShoppingLists(shoppingLists);
+        summary.setCustomerTypesManagedLists(managedLists);
         summary.setCustomerTypesAddressBookDisabled(addressBookDisabled);
         summary.setCustomerTypesAddressBookBillingDisabled(addressBookBillingDisabled);
     }
@@ -592,16 +595,31 @@ public class VoShopServiceImpl implements VoShopService {
         }
     }
 
-    protected void addShopLocations(final VoShopSummary summary, final long shopId) throws Exception {
+    protected void addShopLocations(final VoShopSummary summary, final long shopId, final String lang) throws Exception {
         final VoShopLocations loc = getShopLocationsInternal(shopId);
-        for (final MutablePair<String, String> codeAndName : loc.getAll()) {
-            if (loc.getSupportedBilling().contains(codeAndName.getFirst())) {
-                summary.getBillingLocations().add(codeAndName);
+        for (final VoLocation country : loc.getAll()) {
+            if (loc.getSupportedBilling().contains(country.getCode())) {
+                summary.getBillingLocations().add(getSimpleLocationName(country, lang));
             }
-            if (loc.getSupportedShipping().contains(codeAndName.getFirst())) {
-                summary.getShippingLocations().add(codeAndName);
+            if (loc.getSupportedShipping().contains(country.getCode())) {
+                summary.getShippingLocations().add(getSimpleLocationName(country, lang));
             }
         }
+    }
+
+    private MutablePair<String, String> getSimpleLocationName(final VoLocation loc, final String lang) {
+        String i18n = null;
+        if (loc.getDisplayNames() != null) {
+            for (final MutablePair<String, String> name : loc.getDisplayNames()) {
+                if (I18NModel.DEFAULT.equals(name.getFirst())) {
+                    i18n = name.getSecond(); // retain default
+                } else if (lang.equals(name.getFirst())) {
+                    i18n = name.getSecond();
+                    break; // this is exact match
+                }
+            }
+        }
+        return MutablePair.of(loc.getCode(), loc.getName() + (i18n != null ? " (" + i18n + ")" : ""));
     }
 
     protected void addShopCurrencies(final VoShopSummary summary, final long shopId) throws Exception {
@@ -648,6 +666,7 @@ public class VoShopServiceImpl implements VoShopService {
         addEmailTemplateBasicSettings(summary, lang, attrsMap, "adm-refund", false);
         addEmailTemplateBasicSettings(summary, lang, attrsMap, "adm-refund-failed", false);
         addEmailTemplateBasicSettings(summary, lang, attrsMap, "adm-rfq-new", true);
+        addEmailTemplateBasicSettings(summary, lang, attrsMap, "adm-managedlist-rejected", true);
         addEmailTemplateBasicSettings(summary, lang, attrsMap, "customer-activation", false);
         addEmailTemplateBasicSettings(summary, lang, attrsMap, "customer-change-password", false);
         addEmailTemplateBasicSettings(summary, lang, attrsMap, "customer-deactivation", false);
@@ -664,6 +683,7 @@ public class VoShopServiceImpl implements VoShopService {
         addEmailTemplateBasicSettings(summary, lang, attrsMap, "rfq-new", true);
         addEmailTemplateBasicSettings(summary, lang, attrsMap, "shipment-complete", false);
         addEmailTemplateBasicSettings(summary, lang, attrsMap, "sup-order-new", false);
+        addEmailTemplateBasicSettings(summary, lang, attrsMap, "managedlist-created", true);
 
     }
 
@@ -692,7 +712,7 @@ public class VoShopServiceImpl implements VoShopService {
     private MutablePair<String, Boolean> getBooleanShopAttributeConfig(final Map<String, VoAttrValueShop> attrsMap, final String key, final String lang,  final boolean inverse) {
         final VoAttrValueShop attr = attrsMap.get(key);
         if (attr == null) {
-            return MutablePair.of(attr, !inverse);
+            return MutablePair.of(key, !inverse);
         }
         final String name = getDisplayName(attr.getAttribute().getDisplayNames(), attr.getAttribute().getName(), lang);
         return MutablePair.of(name, Boolean.valueOf(attr.getVal()) ? !inverse : inverse);
@@ -701,7 +721,7 @@ public class VoShopServiceImpl implements VoShopService {
     private MutablePair<String, Integer> getIntegerShopAttributeConfig(final Map<String, VoAttrValueShop> attrsMap, final String key, final String lang,  final int def) {
         final VoAttrValueShop attr = attrsMap.get(key);
         if (attr == null) {
-            return MutablePair.of(attr, def);
+            return MutablePair.of(key, def);
         }
         final String name = getDisplayName(attr.getAttribute().getDisplayNames(), attr.getAttribute().getName(), lang);
         return MutablePair.of(name, NumberUtils.toInt(attr.getVal(), def));
@@ -710,7 +730,7 @@ public class VoShopServiceImpl implements VoShopService {
     private MutablePair<String, String> getShopAttributeConfig(final Map<String, VoAttrValueShop> attrsMap, final String key, final String lang, final String def) {
         final VoAttrValueShop attr = attrsMap.get(key);
         if (attr == null) {
-            return MutablePair.of(attr, def);
+            return MutablePair.of(key, def);
         }
         final String name = getDisplayName(attr.getAttribute().getDisplayNames(), attr.getAttribute().getName(), lang);
         return MutablePair.of(name, StringUtils.isNotBlank(attr.getVal()) ? attr.getVal() : def);
@@ -719,7 +739,7 @@ public class VoShopServiceImpl implements VoShopService {
     private MutablePair<String, List<String>> getCsvShopAttributeConfig(final Map<String, VoAttrValueShop> attrsMap, final String key, final String lang) {
         final VoAttrValueShop attr = attrsMap.get(key);
         if (attr == null) {
-            return MutablePair.of(attr, Collections.emptyList());
+            return MutablePair.of(key, Collections.emptyList());
         }
         final String name = getDisplayName(attr.getAttribute().getDisplayNames(), attr.getAttribute().getName(), lang);
         final List<String> vals = new ArrayList<>();
@@ -1021,11 +1041,21 @@ public class VoShopServiceImpl implements VoShopService {
         shopLocations.setSupportedShipping(shipping == null ? Collections.emptyList() : Arrays.asList(shipping.split(",")));
 
         final List<Country> countries = countryService.findAll();
-        final List<MutablePair<String, String>> all = new ArrayList<>();
+        final List<VoLocation> all = new ArrayList<>();
         for (final Country country : countries) {
-            all.add(MutablePair.of(
-                    country.getCountryCode(),
-                    country.getName() + (StringUtils.isNotBlank(country.getDisplayName()) ? " (" + country.getDisplayName() + ")" : "")));
+
+            final VoLocation loc = new VoLocation();
+            loc.setCode(country.getCountryCode());
+            loc.setName(country.getName());
+            final List<MutablePair<String, String>> names = new ArrayList<>();
+            if (country.getDisplayName() != null) {
+                for (final Map.Entry<String, String> name : country.getDisplayName().getAllValues().entrySet()) {
+                    names.add(MutablePair.of(name.getKey(), name.getValue()));
+                }
+            }
+            loc.setDisplayNames(names);
+
+            all.add(loc);
         }
 
         shopLocations.setAll(all);

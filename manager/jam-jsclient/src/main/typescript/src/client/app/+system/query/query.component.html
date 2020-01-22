@@ -1,13 +1,13 @@
 <ng-template [ngIf]="cluster">
   <div class="row">
     <div>
-      <h1 class="page-header">{{ 'PANEL_SYSTEM_QUERY' | translate }} {{ selectedTab < 0 ? '' : (' / (' + (selectedTab+1) + ') ' + tabs[selectedTab].qtype) }}</h1>
+      <h1 class="page-header">{{ 'PANEL_SYSTEM_QUERY' | translate }} {{ (selectedTab < 0 || selectedTab > tabs.length-1) ? '' : (' / (' + (selectedTab+1) + ') ' + tabs[selectedTab].qtype) }}</h1>
     </div>
 
     <div class="text-right data-control">
 
       <form class="pull-left">
-        <select class="filter-input" type="text" name="selectedNode" [(ngModel)]="selectedNode">
+        <select class="filter-input" type="text" name="selectedNode" [(ngModel)]="selectedNode"  (ngModelChange)="onSelectedNodeChange($event)">
           <option *ngFor="let node of cluster" [value]="node.id">{{ node.id }}</option>
         </select>
       </form>
@@ -17,9 +17,7 @@
       </button>
 
       <select class="filter-input" type="text" name="selectedTabType" [(ngModel)]="selectedTabType">
-        <option value="SQL">SQL</option>
-        <option value="HQL">HQL</option>
-        <option value="FT">FT</option>
+        <option *ngFor="let selectedNodeQuery of selectedNodeQueries" value="{{selectedNodeQuery}}">{{ ('QUERY_' + selectedNodeQuery) | translate }}</option>
       </select>
 
       <button type="button" (click)="onNewTabHandler()" class="btn btn-default btn-circle btn-xl" title="{{ 'MODAL_BUTTON_QUERYTABADD' | translate }}">
@@ -29,19 +27,14 @@
       <button type="button" (click)="onRefreshHandler()" class="btn btn-info btn-circle btn-xl" title="{{ 'MODAL_BUTTON_REFRESH' | translate }}">
         <i class="fa fa-refresh"></i>
       </button>
-<!--
-      <button type="button" (click)="onTabDeleteSelected()" [disabled]="tabs.length == 1" class="btn btn-danger btn-circle btn-xl" title="{{ 'MODAL_BUTTON_QUERYTABREMOVE' | translate }}">
-        <i class="fa fa-remove"></i>
-      </button>
--->
 
     </div>
 
     <div>
-      <tabset>
+      <tabset #queryTabs>
         <tab *ngFor="let tab of tabs; let i = index" (select)="tabSelected(i)">
           <ng-template tabHeading>
-            {{ ((i+1) + ' ' + tab.qtype) }}
+            {{ (i+1) }} {{ ('QUERY_' + tab.qtype) | translate }}
             <a (click)="onTabDeleteTab(tab)" [hidden]="tab.running" class="js-click" title="{{ 'MODAL_BUTTON_QUERYTABREMOVE' | translate }}">
               <i class="fa fa-remove"></i>
             </a>

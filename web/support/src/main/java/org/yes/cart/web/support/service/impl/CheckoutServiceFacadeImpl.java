@@ -31,7 +31,7 @@ import org.yes.cart.payment.persistence.entity.PaymentGatewayDescriptor;
 import org.yes.cart.payment.service.CustomerOrderPaymentService;
 import org.yes.cart.report.ReportDescriptor;
 import org.yes.cart.report.ReportGenerator;
-import org.yes.cart.report.ReportParameter;
+import org.yes.cart.report.impl.ReportDescriptors;
 import org.yes.cart.service.domain.CarrierSlaService;
 import org.yes.cart.service.domain.CustomerOrderService;
 import org.yes.cart.service.order.OrderAssemblyException;
@@ -39,7 +39,7 @@ import org.yes.cart.service.payment.PaymentModulesManager;
 import org.yes.cart.service.payment.PaymentProcessor;
 import org.yes.cart.service.payment.PaymentProcessorFactory;
 import org.yes.cart.shoppingcart.*;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.MoneyUtils;
 import org.yes.cart.web.support.service.CheckoutServiceFacade;
 
 import java.io.OutputStream;
@@ -383,7 +383,7 @@ public class CheckoutServiceFacadeImpl implements CheckoutServiceFacade {
     /** {@inheritDoc} */
     @Override
     public List<CustomerOrderPayment> findPaymentRecordsByOrderNumber(final String orderNumber) {
-        return customerOrderPaymentService.findBy(orderNumber, null, (String) null, (String) null);
+        return customerOrderPaymentService.findPayments(orderNumber, null, (String) null, (String) null);
     }
 
     /** {@inheritDoc} */
@@ -515,7 +515,7 @@ public class CheckoutServiceFacadeImpl implements CheckoutServiceFacade {
 
         // AUTH or AUTH_CAPTURE for full order amount with successful result
         final List<CustomerOrderPayment> payments =
-                customerOrderPaymentService.findBy(customerOrder.getOrdernum(), null,
+                customerOrderPaymentService.findPayments(customerOrder.getOrdernum(), null,
                         new String[]{Payment.PAYMENT_STATUS_OK},
                         new String[]{PaymentGateway.AUTH, PaymentGateway.AUTH_CAPTURE});
 
@@ -612,15 +612,7 @@ public class CheckoutServiceFacadeImpl implements CheckoutServiceFacade {
     }
 
     private ReportDescriptor createReceiptDescriptor() {
-        final ReportDescriptor receipt = new ReportDescriptor();
-        receipt.setReportId("reportDelivery");
-        receipt.setXslfoBase("client/order/delivery");
-        final ReportParameter param1 = new ReportParameter();
-        param1.setParameterId("orderNumber");
-        param1.setBusinesstype("String");
-        param1.setMandatory(true);
-        receipt.setParameters(Collections.singletonList(param1));
-        return receipt;
+        return ReportDescriptors.reportDelivery();
     }
 
     /** {@inheritDoc} */

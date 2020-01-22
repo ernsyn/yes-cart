@@ -16,8 +16,12 @@
 
 package org.yes.cart.search.query.impl;
 
+import org.apache.lucene.expressions.SimpleBindings;
+import org.apache.lucene.expressions.js.JavascriptCompiler;
+import org.apache.lucene.queries.function.FunctionScoreQuery;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.DoubleValuesSource;
 import org.apache.lucene.search.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,13 +116,20 @@ public class SearchQueryFactoryImpl implements SearchQueryFactory<Query> {
 
     }
 
-    private static final Set<String> PRODUCT_BOOST_FIELDS = new HashSet<>(
-            Arrays.asList(
-                    ProductSearchQueryBuilder.PRODUCT_CATEGORY_FIELD + "_boost",
-                    ProductSearchQueryBuilder.PRODUCT_SHOP_INSTOCK_FIELD + "_boost",
-                    "featured_boost"
-            )
-    );
+    private static DoubleValuesSource buildProductBoostFields() {
+        try {
+            SimpleBindings bindings = new SimpleBindings();
+            bindings.add("score", DoubleValuesSource.SCORES);
+            bindings.add("category_boost", DoubleValuesSource.fromIntField(ProductSearchQueryBuilder.PRODUCT_CATEGORY_FIELD + "_boost"));
+            bindings.add("instock_boost", DoubleValuesSource.fromIntField(ProductSearchQueryBuilder.PRODUCT_SHOP_INSTOCK_FIELD + "_boost"));
+            bindings.add("feature_boost", DoubleValuesSource.fromIntField("featured_boost"));
+            return JavascriptCompiler.compile("score * (feature_boost + instock_boost + category_boost)").getDoubleValuesSource(bindings);
+        } catch (Exception exp) {
+            throw new RuntimeException("Unable to compile PRODUCT_BOOST_FIELDS");
+        }
+    }
+
+    private static final DoubleValuesSource PRODUCT_BOOST_FIELDS = buildProductBoostFields();
 
     private Query productBoost(final Query query) {
 
@@ -126,15 +137,25 @@ public class SearchQueryFactoryImpl implements SearchQueryFactory<Query> {
             return null;
         }
 
-        return new DocumentBoostFieldsScoreQuery(query, PRODUCT_BOOST_FIELDS);
+        return FunctionScoreQuery.boostByValue(query, PRODUCT_BOOST_FIELDS);
 
     }
 
-    private static final Set<String> SKU_BOOST_FIELDS = new HashSet<>(
-            Collections.singletonList(
-                    "rank_boost"
-            )
-    );
+    private static DoubleValuesSource buildProductSkuBoostFields() {
+        try {
+            SimpleBindings bindings = new SimpleBindings();
+            bindings.add("score", DoubleValuesSource.SCORES);
+            bindings.add("rank_boost", DoubleValuesSource.fromIntField("rank_boost"));
+            bindings.add("instock_boost", DoubleValuesSource.fromIntField(ProductSearchQueryBuilder.PRODUCT_SHOP_INSTOCK_FIELD + "_boost"));
+            bindings.add("feature_boost", DoubleValuesSource.fromIntField("featured_boost"));
+            return JavascriptCompiler.compile("score * (feature_boost + instock_boost + rank_boost)").getDoubleValuesSource(bindings);
+        } catch (Exception exp) {
+            throw new RuntimeException("Unable to compile SKU_BOOST_FIELDS");
+        }
+    }
+
+
+    private static final DoubleValuesSource SKU_BOOST_FIELDS = buildProductSkuBoostFields();
 
     private Query skuBoost(final Query query) {
 
@@ -142,7 +163,7 @@ public class SearchQueryFactoryImpl implements SearchQueryFactory<Query> {
             return null;
         }
 
-        return new DocumentBoostFieldsScoreQuery(query, SKU_BOOST_FIELDS);
+        return FunctionScoreQuery.boostByValue(query, SKU_BOOST_FIELDS);
 
     }
 
@@ -208,14 +229,31 @@ public class SearchQueryFactoryImpl implements SearchQueryFactory<Query> {
             }
 
             SearchQueryBuilder<Query> builder = skuBuilders.get(ProductSearchQueryBuilder.PRODUCT_ID_FIELD);
-            final List<Long> productIds = new ArrayList<>();
+            final Set<Long> productIds = new TreeSet<>();
+            final List<String> navParam = new ArrayList<>();
             for (final ProductSearchResultDTO product : products) {
                 productIds.add(product.getId());
+                navParam.add(String.valueOf(product.getId()));
             }
+            navigationParameters.put("__sku__", navParam);
 
             final List<Query> chain = builder.createQueryChain(navigationContext, ProductSearchQueryBuilder.PRODUCT_ID_FIELD, productIds);
             if (!CollectionUtils.isEmpty(chain)) {
                 snowball.add(chain.get(0), BooleanClause.Occur.MUST);
+            }
+
+            final long customerShopId = navigationContext.getCustomerShopId();
+
+            // Enforce in stock SKU
+            final  List<Query> inStock = productShopStockBuilder.createQueryChain(navigationContext, ProductSearchQueryBuilder.PRODUCT_SHOP_INSTOCK_FIELD, customerShopId);
+            if (inStock != null) {
+                snowball.add(inStock.get(0), BooleanClause.Occur.MUST);
+            }
+
+            // Enforce SKU with price
+            final  List<Query> hasPrice = productShopPriceBuilder.createQueryChain(navigationContext, ProductSearchQueryBuilder.PRODUCT_SHOP_HASPRICE_FIELD, customerShopId);
+            if (hasPrice != null) {
+                snowball.add(hasPrice.get(0), BooleanClause.Occur.MUST);
             }
 
         }

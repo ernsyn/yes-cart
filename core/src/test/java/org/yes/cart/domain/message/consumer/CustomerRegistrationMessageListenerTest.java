@@ -28,11 +28,11 @@ import org.yes.cart.domain.entity.Mail;
 import org.yes.cart.domain.message.RegistrationMessage;
 import org.yes.cart.domain.message.impl.RegistrationMessageImpl;
 import org.yes.cart.service.domain.MailService;
-import org.yes.cart.service.domain.impl.GroovySimpleTemplateSupportImpl;
-import org.yes.cart.service.mail.MailComposerTemplateSupport;
 import org.yes.cart.service.mail.MailTemplateResourcesProvider;
 import org.yes.cart.service.mail.impl.MailComposerImpl;
 import org.yes.cart.service.mail.impl.MailComposerTemplateSupportGroovyImpl;
+import org.yes.cart.service.theme.templates.TemplateProcessor;
+import org.yes.cart.service.theme.templates.impl.GroovySimpleTemplateSupportImpl;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -64,7 +64,7 @@ public class CustomerRegistrationMessageListenerTest extends BaseCoreDBTestCase 
             allowing(cache).put(with(any(String.class)), with(any(Object.class)));
         }});
 
-        final MailComposerTemplateSupport templates = new MailComposerTemplateSupportGroovyImpl(new GroovySimpleTemplateSupportImpl(cacheManager));
+        final TemplateProcessor templates = new MailComposerTemplateSupportGroovyImpl(new GroovySimpleTemplateSupportImpl(cacheManager));
 
         final MailService mailService = (MailService) ctx().getBean("mailService");
         final MailTemplateResourcesProvider mailTemplateResourcesProvider = mockery.mock(MailTemplateResourcesProvider.class);
@@ -117,8 +117,11 @@ public class CustomerRegistrationMessageListenerTest extends BaseCoreDBTestCase 
         registrationMessage.setShopMailFrom("noreply@shop.com");
         registrationMessage.setShopName("Gadget universe");
         registrationMessage.setShopUrl(new HashSet<>());
-        registrationMessage.getShopUrl().add("www.somegadget.com");
-        registrationMessage.getShopUrl().add("somegadget.com");
+        registrationMessage.getShopUrl().add("http://www.somegadget.com");
+        registrationMessage.getShopUrl().add("http://somegadget.com");
+        registrationMessage.setShopSecureUrl(new HashSet<>());
+        registrationMessage.getShopSecureUrl().add("https://www.somegadget.com");
+        registrationMessage.getShopSecureUrl().add("https://somegadget.com");
         registrationMessage.setMailTemplatePathChain(templateChain);
         registrationMessage.setTemplateName("customerChangePassword");
         registrationMessage.setLocale("en");

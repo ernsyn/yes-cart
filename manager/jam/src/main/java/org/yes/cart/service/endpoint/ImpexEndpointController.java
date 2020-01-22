@@ -19,6 +19,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.yes.cart.domain.vo.VoDataDescriptor;
+import org.yes.cart.domain.vo.VoDataGroup;
 import org.yes.cart.domain.vo.VoDataGroupInfo;
 import org.yes.cart.domain.vo.VoJobStatus;
 
@@ -53,9 +55,9 @@ public interface ImpexEndpointController {
      * @return status object token
      */
     @Secured({"ROLE_SMADMIN","ROLE_SMSHOPADMIN","ROLE_SMSHOPUSER"})
-    @RequestMapping(value = "/export/{group}", method = RequestMethod.POST, consumes = { MediaType.TEXT_PLAIN_VALUE }, produces = { MediaType.TEXT_PLAIN_VALUE })
+    @RequestMapping(value = "/export", method = RequestMethod.POST, consumes = { MediaType.TEXT_PLAIN_VALUE }, produces = { MediaType.TEXT_PLAIN_VALUE })
     @ResponseBody
-    String doExport(@PathVariable("group") String descriptorGroup, @RequestBody(required = false) String fileName);
+    String doExport(@RequestParam("group") String descriptorGroup, @RequestBody(required = false) String fileName);
 
     /**
      * Get latest job status update for given token
@@ -88,9 +90,9 @@ public interface ImpexEndpointController {
      * @return status object token
      */
     @Secured({"ROLE_SMADMIN","ROLE_SMSHOPADMIN","ROLE_SMSHOPUSER"})
-    @RequestMapping(value = "/import/{group}", method = RequestMethod.POST, consumes = { MediaType.TEXT_PLAIN_VALUE }, produces = { MediaType.TEXT_PLAIN_VALUE })
+    @RequestMapping(value = "/import", method = RequestMethod.POST, consumes = { MediaType.TEXT_PLAIN_VALUE }, produces = { MediaType.TEXT_PLAIN_VALUE })
     @ResponseBody
-    String doImport(@PathVariable("group") String descriptorGroup, @RequestBody(required = false) String fileName);
+    String doImport(@RequestParam("group") String descriptorGroup, @RequestBody(required = false) String fileName);
 
     /**
      * Get latest job status update for given token
@@ -101,6 +103,63 @@ public interface ImpexEndpointController {
     @RequestMapping(value = "/import/status", method = RequestMethod.GET, produces = { MediaType.APPLICATION_JSON_VALUE })
     @ResponseBody
     VoJobStatus getImportStatus(@RequestParam("token") String token);
+
+
+
+
+
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/datagroup/all", method = RequestMethod.GET,  produces = { MediaType.APPLICATION_JSON_VALUE })
+    @ResponseBody
+    List<VoDataGroup> getAllDataGroups() throws Exception;
+
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/datagroup/{id}", method = RequestMethod.GET,  produces = { MediaType.APPLICATION_JSON_VALUE })
+    @ResponseBody
+    VoDataGroup getDataGroupById(@PathVariable("id") long id) throws Exception;
+
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/datagroup", method = RequestMethod.PUT, consumes = { MediaType.APPLICATION_JSON_VALUE },  produces = { MediaType.APPLICATION_JSON_VALUE })
+    @ResponseBody
+    VoDataGroup createDataGroup(@RequestBody VoDataGroup voDataGroup)  throws Exception;
+
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/datagroup", method = RequestMethod.POST, consumes = { MediaType.APPLICATION_JSON_VALUE },  produces = { MediaType.APPLICATION_JSON_VALUE })
+    @ResponseBody
+    VoDataGroup updateDataGroup(@RequestBody VoDataGroup voDataGroup)  throws Exception;
+
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/datagroup/{id}", method = RequestMethod.DELETE)
+    @ResponseBody
+    void removeDataGroup(@PathVariable("id") long id) throws Exception;
+
+
+
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/datadescriptor/all", method = RequestMethod.GET,  produces = { MediaType.APPLICATION_JSON_VALUE })
+    @ResponseBody
+    List<VoDataDescriptor> getAllDataDescriptors() throws Exception;
+
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/datadescriptor/{id}", method = RequestMethod.GET,  produces = { MediaType.APPLICATION_JSON_VALUE })
+    @ResponseBody
+    VoDataDescriptor getDataDescriptorById(@PathVariable("id") long id) throws Exception;
+
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/datadescriptor", method = RequestMethod.PUT, consumes = { MediaType.APPLICATION_JSON_VALUE },  produces = { MediaType.APPLICATION_JSON_VALUE })
+    @ResponseBody
+    VoDataDescriptor createDataDescriptor(@RequestBody VoDataDescriptor voDataDescriptor)  throws Exception;
+
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/datadescriptor", method = RequestMethod.POST, consumes = { MediaType.APPLICATION_JSON_VALUE },  produces = { MediaType.APPLICATION_JSON_VALUE })
+    @ResponseBody
+    VoDataDescriptor updateDataDescriptor(@RequestBody VoDataDescriptor voDataDescriptor)  throws Exception;
+
+    @Secured({"ROLE_SMADMIN"})
+    @RequestMapping(value = "/datadescriptor/{id}", method = RequestMethod.DELETE)
+    @ResponseBody
+    void removeDataDescriptor(@PathVariable("id") long id) throws Exception;
+
 
 
 }

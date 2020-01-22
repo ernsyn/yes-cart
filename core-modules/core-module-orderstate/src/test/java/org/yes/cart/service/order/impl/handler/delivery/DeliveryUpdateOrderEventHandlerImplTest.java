@@ -22,6 +22,7 @@ import org.yes.cart.constants.ServiceSpringKeys;
 import org.yes.cart.domain.entity.CustomerOrder;
 import org.yes.cart.domain.entity.CustomerOrderDelivery;
 import org.yes.cart.domain.entity.CustomerOrderDeliveryDet;
+import org.yes.cart.domain.i18n.I18NModel;
 import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.payment.PaymentGateway;
 import org.yes.cart.payment.dto.Payment;
@@ -30,7 +31,7 @@ import org.yes.cart.service.domain.CustomerOrderService;
 import org.yes.cart.service.order.OrderEventHandler;
 import org.yes.cart.service.order.impl.OrderEventImpl;
 import org.yes.cart.service.order.impl.handler.AbstractEventHandlerImplTest;
-import org.yes.cart.util.DateUtils;
+import org.yes.cart.utils.DateUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -149,7 +150,7 @@ public class DeliveryUpdateOrderEventHandlerImplTest extends AbstractEventHandle
         assertFalse(test11.isDeliveryRejected());
         assertFalse(test11.isDeliveryDifferent());
         assertNotNull(test11.getAllValues());
-        final Pair<String, String> trackingUrl = test11.getValue("TrackingURL");
+        final Pair<String, I18NModel> trackingUrl = test11.getValue("TrackingURL");
         assertNotNull(trackingUrl);
         assertEquals("http://tracking.com?ref=00001", trackingUrl.getFirst());
         assertNull(trackingUrl.getSecond());

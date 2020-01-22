@@ -23,6 +23,7 @@ import org.yes.cart.constants.Constants;
 import org.yes.cart.domain.dto.ProductSearchResultDTO;
 import org.yes.cart.domain.dto.ProductSearchResultPageDTO;
 import org.yes.cart.domain.dto.ProductSkuSearchResultDTO;
+import org.yes.cart.domain.dto.ProductSkuSearchResultPageDTO;
 import org.yes.cart.domain.entity.*;
 import org.yes.cart.domain.entity.impl.PriceModelImpl;
 import org.yes.cart.domain.entity.impl.PromotionModelImpl;
@@ -33,7 +34,7 @@ import org.yes.cart.search.dto.NavigationContext;
 import org.yes.cart.search.query.ProductSearchQueryBuilder;
 import org.yes.cart.service.domain.*;
 import org.yes.cart.shoppingcart.*;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.MoneyUtils;
 import org.yes.cart.web.support.service.CategoryServiceFacade;
 import org.yes.cart.web.support.service.ProductServiceFacade;
 
@@ -160,13 +161,13 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
         if (productIds != null && !productIds.isEmpty()) {
 
 
-            final List<String> search = productIds.size() > 50 ? productIds.subList(0, 50) : productIds;
+            final List<String> search = new ArrayList<>(productIds.size() > 50 ? productIds.subList(0, 50) : productIds);
 
             final NavigationContext assoc = searchQueryFactory.getFilteredNavigationQueryChain(shopId, customerShopId, null, null,
                     false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_CODE_FIELD,
                             search));
 
-            return Collections.unmodifiableList(productService.getProductSearchResultDTOByQuery(
+            return Collections.unmodifiableList(getListProducts(
                     assoc, 0, search.size(), null, false).getResults());
         }
 
@@ -195,7 +196,7 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                 false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_FEATURED_FIELD,
                         Collections.singletonList("true")));
 
-        return Collections.unmodifiableList(productService.getProductSearchResultDTOByQuery(
+        return Collections.unmodifiableList(getListProducts(
                 featured, 0, limit, null, false).getResults());
     }
 
@@ -208,19 +209,20 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                                                        final long shopId,
                                                        final long customerShopId) {
 
-        final int limit = categoryServiceFacade.getNewArrivalListSizeConfig(categoryId, customerShopId);
-
         final List<Long> newArrivalCats;
         if (categoryId > 0L) {
             newArrivalCats = Collections.singletonList(categoryId);
         } else {
             newArrivalCats = null;
         }
+
+        final int limit = categoryServiceFacade.getNewArrivalListSizeConfig(categoryId, customerShopId);
+
         final NavigationContext newarrival = searchQueryFactory.getFilteredNavigationQueryChain(shopId, customerShopId, null, newArrivalCats,
                 false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_TAG_FIELD,
                         Collections.singletonList(ProductSearchQueryBuilder.TAG_NEWARRIVAL)));
 
-        return Collections.unmodifiableList(productService.getProductSearchResultDTOByQuery(
+        return Collections.unmodifiableList(getListProducts(
                 newarrival, 0, limit, null, true).getResults());
     }
 
@@ -247,8 +249,29 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                 false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_TAG_FIELD,
                         Collections.singletonList(tag)));
 
-        return Collections.unmodifiableList(productService.getProductSearchResultDTOByQuery(
+        return Collections.unmodifiableList(getListProducts(
                 tagged, 0, limit, null, false).getResults());
+    }
+
+    @Override
+    public List<ProductSearchResultDTO> getListProductSKUs(final List<String> SKUs,
+                                                           final long categoryId,
+                                                           final long shopId,
+                                                           final long customerShopId) {
+        if (CollectionUtils.isNotEmpty(SKUs)) {
+
+            final List<String> SKUsForCategory = new ArrayList<>(SKUs);
+
+            final NavigationContext recent = searchQueryFactory.getFilteredNavigationQueryChain(shopId, customerShopId, null, null,
+                    false, Collections.singletonMap(ProductSearchQueryBuilder.SKU_PRODUCT_CODE_FIELD,
+                            SKUsForCategory));
+
+            return Collections.unmodifiableList(getListProducts(
+                    recent, 0, -1, null, false).getResults());
+
+        }
+
+        return Collections.emptyList();
     }
 
     /**
@@ -261,20 +284,14 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                                                         final long customerShopId) {
         if (CollectionUtils.isNotEmpty(productIds)) {
 
-            List<String> productIdsForCategory = productIds;
-            int limit = categoryServiceFacade.getNewArrivalListSizeConfig(categoryId, customerShopId);
-            if (limit > productIds.size() || categoryId < 0L) {
-                limit = productIds.size();
-            } else {
-                productIdsForCategory = productIds.subList(productIds.size() - limit, productIds.size());
-            }
+            final List<String> productIdsForCategory = new ArrayList<>(productIds);
 
             final NavigationContext recent = searchQueryFactory.getFilteredNavigationQueryChain(shopId, customerShopId, null, null,
                     false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_ID_FIELD,
                             productIdsForCategory));
 
-            return Collections.unmodifiableList(productService.getProductSearchResultDTOByQuery(
-                    recent, 0, limit, null, false).getResults());
+            return Collections.unmodifiableList(getListProducts(
+                    recent, 0, -1, null, false).getResults());
 
         }
 
@@ -299,18 +316,31 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
 
             final NavigationContext skuContext = searchQueryFactory.getSkuSnowBallQuery(context, result.getResults());
 
-            final List<ProductSkuSearchResultDTO> skus = productSkuService.getProductSkuSearchResultDTOByQuery(
+            final ProductSkuSearchResultPageDTO skus = productSkuService.getProductSkuSearchResultDTOByQuery(
                     skuContext
-            );
+            ).copy(); // MUST BE COPY
             // Need list of skus to maintain priority order
             final Map<Long, List<ProductSkuSearchResultDTO>> skuMap = new HashMap<>();
-            for (ProductSkuSearchResultDTO sku : skus) {
+            for (ProductSkuSearchResultDTO sku : skus.getResults()) {
                 List<ProductSkuSearchResultDTO> skuForProduct = skuMap.computeIfAbsent(sku.getProductId(), k -> new ArrayList<>());
                 skuForProduct.add(sku);
             }
             for (final ProductSearchResultDTO product : result.getResults()) {
-                product.setSkus(skuMap.get(product.getId()));
+                final List<ProductSkuSearchResultDTO> relevantSKUs = skuMap.get(product.getId());
+                final List<ProductSkuSearchResultDTO> sortedSKUs = new ArrayList<>();
+                if (relevantSKUs != null) {
+                    for (final ProductSkuSearchResultDTO relevantSKU : relevantSKUs) {
+                        if (relevantSKU.getFulfilmentCentreCode().equals(product.getFulfilmentCentreCode())) {
+                            final ProductSkuSearchResultDTO baseSKU = product.getBaseSku(relevantSKU.getId());
+                            if (baseSKU != null) {
+                                sortedSKUs.add(baseSKU);
+                            }
+                        }
+                    }
+                } // else this is most likely SKU reindexing not been done
+                product.setSearchSkus(sortedSKUs);
             }
+
         }
         return result;
 
@@ -320,7 +350,8 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
      * {@inheritDoc}
      */
     @Override
-    public ProductAvailabilityModel getProductAvailability(final ProductSearchResultDTO product, final long customerShopId) {
+    public ProductAvailabilityModel getProductAvailability(final ProductSearchResultDTO product,
+                                                           final long customerShopId) {
 
         return productAvailabilityStrategy.getAvailabilityModel(customerShopId, product);
 
@@ -330,19 +361,10 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
      * {@inheritDoc}
      */
     @Override
-    public ProductAvailabilityModel getProductAvailability(final Product product, final long customerShopId) {
+    public ProductAvailabilityModel getProductAvailability(final ProductSkuSearchResultDTO sku,
+                                                           final long customerShopId) {
 
-        return productAvailabilityStrategy.getAvailabilityModel(customerShopId, product);
-
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public ProductAvailabilityModel getProductAvailability(final ProductSku product, final long customerShopId) {
-
-        return productAvailabilityStrategy.getAvailabilityModel(customerShopId, product);
+        return productAvailabilityStrategy.getAvailabilityModel(customerShopId, sku);
 
     }
 
@@ -350,19 +372,11 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
      * {@inheritDoc}
      */
     @Override
-    public ProductAvailabilityModel getProductAvailability(final String skuCode, final long customerShopId) {
+    public ProductAvailabilityModel getProductAvailability(final Product product,
+                                                           final long customerShopId,
+                                                           final String supplier) {
 
-        return productAvailabilityStrategy.getAvailabilityModel(customerShopId, skuCode);
-
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public QuantityModel getProductQuantity(final BigDecimal cartQty, final Product product) {
-
-        return productQuantityStrategy.getQuantityModel(cartQty, product);
+        return productAvailabilityStrategy.getAvailabilityModel(customerShopId, product, supplier);
 
     }
 
@@ -370,19 +384,11 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
      * {@inheritDoc}
      */
     @Override
-    public QuantityModel getProductQuantity(final BigDecimal cartQty, final ProductSku product) {
+    public ProductAvailabilityModel getProductAvailability(final ProductSku product,
+                                                           final long customerShopId,
+                                                           final String supplier) {
 
-        return productQuantityStrategy.getQuantityModel(cartQty, product);
-
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public QuantityModel getProductQuantity(final BigDecimal cartQty, final ProductSearchResultDTO product) {
-
-        return productQuantityStrategy.getQuantityModel(cartQty, product);
+        return productAvailabilityStrategy.getAvailabilityModel(customerShopId, product, supplier);
 
     }
 
@@ -390,9 +396,87 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
      * {@inheritDoc}
      */
     @Override
-    public QuantityModel getProductQuantity(final BigDecimal cartQty, final BigDecimal min, final BigDecimal max, final BigDecimal step) {
+    public ProductAvailabilityModel getProductAvailability(final String skuCode,
+                                                           final long customerShopId,
+                                                           final String supplier) {
 
-        return productQuantityStrategy.getQuantityModel(cartQty, min, max, step);
+        return productAvailabilityStrategy.getAvailabilityModel(customerShopId, skuCode, supplier);
+
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public QuantityModel getProductQuantity(final BigDecimal cartQty,
+                                            final Product product,
+                                            final long customerShopId,
+                                            final String supplier) {
+
+        return productQuantityStrategy.getQuantityModel(customerShopId, cartQty, product, supplier);
+
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public QuantityModel getProductQuantity(final BigDecimal cartQty,
+                                            final ProductSku product,
+                                            final long customerShopId,
+                                            final String supplier) {
+
+        return productQuantityStrategy.getQuantityModel(customerShopId, cartQty, product, supplier);
+
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public QuantityModel getProductQuantity(final BigDecimal cartQty,
+                                            final ProductSearchResultDTO product,
+                                            final long customerShopId) {
+
+        return productQuantityStrategy.getQuantityModel(customerShopId, cartQty, product);
+
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public QuantityModel getProductQuantity(final BigDecimal cartQty,
+                                            final ProductSkuSearchResultDTO sku,
+                                            final long customerShopId) {
+
+        return productQuantityStrategy.getQuantityModel(customerShopId, cartQty, sku);
+
+    }
+
+    @Override
+    public QuantityModel getProductQuantity(final BigDecimal cartQty,
+                                            final String sku,
+                                            final String supplier,
+                                            final long customerShopId) {
+
+        return productQuantityStrategy.getQuantityModel(customerShopId, cartQty, sku, supplier);
+        
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public QuantityModel getProductQuantity(final BigDecimal cartQty,
+                                            final String sku,
+                                            final String supplier,
+                                            final BigDecimal min,
+                                            final BigDecimal max,
+                                            final BigDecimal step,
+                                            final long customerShopId) {
+
+        return productQuantityStrategy.getQuantityModel(customerShopId, cartQty, sku, min, max, step, supplier);
 
     }
 
@@ -409,13 +493,15 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
      * @param productId productId (in case no specific sku is selected)
      * @param sku       sku to resolve price for
      * @param qty       quantity
+     * @param supplier  supplier
      *
      * @return resolved SKU price
      */
     protected SkuPrice resolveMinimalPrice(final ShoppingCart cart,
                                            final Long productId,
                                            final String sku,
-                                           final BigDecimal qty) {
+                                           final BigDecimal qty,
+                                           final String supplier) {
 
         final long customerShopId = cart.getShoppingContext().getCustomerShopId();
         final long masterShopId = cart.getShoppingContext().getShopId();
@@ -431,7 +517,17 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                 cart.getShoppingContext().getStateCode()
         );
 
-        return priceResolver.getMinimalPrice(productId, sku, customerShopId, fallbackShopId, currency, qty, false, policy.getID());
+        return priceResolver.getMinimalPrice(
+                productId,
+                sku,
+                customerShopId,
+                fallbackShopId,
+                currency,
+                qty,
+                false,
+                policy.getID(),
+                supplier
+        );
 
     }
 
@@ -444,12 +540,14 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
      * @param cart      cart
      * @param productId productId (in case no specific sku is selected)
      * @param sku       sku to resolve price for
+     * @param supplier  supplier
      *
      * @return resolved SKU price
      */
     protected Collection<SkuPrice> resolvePrices(final ShoppingCart cart,
                                                  final Long productId,
-                                                 final String sku) {
+                                                 final String sku,
+                                                 final String supplier) {
 
         final long customerShopId = cart.getShoppingContext().getCustomerShopId();
         final long masterShopId = cart.getShoppingContext().getShopId();
@@ -465,7 +563,15 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                 cart.getShoppingContext().getStateCode()
         );
 
-        return priceResolver.getAllCurrentPrices(productId, sku, customerShopId, fallbackShopId, currency, policy.getID());
+        return priceResolver.getAllCurrentPrices(
+                productId,
+                sku,
+                customerShopId,
+                fallbackShopId,
+                currency,
+                policy.getID(),
+                supplier
+        );
 
     }
 
@@ -477,7 +583,15 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
      * @return null price model
      */
     protected PriceModelImpl getNullProductPriceModel(final String currency) {
-        return new PriceModelImpl(null, currency, null, false, false, null, null);
+        return new PriceModelImpl(
+                null,
+                currency,
+                null,
+                false,
+                false,
+                null,
+                null
+        );
     }
 
     /**
@@ -494,10 +608,11 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
             );
         }
 
-        final String sku = item.getSkus().getCode();
+        final String sku = item.getSkuCode();
+        final String supplier = item.getSupplierCode();
         final BigDecimal qty = item.getQuantity();
 
-        final SkuPrice priceNow = resolveMinimalPrice(cart, null, sku, qty);
+        final SkuPrice priceNow = resolveMinimalPrice(cart, null, sku, qty, supplier);
 
         final String addedPriceCurr = item.getRegularPriceCurrencyWhenAdded();
         final Pair<BigDecimal, BigDecimal> price;
@@ -550,7 +665,16 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
             priceInfo = new CustomerWishList.PriceChange(CustomerWishList.PriceChangeType.OFFLINE, null);
         }
 
-        final PriceModel model = getSkuPrice(cart, sku, BigDecimal.ONE, priceNow.isPriceUponRequest(), priceNow.isPriceOnOffer(), price.getFirst(), price.getSecond());
+        final PriceModel model = getSkuPrice(
+                cart,
+                sku,
+                BigDecimal.ONE,
+                priceNow.isPriceUponRequest(),
+                priceNow.isPriceOnOffer(),
+                price.getFirst(),
+                price.getSecond(),
+                supplier
+        );
 
         return new Pair<>(model, priceInfo);
 
@@ -563,12 +687,13 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
     public PriceModel getSkuPrice(final ShoppingCart cart,
                                   final Long productId,
                                   final String skuCode,
-                                  final BigDecimal quantity) {
+                                  final BigDecimal quantity,
+                                  final String supplier) {
 
         final String currency = cart.getCurrencyCode();
 
         if (!cart.getShoppingContext().isHidePrices()) {
-            final SkuPrice resolved = resolveMinimalPrice(cart, productId, skuCode, quantity);
+            final SkuPrice resolved = resolveMinimalPrice(cart, productId, skuCode, quantity, supplier);
 
             if (resolved != null) {
 
@@ -581,7 +706,8 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                         resolved.isPriceUponRequest(),
                         resolved.isPriceOnOffer(),
                         listAndSale.getFirst(),
-                        listAndSale.getSecond()
+                        listAndSale.getSecond(),
+                        supplier
                 );
 
             }
@@ -597,8 +723,18 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                                   final String ref,
                                   final BigDecimal quantity,
                                   final BigDecimal listPrice,
-                                  final BigDecimal salePrice) {
-        return getSkuPrice(cart, ref, quantity, false, false, listPrice, salePrice);
+                                  final BigDecimal salePrice,
+                                  final String supplier) {
+        return getSkuPrice(
+                cart,
+                ref,
+                quantity,
+                false,
+                false,
+                listPrice,
+                salePrice,
+                supplier
+        );
     }
 
     protected PriceModel getSkuPrice(final ShoppingCart cart,
@@ -607,7 +743,8 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                                      final boolean priceUponRequest,
                                      final boolean priceOnOffer,
                                      final BigDecimal listPrice,
-                                     final BigDecimal salePrice) {
+                                     final BigDecimal salePrice,
+                                     final String supplier) {
 
         final String currency = cart.getCurrencyCode();
 
@@ -626,7 +763,7 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
             // prices with tax
             if (sale != null) {
                 // if sale price exists use it as primary target as this one will be shown
-                ShoppingCartCalculator.PriceModel saleModel = shoppingCartCalculator.calculatePrice(cart, ref, sale);
+                ShoppingCartCalculator.PriceModel saleModel = shoppingCartCalculator.calculatePrice(cart, supplier, ref, sale);
 
                 final BigDecimal saleAdjusted, listAdjusted;
 
@@ -656,7 +793,7 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
 
             } else if (list != null) {
                 // use list price to calculate taxes
-                ShoppingCartCalculator.PriceModel listModel = shoppingCartCalculator.calculatePrice(cart, ref, list);
+                ShoppingCartCalculator.PriceModel listModel = shoppingCartCalculator.calculatePrice(cart, supplier, ref, list);
 
                 final BigDecimal listAdjusted = showTaxNet ? listModel.getNetPrice() : listModel.getGrossPrice();
 
@@ -693,7 +830,9 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
      * {@inheritDoc}
      */
     @Override
-    public PriceModel getSkuPrice(final ShoppingCart cart, final CartItem item, boolean total) {
+    public PriceModel getSkuPrice(final ShoppingCart cart,
+                                  final CartItem item,
+                                  final boolean total) {
 
         if (cart.getShoppingContext().isHidePrices()) {
             return getNullProductPriceModel(cart.getCurrencyCode());
@@ -865,10 +1004,11 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
     @Override
     public List<PriceModel> getSkuPrices(final ShoppingCart cart,
                                          final Long productId,
-                                         final String skuCode) {
+                                         final String skuCode,
+                                         final String supplier) {
 
         if (!cart.getShoppingContext().isHidePrices()) {
-            final Collection<SkuPrice> prices = resolvePrices(cart, productId, skuCode);
+            final Collection<SkuPrice> prices = resolvePrices(cart, productId, skuCode, supplier);
 
             if (CollectionUtils.isNotEmpty(prices)) {
 
@@ -884,7 +1024,8 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                             price.isPriceUponRequest(),
                             price.isPriceOnOffer(),
                             listAndSale.getFirst(),
-                            listAndSale.getSecond()
+                            listAndSale.getSecond(),
+                            supplier
                     ));
 
                 }
@@ -1035,12 +1176,12 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
             final int pos = code.indexOf(':');
             if (pos == -1) {
                 // simple promo
-                final List<Promotion> promotions = promotionService.findByParameters(code, null, null, null, null, null, Boolean.TRUE);
-                if (promotions.isEmpty()) {
+                final Promotion promotion = promotionService.findPromotionByCode(code, true);
+                if (promotion == null) {
                     continue;
                 }
 
-                final Promotion data = promotions.get(0);
+                final Promotion data = promotion;
 
                 result.put(code, new PromotionModelImpl(
                         code,
@@ -1059,12 +1200,12 @@ public class ProductServiceFacadeImpl implements ProductServiceFacade {
                 final String realCode = code.substring(0, pos);
                 final String coupon = code.substring(pos + 1);
 
-                final List<Promotion> promotions = promotionService.findByParameters(realCode, null, null, null, null, null, Boolean.TRUE);
-                if (promotions.isEmpty()) {
+                final Promotion promotion = promotionService.findPromotionByCode(realCode, true);
+                if (promotion == null) {
                     continue;
                 }
 
-                final Promotion data = promotions.get(0);
+                final Promotion data = promotion;
 
                 result.put(code, new PromotionModelImpl(
                         realCode,

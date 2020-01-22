@@ -13,9 +13,11 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-import { Component, OnInit } from '@angular/core';
-import { ClusterNodeVO } from './../../shared/model/index';
-import { SystemService } from './../../shared/services/index';
+import { Component, OnInit, ViewChild } from '@angular/core';
+import { TabsetComponent } from 'ngx-bootstrap';
+import { ClusterNodeVO, Pair } from './../../shared/model/index';
+import { SystemService, UserEventBus } from './../../shared/services/index';
+import { Futures } from './../../shared/event/index';
 import { LogUtil } from './../../shared/log/index';
 
 @Component({
@@ -26,16 +28,21 @@ import { LogUtil } from './../../shared/log/index';
 
 export class QueryComponent implements OnInit {
 
-  private static tabs:Array<QueryTabData> = [ { query: '', qtype: 'SQL', result: '', resultQuery: '' } ];
+  private static tabs:Array<QueryTabData> = [ { query: '', qtype: 'sql-core', result: '', resultQuery: '' } ];
 
   private cluster:Array<ClusterNodeVO> = [];
+  private supportedQueries:Array<Pair<string, Array<string>>> = [];
 
   private selectedNode:string = null;
-  private selectedTabType:string = 'SQL';
+  private selectedTabType:string = 'sql-core';
+  private selectedNodeQueries:Array<string> = [];
 
   private selectedTab:number = 0;
 
   private loading:boolean = false;
+
+  @ViewChild('queryTabs')
+  private queryTabs:TabsetComponent;
 
   /**
    * Construct shop attribute panel
@@ -66,33 +73,37 @@ export class QueryComponent implements OnInit {
 
   protected onNewTabHandler() {
 
-    let qtype = this.selectedTabType ? this.selectedTabType : 'SQL';
-    this.tabs.push({ query: '', qtype: qtype, result: '', resultQuery: '' });
-    if (this.tabs.length == 1) {
-      this.selectedTab = 0;
-    }
+    let qtype = this.selectedTabType ? this.selectedTabType : 'sql-core';
+    this.tabs.push({
+      query: '',
+      qtype: qtype,
+      result: '',
+      resultQuery: ''
+    });
 
-  }
+    let that = this;
 
-  protected onTabDeleteSelected() {
-    this.tabs.splice(this.selectedTab, 1);
-    this.tabs = this.tabs.slice(0, this.tabs.length);
-    if (this.tabs.length == 1) {
-      this.selectedTab = 0;
-    } else {
-      this.selectedTab = -1;
-    }
+    Futures.once(function () {
+      if (that.queryTabs.tabs.length == that.tabs.length) {
+        that.selectedTab = that.tabs.length - 1;
+        if (!that.queryTabs.tabs[that.selectedTab].active) {
+          that.queryTabs.tabs[that.selectedTab].active = true;
+        }
+      } else if (that.tabs.length == 1) {
+        that.selectedTab = 0;
+      }
+    }, 50).delay();
+
   }
 
   protected onTabDeleteTab(tab:QueryTabData) {
     if (tab != null) {
       let idx = this.tabs.indexOf(tab);
       if (idx != -1) {
+        let wasActive = this.selectedTab == idx;
         this.tabs.splice(idx, 1);
         this.tabs = this.tabs.slice(0, this.tabs.length);
-        if (this.tabs.length == 1) {
-          this.selectedTab = 0;
-        } else {
+        if (wasActive) {
           this.selectedTab = -1;
         }
       }
@@ -132,12 +143,15 @@ export class QueryComponent implements OnInit {
 
   protected onRefreshHandler() {
     LogUtil.debug('QueryComponent refresh handler');
-    this.getClusterInfo();
+    if (UserEventBus.getUserEventBus().current() != null) {
+      this.getClusterInfo();
+    }
   }
 
   private getClusterInfo() {
     LogUtil.debug('QueryComponent get cluster');
 
+    this.loading = true;
     let _sub:any = this._systemService.getClusterInfo().subscribe(cluster => {
 
       LogUtil.debug('QueryComponent cluster', cluster);
@@ -145,9 +159,38 @@ export class QueryComponent implements OnInit {
       this.selectedNode = this.cluster[0].id;
       _sub.unsubscribe();
 
+      let _sub2:any = this._systemService.supportedQueries().subscribe(supportedQueries => {
+
+        LogUtil.debug('QueryComponent supportedQueries', supportedQueries);
+
+        this.supportedQueries = supportedQueries;
+        this.onSelectedNodeChange(this.selectedNode);
+
+        this.loading = false;
+        _sub2.unsubscribe();
+
+      });
+
     });
 
   }
+
+  private onSelectedNodeChange(ev:any) {
+
+    LogUtil.debug('QueryComponent onSelectedNodeChange', this.selectedNode);
+
+    let idx = this.supportedQueries.findIndex(pair => {
+      return pair.first == this.selectedNode;
+    });
+
+    if (idx != -1) {
+      this.selectedNodeQueries = this.supportedQueries[idx].second;
+    } else {
+      this.selectedNodeQueries = [];
+    }
+
+  }
+
 
 }
 

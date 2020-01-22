@@ -16,9 +16,9 @@
 
 
 import { Injectable } from '@angular/core';
-import { Http, Headers, RequestOptions, Response } from '@angular/http';
+import { Http, Response } from '@angular/http';
 import { Config } from '../config/env.config';
-import { CustomerOrderVO, CustomerOrderInfoVO, CustomerOrderDeliveryInfoVO, CustomerOrderTransitionResultVO, PaymentVO } from '../model/index';
+import { CustomerOrderVO, CustomerOrderInfoVO, CustomerOrderDeliveryInfoVO, CustomerOrderTransitionResultVO, PaymentVO, SearchContextVO, SearchResultVO } from '../model/index';
 import { ErrorEventBus } from './error-event-bus.service';
 import { Util } from './util';
 import { LogUtil } from './../log/index';
@@ -45,14 +45,12 @@ export class CustomerOrderService {
    * Get list of all orders, which are accessible to manage or view,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
-  getFilteredOrders(lang:string, filter:string, statuses:string[], max:number) {
+  getFilteredOrders(lang:string, filter:SearchContextVO) {
 
-    let body = JSON.stringify({ filter: filter, statuses: statuses });
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
+    let body = JSON.stringify(filter);
 
-    return this.http.post(this._serviceBaseUrl + '/filtered/' + max + '/' + lang, body, options)
-        .map(res => <CustomerOrderInfoVO[]> this.json(res))
+    return this.http.post(this._serviceBaseUrl + '/filtered/' + lang, body, Util.requestOptions())
+        .map(res => <SearchResultVO<CustomerOrderInfoVO>> this.json(res))
         .catch(this.handleError);
   }
 
@@ -62,7 +60,7 @@ export class CustomerOrderService {
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getOrderById(lang:string, orderId:number) {
-    return this.http.get(this._serviceBaseUrl + '/order/' + orderId + '/' + lang)
+    return this.http.get(this._serviceBaseUrl + '/order/' + orderId + '/' + lang, Util.requestOptions())
       .map(res => <CustomerOrderVO> this.json(res))
       .catch(this.handleError);
   }
@@ -78,10 +76,9 @@ export class CustomerOrderService {
   transitionOrder(order:CustomerOrderInfoVO, action:string, manualMsg:string) {
 
     let body = manualMsg;
-    let headers = new Headers({ 'Content-Type': 'text/plain; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.post(this._serviceBaseUrl + '/transition/' + action + '/' + order.ordernum + '/', body, options)
+    return this.http.post(this._serviceBaseUrl + '/transition/' + action + '/' + order.ordernum + '/', body,
+          Util.requestOptions({ type:'text/plain; charset=utf-8' }))
         .map(res => <CustomerOrderTransitionResultVO> this.json(res))
         .catch(this.handleError);
   }
@@ -98,10 +95,9 @@ export class CustomerOrderService {
   transitionDelivery(order:CustomerOrderInfoVO, delivery:CustomerOrderDeliveryInfoVO, action:string, manualMsg:string) {
 
     let body = manualMsg;
-    let headers = new Headers({ 'Content-Type': 'text/plain; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.post(this._serviceBaseUrl + '/transition/' + action + '/' + order.ordernum + '/' + delivery.deliveryNum + '/', body, options)
+    return this.http.post(this._serviceBaseUrl + '/transition/' + action + '/' + order.ordernum + '/' + delivery.deliveryNum + '/', body,
+          Util.requestOptions({ type:'text/plain; charset=utf-8' }))
         .map(res => <CustomerOrderTransitionResultVO> this.json(res))
         .catch(this.handleError);
   }
@@ -112,10 +108,8 @@ export class CustomerOrderService {
    * @returns {Observable<R>}
    */
   exportOrder(lang:string, orderId:number, doExport:boolean) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.post(this._serviceBaseUrl + '/orderexport/' + orderId + '/' + lang + '/' + doExport + '/', options)
+    return this.http.post(this._serviceBaseUrl + '/orderexport/' + orderId + '/' + lang + '/' + doExport + '/', null, Util.requestOptions())
       .map(res => <CustomerOrderVO> this.json(res))
       .catch(this.handleError);
   }
@@ -126,14 +120,12 @@ export class CustomerOrderService {
    * Get list of all payments, which are accessible to manage or view,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
-  getFilteredPayments(filter:string, operations:string[], statuses:string[], max:number) {
+  getFilteredPayments(filter:SearchContextVO) {
 
-    let body = JSON.stringify({ filter: filter, operations: operations, statuses: statuses });
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
+    let body = JSON.stringify(filter);
 
-    return this.http.post(this._serviceBaseUrl + '/payments/filtered/' + max + '/', body, options)
-      .map(res => <PaymentVO[]> this.json(res))
+    return this.http.post(this._serviceBaseUrl + '/payments/filtered', body, Util.requestOptions())
+      .map(res => <SearchResultVO<PaymentVO>> this.json(res))
       .catch(this.handleError);
   }
 

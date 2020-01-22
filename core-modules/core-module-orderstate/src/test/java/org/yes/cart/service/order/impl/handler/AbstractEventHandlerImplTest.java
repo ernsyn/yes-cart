@@ -21,7 +21,6 @@ import org.junit.Before;
 import org.yes.cart.BaseCoreDBTestCase;
 import org.yes.cart.constants.ServiceSpringKeys;
 import org.yes.cart.domain.entity.*;
-import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.payment.PaymentGateway;
 import org.yes.cart.payment.impl.TestExtFormPaymentGatewayImpl;
 import org.yes.cart.payment.impl.TestPaymentGatewayImpl;
@@ -32,8 +31,7 @@ import org.yes.cart.payment.service.CustomerOrderPaymentService;
 import org.yes.cart.service.domain.*;
 import org.yes.cart.shoppingcart.*;
 import org.yes.cart.shoppingcart.impl.ShoppingCartImpl;
-import org.yes.cart.util.DomainApiUtils;
-import org.yes.cart.util.TimeContext;
+import org.yes.cart.utils.TimeContext;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -188,12 +186,14 @@ public abstract class AbstractEventHandlerImplTest extends BaseCoreDBTestCase {
 
         Map<String, String> param = new HashMap<>();
         param.put(ShoppingCartCommand.CMD_SETQTYSKU, "CC_TEST1");
-        param.put(ShoppingCartCommand.CMD_SETQTYSKU_P_QTY, "2.00");
+        param.put(ShoppingCartCommand.CMD_P_SUPPLIER, "WAREHOUSE_1");
+        param.put(ShoppingCartCommand.CMD_P_QTY, "2.00");
         commands.execute(shoppingCart, (Map) param);
 
         param = new HashMap<>();
         param.put(ShoppingCartCommand.CMD_SETQTYSKU, "CC_TEST2");
-        param.put(ShoppingCartCommand.CMD_SETQTYSKU_P_QTY, "1.00");
+        param.put(ShoppingCartCommand.CMD_P_SUPPLIER, "WAREHOUSE_1");
+        param.put(ShoppingCartCommand.CMD_P_QTY, "1.00");
         commands.execute(shoppingCart, (Map) param);
 
     }
@@ -266,7 +266,8 @@ public abstract class AbstractEventHandlerImplTest extends BaseCoreDBTestCase {
 
         Map<String, String> param = new HashMap<>();
         param.put(ShoppingCartCommand.CMD_SETQTYSKU, "CC_TEST6");
-        param.put(ShoppingCartCommand.CMD_SETQTYSKU_P_QTY, "3.00");
+        param.put(ShoppingCartCommand.CMD_P_SUPPLIER, "WAREHOUSE_1");
+        param.put(ShoppingCartCommand.CMD_P_QTY, "3.00");
         commands.execute(shoppingCart, (Map) param);
 
     }
@@ -275,7 +276,8 @@ public abstract class AbstractEventHandlerImplTest extends BaseCoreDBTestCase {
 
         Map<String, String> param = new HashMap<>();
         param.put(ShoppingCartCommand.CMD_SETQTYSKU, "CC_TEST5-NOINV");
-        param.put(ShoppingCartCommand.CMD_SETQTYSKU_P_QTY, "4.00");
+        param.put(ShoppingCartCommand.CMD_P_SUPPLIER, "WAREHOUSE_1");
+        param.put(ShoppingCartCommand.CMD_P_QTY, "4.00");
         commands.execute(shoppingCart, (Map) param);
 
     }
@@ -301,7 +303,8 @@ public abstract class AbstractEventHandlerImplTest extends BaseCoreDBTestCase {
 
         Map<String, String> param = new HashMap<>();
         param.put(ShoppingCartCommand.CMD_SETQTYSKU, "CC_TEST9");
-        param.put(ShoppingCartCommand.CMD_SETQTYSKU_P_QTY, "5.00");
+        param.put(ShoppingCartCommand.CMD_P_SUPPLIER, "WAREHOUSE_1");
+        param.put(ShoppingCartCommand.CMD_P_QTY, "5.00");
         commands.execute(shoppingCart, (Map) param);
 
     }
@@ -485,18 +488,23 @@ public abstract class AbstractEventHandlerImplTest extends BaseCoreDBTestCase {
     /**
      * Set availability date for product.
      *
-     * @param skuCode sku to check
-     * @param availableFrom available from date
+     * @param warehouseId           warehouse to check
+     * @param skuCode               sku to check
+     * @param releaseFrom           available from date
+     * @param expectedAvailable     expected availability
      */
-    protected void changeAvailabilityDatesAndAssert(final String skuCode,
-                                                    final LocalDateTime availableFrom,
+    protected void changeAvailabilityDatesAndAssert(final long warehouseId,
+                                                    final String skuCode,
+                                                    final LocalDateTime releaseFrom,
                                                     final boolean expectedAvailable) {
-
-        final Product product = productService.getProductBySkuCode(skuCode);
-        assertNotNull("No product exists: " + skuCode, product);
-        product.setAvailablefrom(availableFrom);
-        productService.update(product);
-        assertEquals(expectedAvailable, DomainApiUtils.isObjectAvailableNow(!product.isDisabled(), product.getAvailablefrom(), product.getAvailableto(), TimeContext.getLocalDateTime()));
+        SkuWarehouse qty = skuWarehouseService.findByWarehouseSku(
+                warehouseService.findById(warehouseId),
+                skuCode
+        );
+        assertNotNull(qty);
+        qty.setReleaseDate(releaseFrom);
+        skuWarehouseService.update(qty);
+        assertEquals(expectedAvailable, qty.isAvailable(TimeContext.getLocalDateTime()));
     }
 
     // Common asserts below this line ---------------------------------------------------------
@@ -505,24 +513,22 @@ public abstract class AbstractEventHandlerImplTest extends BaseCoreDBTestCase {
     /**
      * Assert inventory state.
      *
-     * @param warehouseId warehouse to check
-     * @param skuCode sku to check
-     * @param expectedAvailable available inventory
-     * @param expectedReserved reserved inventory
+     * @param warehouseId           warehouse to check
+     * @param skuCode               sku to check
+     * @param expectedAvailable     available inventory
+     * @param expectedReserved      reserved inventory
      */
     protected void assertInventory(final long warehouseId,
                                    final String skuCode,
                                    final String expectedAvailable,
                                    final String expectedReserved) {
-        ProductSku sku = productSkuService.getProductSkuBySkuCode(skuCode);
-        Pair<BigDecimal, BigDecimal> qty = skuWarehouseService.findQuantity(
-                new ArrayList<Warehouse>() {{
-                    add(warehouseService.findById(warehouseId));
-                }},
-                sku.getCode()
+        SkuWarehouse qty = skuWarehouseService.findByWarehouseSku(
+                warehouseService.findById(warehouseId),
+                skuCode
         );
-        assertEquals(new BigDecimal(expectedAvailable), qty.getFirst());
-        assertEquals(new BigDecimal(expectedReserved), qty.getSecond());
+        assertNotNull(qty);
+        assertEquals(new BigDecimal(expectedAvailable), qty.getQuantity());
+        assertEquals(new BigDecimal(expectedReserved), qty.getReserved());
     }
 
     /**
@@ -563,7 +569,7 @@ public abstract class AbstractEventHandlerImplTest extends BaseCoreDBTestCase {
      * @param orderNum order number
      */
     protected void assertNoPaymentEntries(final String orderNum) {
-        List<CustomerOrderPayment> rezList = customerOrderPaymentService.findBy(orderNum, null, (String) null, (String) null);
+        List<CustomerOrderPayment> rezList = customerOrderPaymentService.findPayments(orderNum, null, (String) null, (String) null);
         assertEquals(0, rezList.size());
     }
 
@@ -626,8 +632,7 @@ public abstract class AbstractEventHandlerImplTest extends BaseCoreDBTestCase {
                                            final List<String> expectedResult,
                                            final List<Boolean> expectedSettled) {
 
-        List<CustomerOrderPayment> rezList = new ArrayList<>(customerOrderPaymentService.findBy(orderNum, null, (String) null, (String) null));
-        assertEquals(expectedAmount.size(), rezList.size());
+        List<CustomerOrderPayment> rezList = new ArrayList<>(customerOrderPaymentService.findPayments(orderNum, null, (String) null, (String) null));
 
         List<String> expected = new ArrayList<>();
         for (int i = 0; i < expectedAmount.size(); i++) {
@@ -692,7 +697,7 @@ public abstract class AbstractEventHandlerImplTest extends BaseCoreDBTestCase {
         assertEquals(pg + " authorise feature", authorise, proto.getPaymentGatewayFeatures().isSupportAuthorize());
         assertEquals(pg + " authorise per shipment feature", perShipment, proto.getPaymentGatewayFeatures().isSupportAuthorizePerShipment());
 
-        return proto.getLabel() + "Label"; // all descriptors have Label suffix
+        return pg + "Label"; // all descriptors have Label suffix
     }
 
     /**
@@ -725,7 +730,7 @@ public abstract class AbstractEventHandlerImplTest extends BaseCoreDBTestCase {
         assertEquals(pg + " void feature", voidCapture, proto.getPaymentGatewayFeatures().isSupportVoid());
         assertEquals(pg + " refund feature", refund, proto.getPaymentGatewayFeatures().isSupportRefund());
 
-        return proto.getLabel() + "Label"; // all descriptors have Label suffix
+        return pg + "Label"; // all descriptors have Label suffix
     }
 
 }

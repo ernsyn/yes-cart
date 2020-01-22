@@ -24,7 +24,7 @@ import org.yes.cart.service.domain.SystemService;
 import org.yes.cart.service.dto.DtoFileService;
 import org.yes.cart.service.dto.DtoImageService;
 import org.yes.cart.service.vo.VoIOSupport;
-import org.yes.cart.util.MimeTypesUtils;
+import org.yes.cart.utils.MimeTypesUtils;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -192,10 +192,12 @@ public class VoIOSupportImpl implements VoIOSupport {
 
     static byte[] getByteArray(final String base64) {
         final String[] parts = StringUtils.splitByWholeSeparator(base64, ";base64,");
-        if (parts.length == 1) {
-            return Base64.decodeBase64(parts[0]);
-        } else if (parts.length == 2) {
-            return Base64.decodeBase64(parts[1]);
+        if (parts != null) {
+            if (parts.length == 1) {
+                return Base64.decodeBase64(parts[0]);
+            } else if (parts.length == 2) {
+                return Base64.decodeBase64(parts[1]);
+            }
         }
         return null;
     }

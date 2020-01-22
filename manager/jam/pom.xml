@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2009 Denys Pavlov, Igor Azarnyi
   ~
@@ -22,12 +22,11 @@
     <parent>
         <groupId>org.yes</groupId>
         <artifactId>manager</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>3.7.0-SNAPSHOT</version>
     </parent>
     <artifactId>jam</artifactId>
     <packaging>war</packaging>
-    <name>Yes cart JAM: server</name>
-    <description>Yes cart manager server</description>
+    <name>Admin: server</name>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -66,17 +65,22 @@
         </dependency>
         <dependency>
             <groupId>org.yes</groupId>
-            <artifactId>core-module-ws</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.yes</groupId>
-            <artifactId>core-module-cluster-ws</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.yes</groupId>
             <artifactId>core-module-reports</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.yes</groupId>
+            <artifactId>int-module-reports-domain-mapping</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.yes</groupId>
+            <artifactId>int-module-reports-dto-mapping</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.yes</groupId>
+            <artifactId>int-module-reports-hibernate</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
@@ -108,7 +112,7 @@
         </dependency>
         <dependency>
             <groupId>org.yes</groupId>
-            <artifactId>persistence</artifactId>
+            <artifactId>persistence-core-hibernate</artifactId>
             <version>${project.parent.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
@@ -122,77 +126,22 @@
 
         <dependency>
             <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context-support</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
             <version>${spring.version}</version>
         </dependency>
+
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webmvc</artifactId>
             <version>${spring.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-web</artifactId>
-            <version>${spring-security.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-config</artifactId>
-            <version>${spring-security.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-taglibs</artifactId>
-            <version>${spring-security.version}</version>
-        </dependency>
 
         <dependency>
-            <groupId>org.apache.cxf</groupId>
-            <artifactId>cxf-rt-frontend-jaxws</artifactId>
-            <version>${cxf.version}</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>asm</artifactId>
-                    <groupId>org.ow2.asm</groupId>
-                </exclusion>
-            </exclusions>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt</artifactId>
+            <version>${jjwt.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.cxf</groupId>
-            <artifactId>cxf-rt-transports-http</artifactId>
-            <version>${cxf.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.cxf</groupId>
-            <artifactId>cxf-rt-ws-security</artifactId>
-            <version>${cxf.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.bouncycastle</groupId>
-                    <artifactId>bcprov-jdk15on</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>net.sf.ehcache</groupId>
-                    <artifactId>ehcache</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <!-- Bouncy castle for ws-security -->
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-            <version>${bcprov-jdk15on.version}</version>
-        </dependency>
+
         <dependency>
             <groupId>jstl</groupId>
             <artifactId>jstl</artifactId>
@@ -205,9 +154,26 @@
             <version>${commons-fileupload.version}</version>
         </dependency>
 
+
+        <!--<dependency>-->
+        <!--<groupId>com.mchange</groupId>-->
+        <!--<artifactId>c3p0</artifactId>-->
+        <!--<version>${c3p0.version}</version>-->
+        <!--</dependency>-->
+
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>${hikari.version}</version>
+        </dependency>
+
     </dependencies>
 
     <profiles>
+
+        <!--
+            DATABASE PROFILES
+        -->
 
         <profile>
             <id>mysql</id>
@@ -216,78 +182,6 @@
                     <groupId>mysql</groupId>
                     <artifactId>mysql-connector-java</artifactId>
                     <version>${mysql-connector.version}</version>
-                </dependency>
-            </dependencies>
-        </profile>
-
-        <profile>
-            <id>buildDemo</id>
-            <dependencies>
-                <dependency>
-                    <groupId>mysql</groupId>
-                    <artifactId>mysql-connector-java</artifactId>
-                    <version>${mysql-connector.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-liqpay</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-cybersource</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-authorizenet</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-paypal</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-postfinance</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-            </dependencies>
-        </profile>
-
-        <profile>
-            <id>buildAws</id>
-            <dependencies>
-                <dependency>
-                    <groupId>mysql</groupId>
-                    <artifactId>mysql-connector-java</artifactId>
-                    <version>${mysql-connector.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-liqpay</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-cybersource</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-authorizenet</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-paypal</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-postfinance</artifactId>
-                    <version>${project.parent.version}</version>
                 </dependency>
             </dependencies>
         </profile>
@@ -303,6 +197,75 @@
                 </dependency>
             </dependencies>
         </profile>
+
+        <!--
+            CLUSTER CONNECTOR
+        -->
+
+        <profile>
+            <id>connWS</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>core-module-cluster-ws</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <activation><activeByDefault>true</activeByDefault></activation>
+            <id>connREST</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>core-module-cluster-rest</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <id>connJGIPv4</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>core-module-cluster-jgroups</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <id>orconnJGIPv6</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>core-module-cluster-jgroups</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+
+        <!--
+            ADD-ON PROFILES
+        -->
+
+        <profile>
+            <id>pricerules</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>int-module-marketing-pricerules</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!--
+            PAYMENT MODULES ACTIVATION
+        -->
 
         <profile>
             <id>paymentAll</id>
@@ -390,27 +353,90 @@
             </dependencies>
         </profile>
 
+
+        <!--
+            DEMO STORE
+        -->
+
         <profile>
-            <id>jgroups</id>
+            <id>buildDemo</id>
             <dependencies>
                 <dependency>
+                    <groupId>mysql</groupId>
+                    <artifactId>mysql-connector-java</artifactId>
+                    <version>${mysql-connector.version}</version>
+                </dependency>
+                <dependency>
                     <groupId>org.yes</groupId>
-                    <artifactId>core-module-cluster-jgroups</artifactId>
+                    <artifactId>payment-module-liqpay</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-cybersource</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-authorizenet</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-paypal</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-postfinance</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
             </dependencies>
         </profile>
 
+        <!--
+            AWS STORE
+        -->
+
         <profile>
-            <id>pricerules</id>
+            <id>buildAws</id>
             <dependencies>
                 <dependency>
+                    <groupId>mysql</groupId>
+                    <artifactId>mysql-connector-java</artifactId>
+                    <version>${mysql-connector.version}</version>
+                </dependency>
+                <dependency>
                     <groupId>org.yes</groupId>
-                    <artifactId>int-module-marketing-pricerules</artifactId>
+                    <artifactId>payment-module-liqpay</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-cybersource</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-authorizenet</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-paypal</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-postfinance</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
             </dependencies>
         </profile>
+
+        <!--
+            TEMPLATES PROFILES
+        -->
 
         <profile>
             <id>templates</id>
@@ -427,13 +453,13 @@
                                         <goal>copy-resources</goal>
                                     </goals>
                                     <configuration>
-                                        <outputDirectory>${basedir}/target/yes-manager</outputDirectory>
+                                        <outputDirectory>${basedir}/target/${webapp.admin.war.name}</outputDirectory>
                                         <resources>
                                             <resource>
-                                                <directory>${basedir}/../../theme/mail/src/main/resources</directory>
+                                                <directory>${basedir}/../../theme/mail/src/main/client</directory>
                                             </resource>
                                             <resource>
-                                                <directory>${basedir}/../../theme/reports/src/main/resources</directory>
+                                                <directory>${basedir}/../../theme/reports/src/main/client</directory>
                                             </resource>
                                         </resources>
                                     </configuration>
@@ -445,7 +471,7 @@
                                         <goal>copy-resources</goal>
                                     </goals>
                                     <configuration>
-                                        <outputDirectory>${basedir}/target/yes-manager/resources/node_modules</outputDirectory>
+                                        <outputDirectory>${basedir}/target/${webapp.admin.war.name}/client/node_modules</outputDirectory>
                                         <resources>
                                             <resource>
                                                 <filtering>false</filtering>
@@ -461,7 +487,7 @@
                                         <goal>copy-resources</goal>
                                     </goals>
                                     <configuration>
-                                        <outputDirectory>${basedir}/target/yes-manager/resources</outputDirectory>
+                                        <outputDirectory>${basedir}/target/${webapp.admin.war.name}/client</outputDirectory>
                                         <resources>
                                             <resource>
                                                 <filtering>false</filtering>
@@ -477,11 +503,14 @@
             </build>
         </profile>
 
+        <!--
+            ANGULAR DEVELOPMENT PROFILES
+
+            This is a utility profile to bridge NodeJS updates (from "npm start") so that exploded war directory
+            is up to date for running from IDE (e.g. Intellij)
+        -->
+
         <profile>
-            <!--
-                    This is a utility profile to bridge NodeJS updates (from "npm start") so that exploded war directory
-                    is up to date for running from IDE (e.g. Intellij)
-              -->
             <id>nodejs</id>
             <build>
                 <pluginManagement>
@@ -496,7 +525,7 @@
                                         <goal>copy-resources</goal>
                                     </goals>
                                     <configuration>
-                                        <outputDirectory>${basedir}/target/yes-manager/resources</outputDirectory>
+                                        <outputDirectory>${basedir}/target/${webapp.admin.war.name}/client</outputDirectory>
                                         <resources>
                                             <resource>
                                                 <filtering>false</filtering>
@@ -518,6 +547,7 @@
 
         <filters>
             <filter>${basedir}/../../env/maven/${env}/config-cluster.properties</filter>
+            <filter>${basedir}/../../env/maven/${env}/config-cluster-${env.cluster}.properties</filter>
             <filter>${basedir}/../../env/maven/${env}/config-fs.properties</filter>
             <filter>${basedir}/../../env/maven/${env}/config-db-${env.db}.properties</filter>
             <filter>${basedir}/../../env/maven/${env}/config-ft-${env.search}.properties</filter>
@@ -576,7 +606,7 @@
             </resource>
             <resource>
                 <filtering>true</filtering>
-                <directory>${basedir}/../../env/maven/${env}/JAM</directory>
+                <directory>${basedir}/../../env/maven/${env}/ADM</directory>
                 <includes>
                     <include>logback.xml</include>
                     <include>logging.properties</include>
@@ -612,12 +642,12 @@
                             <resource>
                                 <filtering>false</filtering>
                                 <directory>../jam-jsclient/src/main/${ts.target.home}</directory>
-                                <targetPath>resources</targetPath>
+                                <targetPath>client</targetPath>
                             </resource>
                             <resource>
                                 <filtering>false</filtering>
                                 <directory>../jam-jsclient/src/main/${ts.target.modules}</directory>
-                                <targetPath>resources/node_modules</targetPath>
+                                <targetPath>client/node_modules</targetPath>
                             </resource>
                         </webResources>
                         <!-- web.xml is added to the project by other means, and shouldn't be packaged by default -->

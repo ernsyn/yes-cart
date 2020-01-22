@@ -23,13 +23,13 @@
     <parent>
         <groupId>org.yes</groupId>
         <artifactId>yes-cart</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>3.7.0-SNAPSHOT</version>
     </parent>
 
     <groupId>org.yes</groupId>
     <artifactId>theme</artifactId>
     <packaging>pom</packaging>
-    <name>Yes cart themes modules</name>
+    <name>Themes modules</name>
 
     <modules>
         <module>mail</module>

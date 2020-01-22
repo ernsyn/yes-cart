@@ -14,9 +14,9 @@
  *    limitations under the License.
  */
 import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
-import { I18nEventBus, ShopEventBus, ShippingService, FulfilmentService, PaymentService, Util } from './../shared/services/index';
+import { I18nEventBus, ShopEventBus, ShippingService, FulfilmentService, PaymentService, UserEventBus, Util } from './../shared/services/index';
 import { ModalComponent, ModalResult, ModalAction } from './../shared/modal/index';
-import { CarrierVO, CarrierSlaVO, ShopVO, PaymentGatewayInfoVO, FulfilmentCentreVO } from './../shared/model/index';
+import { CarrierVO, CarrierSlaVO, ShopVO, PaymentGatewayInfoVO, FulfilmentCentreVO, SearchContextVO } from './../shared/model/index';
 import { FormValidationEvent } from './../shared/event/index';
 import { LogUtil } from './../shared/log/index';
 
@@ -103,12 +103,14 @@ export class ShippingComponent implements OnInit, OnDestroy {
 
   protected onRefreshHandler() {
     LogUtil.debug('ShippingComponent refresh handler');
-    if (this.viewMode === ShippingComponent.CARRIERS ||
-        this.viewMode === ShippingComponent.CARRIER ||
-        this.selectedCarrier == null) {
-      this.getAllCarriers();
-    } else {
-      this.getAllSlas();
+    if (UserEventBus.getUserEventBus().current() != null) {
+      if (this.viewMode === ShippingComponent.CARRIERS ||
+          this.viewMode === ShippingComponent.CARRIER ||
+          this.selectedCarrier == null) {
+        this.getAllCarriers();
+      } else {
+        this.getAllSlas();
+      }
     }
   }
 
@@ -371,9 +373,18 @@ export class ShippingComponent implements OnInit, OnDestroy {
         this.pgs = allpgs;
         _sub2.unsubscribe();
       });
-      let _sub3:any = this._fulfilmentService.getAllFulfilmentCentres().subscribe(allfcs => {
+      let _ctx:SearchContextVO = {
+        parameters : {
+          filter: [ ]
+        },
+        start : 0,
+        size : 1000,
+        sortBy : null,
+        sortDesc : false
+      };
+      let _sub3:any = this._fulfilmentService.getFilteredFulfilmentCentres(_ctx).subscribe(allfcs => {
         LogUtil.debug('ShippingComponent getAllFulfilmentCentres', allfcs);
-        this.fcs = allfcs;
+        this.fcs = allfcs != null ? allfcs.items : [];
         _sub3.unsubscribe();
       });
 

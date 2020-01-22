@@ -17,7 +17,9 @@
 package org.yes.cart.service.dto;
 
 import org.yes.cart.domain.dto.AttrValueDTO;
-import org.yes.cart.domain.dto.CategoryDTO;
+import org.yes.cart.domain.dto.ContentDTO;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.exception.UnableToCreateInstanceException;
 import org.yes.cart.exception.UnmappedInterfaceException;
 
@@ -27,7 +29,7 @@ import java.util.List;
  * User: Denis Pavlov
  * Date: 27-June-2013
  */
-public interface DtoContentService extends GenericDTOService<CategoryDTO>, GenericAttrValueService {
+public interface DtoContentService extends GenericDTOService<ContentDTO>, GenericAttrValueService {
 
     /**
      * Create root content for given shop if none exists.
@@ -46,25 +48,22 @@ public interface DtoContentService extends GenericDTOService<CategoryDTO>, Gener
      * @throws org.yes.cart.exception.UnmappedInterfaceException
      *          in case of configuration problem
      */
-    List<CategoryDTO> getAllByShopId(final long shopId)
+    List<ContentDTO> getAllByShopId(final long shopId)
             throws UnmappedInterfaceException, UnableToCreateInstanceException;
 
 
+
     /**
-     * Get categories by criteria.
+     * Get content by criteria.
      *
-     * @param shopId shop id
      * @param filter filter
-     * @param page page number starting from 0
-     * @param pageSize size of page
      *
      * @return list of matching categories
      *
      * @throws UnmappedInterfaceException error
      * @throws UnableToCreateInstanceException error
      */
-    List<CategoryDTO> findBy(long shopId, String filter, int page, int pageSize)
-            throws UnmappedInterfaceException, UnableToCreateInstanceException;
+    SearchResult<ContentDTO> findContent(SearchContext filter) throws UnmappedInterfaceException, UnableToCreateInstanceException;
 
 
     /**
@@ -78,7 +77,7 @@ public interface DtoContentService extends GenericDTOService<CategoryDTO>, Gener
      * @throws org.yes.cart.exception.UnmappedInterfaceException
      *          in case of configuration problem
      */
-    List<CategoryDTO> getAllWithAvailabilityFilter(long shopId, boolean withAvailabilityFiltering)
+    List<ContentDTO> getAllWithAvailabilityFilter(long shopId, boolean withAvailabilityFiltering)
             throws UnmappedInterfaceException, UnableToCreateInstanceException;
 
     /**
@@ -93,7 +92,7 @@ public interface DtoContentService extends GenericDTOService<CategoryDTO>, Gener
      * @throws org.yes.cart.exception.UnmappedInterfaceException
      *          in case of configuration problem
      */
-    List<CategoryDTO> getBranchById(long shopId, long categoryId, List<Long> expand)
+    List<ContentDTO> getBranchById(long shopId, long categoryId, List<Long> expand)
             throws UnmappedInterfaceException, UnableToCreateInstanceException;
 
     /**
@@ -109,7 +108,7 @@ public interface DtoContentService extends GenericDTOService<CategoryDTO>, Gener
      * @throws org.yes.cart.exception.UnmappedInterfaceException
      *          in case of configuration problem
      */
-    List<CategoryDTO> getBranchByIdWithAvailabilityFilter(long shopId, long contentId, boolean withAvailabilityFiltering, List<Long> expand)
+    List<ContentDTO> getBranchByIdWithAvailabilityFilter(long shopId, long contentId, boolean withAvailabilityFiltering, List<Long> expand)
             throws UnmappedInterfaceException, UnableToCreateInstanceException;
 
     /**

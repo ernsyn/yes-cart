@@ -26,14 +26,18 @@ import org.yes.cart.domain.dto.ProductDTO;
 import org.yes.cart.domain.dto.ProductSkuDTO;
 import org.yes.cart.domain.dto.factory.DtoFactory;
 import org.yes.cart.domain.dto.impl.AttrValueProductDTOImpl;
-import org.yes.cart.domain.entity.Product;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.exception.UnableToCreateInstanceException;
 import org.yes.cart.exception.UnmappedInterfaceException;
-import org.yes.cart.service.dto.*;
-import org.yes.cart.util.TimeContext;
+import org.yes.cart.service.dto.DtoAttributeService;
+import org.yes.cart.service.dto.DtoBrandService;
+import org.yes.cart.service.dto.DtoProductService;
+import org.yes.cart.service.dto.DtoProductTypeService;
+import org.yes.cart.utils.TimeContext;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
 
 import static org.junit.Assert.*;
 
@@ -49,9 +53,6 @@ public class DtoProductServiceImplTezt extends BaseCoreDBTestCase {
     private DtoBrandService dtoBrandService;
     private DtoAttributeService dtoAttrService;
     private DtoFactory dtoFactory;
-    private DtoProductTypeAttrService dtoProductTypeAttrService;
-    private DtoProductCategoryService dtoProductCategoryService;
-    //private DtoCategoryService dtoCategoryService;
 
     @Before
     public void setUp() {
@@ -60,8 +61,6 @@ public class DtoProductServiceImplTezt extends BaseCoreDBTestCase {
         dtoProductTypeService = (DtoProductTypeService) ctx().getBean(DtoServiceSpringKeys.DTO_PRODUCT_TYPE_SERVICE);
         dtoAttrService = (DtoAttributeService) ctx().getBean(DtoServiceSpringKeys.DTO_ATTRIBUTE_SERVICE);
         dtoFactory = (DtoFactory) ctx().getBean(DtoServiceSpringKeys.DTO_FACTORY);
-        dtoProductTypeAttrService = (DtoProductTypeAttrService) ctx().getBean(DtoServiceSpringKeys.DTO_PRODUCT_TYPE_ATTR_SERVICE);
-        dtoProductCategoryService = (DtoProductCategoryService) ctx().getBean(/*ServiceSpringKeys.DTO_PRODUCT_CATEGORY_SERVICE*/ "dtoProductCategoryService");
         super.setUp();
 
     }
@@ -104,45 +103,28 @@ public class DtoProductServiceImplTezt extends BaseCoreDBTestCase {
         assertTrue(dto.getProductId() > 0);
         long pk = dto.getProductId();
         LocalDateTime availableFrom = TimeContext.getLocalDateTime();
-        dto.setDisabled(true);
-        dto.setAvailablefrom(availableFrom);
-        dto.setAvailableto(availableFrom);
         dto.setName("new-name");
         dto.setDescription("new desciption");
         dto.setBrandDTO(dtoBrandService.getById(102L));
         dto.setProductTypeDTO(dtoProductTypeService.getById(2L));
-        dto.setAvailability(Product.AVAILABILITY_ALWAYS);
         dtoService.update(dto);
         dto = dtoService.getById(pk);
-        assertTrue(dto.isDisabled());
-        assertEquals(availableFrom, dto.getAvailablefrom());
-        assertEquals(availableFrom, dto.getAvailableto());
         assertEquals("new-name", dto.getName());
         assertEquals("new desciption", dto.getDescription());
         assertEquals(102L, dto.getBrandDTO().getBrandId());
         assertEquals(2L, dto.getProductTypeDTO().getProducttypeId());
-        assertEquals(Product.AVAILABILITY_ALWAYS, dto.getAvailability());
     }
 
-
     @Test
-    public void testGetProductByCategory() throws Exception {
-        List<ProductDTO> list = dtoService.getProductByCategory(211L);
-        assertEquals(8, list.size()); //FEATURED-PRODUCT3 AVAILABLEFROM="2000-04-08 11:15:17.451" AVAILABLETO="2001-04-08 11:15:17.451"
-        for (ProductDTO dto : list) {
-            assertFalse(dto.getCode().equals("FEATURED-PRODUCT3"));
-        }
-        list = dtoService.getProductByCategory(208L);
-        assertTrue(list.isEmpty());
-    }
+    public void findProductSupplierCatalogCodes() throws Exception {
 
+        final List<String> codes = dtoService.findProductSupplierCatalogCodes();
+        assertNotNull(codes);
+        assertEquals(3, codes.size());
+        assertTrue(codes.contains("CAT001"));
+        assertTrue(codes.contains("CAT002"));
+        assertTrue(codes.contains("CAT003"));
 
-
-    @Test
-    public void testGetProductByCodeNameBrandType() throws Exception {
-        List<ProductDTO> list = dtoService.getProductByCodeNameBrandType(null, null, 104L, 0);
-        assertFalse(list.isEmpty());
-        assertTrue(26 == list.size() || 28 == list.size());             //26 products with brand samsung
     }
 
     @Test
@@ -247,7 +229,6 @@ public class DtoProductServiceImplTezt extends BaseCoreDBTestCase {
         dto.setName("test-name");
         dto.setBrandDTO(dtoBrandService.getById(101L));
         dto.setProductTypeDTO(dtoProductTypeService.getById(1L));
-        dto.setAvailability(Product.AVAILABILITY_STANDARD);
         return dto;
     }
 
@@ -257,48 +238,66 @@ public class DtoProductServiceImplTezt extends BaseCoreDBTestCase {
         dto.setName("test-name" + suffix);
         dto.setBrandDTO(dtoBrandService.getById(101L));
         dto.setProductTypeDTO(dtoProductTypeService.getById(1L));
-        dto.setAvailability(Product.AVAILABILITY_STANDARD);
         return dto;
     }
 
 
     @Test
-    public void testFindBy() throws Exception {
+    public void testFindProduct() throws Exception {
 
         // code exact
-        List<ProductDTO> list = dtoService.findBy("!FEATURED-PRODUCT3", 0, 10);
-        assertEquals(1, list.size());
-        assertEquals("FEATURED-PRODUCT3", list.get(0).getCode());
+        final SearchContext filterCodeExact = new SearchContext(Collections.singletonMap("filter", Collections.singletonList("! FEATURED-PRODUCT3")), 0, 10, "name", false, "filter");
+        SearchResult<ProductDTO> list = dtoService.findProducts(filterCodeExact);
+        assertEquals(1, list.getTotal());
+        assertEquals("FEATURED-PRODUCT3", list.getItems().get(0).getCode());
 
         // code partial
-        list = dtoService.findBy("#featured", 0, 10);
-        assertEquals(9, list.size());
-        assertTrue(list.get(0).getCode().startsWith("FEATURED-PRODUCT"));
+        final SearchContext filterPartial = new SearchContext(Collections.singletonMap("filter", Collections.singletonList("#featured")), 0, 10, "name", false, "filter");
+        list = dtoService.findProducts(filterPartial);
+        assertEquals(9, list.getTotal());
+        assertTrue(list.getItems().get(0).getCode().startsWith("FEATURED-PRODUCT"));
 
         // PK
-        list = dtoService.findBy("*15053", 0, 10);
-        assertEquals(1, list.size());
-        assertEquals("FEATURED-PRODUCT3", list.get(0).getCode());
-
-        // Dates
-        list = dtoService.findBy("2000-04-09<2001-04-08", 0, 10);
-        assertEquals(1, list.size());
-        assertEquals("FEATURED-PRODUCT3", list.get(0).getCode());
+        final SearchContext filterByPk = new SearchContext(Collections.singletonMap("filter", Collections.singletonList("* 15053 ")), 0, 10, "name", false, "filter");
+        list = dtoService.findProducts(filterByPk);
+        assertEquals(1, list.getTotal());
+        assertEquals("FEATURED-PRODUCT3", list.getItems().get(0).getCode());
 
         // by brand
-        list = dtoService.findBy("?samsung", 0, 10);
-        assertFalse(list.isEmpty());
-        assertEquals("Samsung", list.get(0).getBrandDTO().getName());
+        final SearchContext filterByBrand = new SearchContext(Collections.singletonMap("filter", Collections.singletonList("?samsung")), 0, 10, "name", false, "filter");
+        list = dtoService.findProducts(filterByBrand);
+        assertTrue(list.getTotal() > 0);
+        assertEquals("Samsung", list.getItems().get(0).getBrandDTO().getName());
 
         // by category
-        list = dtoService.findBy("^featured products", 0, 10);
-        assertFalse(list.isEmpty());
-        assertEquals("Featured products", list.get(0).getProductCategoryDTOs().iterator().next().getCategoryName());
+        final SearchContext filterByCategory = new SearchContext(Collections.singletonMap("filter", Collections.singletonList("^ 211")), 0, 10, "name", false, "filter");
+        list = dtoService.findProducts(filterByCategory);
+        assertTrue(list.getTotal() > 0);
+        assertEquals("Featured products", list.getItems().get(0).getProductCategoryDTOs().iterator().next().getCategoryName());
 
         // basic
-        list = dtoService.findBy("bender", 0, 10);
-        assertFalse(list.isEmpty());
-        assertTrue(list.get(0).getCode().startsWith("BENDER"));
+        final SearchContext filterBasic = new SearchContext(Collections.singletonMap("filter", Collections.singletonList("bender")), 0, 10, "name", false, "filter");
+        list = dtoService.findProducts(filterBasic);
+        assertTrue(list.getTotal() > 0);
+        assertTrue(list.getItems().get(0).getCode().startsWith("BENDER"));
+
+        // Federated
+        final Map<String, List> federatedRestricted = new HashMap<>();
+        federatedRestricted.put("filter", Collections.singletonList("001_CAT00"));
+        federatedRestricted.put("supplierCatalogCodes", Arrays.asList("CAT001", "CAT002"));
+        final SearchContext filterFederatedRestricted = new SearchContext(federatedRestricted, 0, 10, "name", false, "filter", "supplierCatalogCodes");
+        list = dtoService.findProducts(filterFederatedRestricted);
+        assertEquals(2, list.getTotal());
+        assertEquals("001_CAT001", list.getItems().get(0).getCode());
+        assertEquals("001_CAT002", list.getItems().get(1).getCode());
+
+        final Map<String, List> federatedDefault = new HashMap<>();
+        federatedDefault.put("filter", Collections.singletonList("* 9998 "));
+        federatedDefault.put("supplierCatalogCodes", Arrays.asList("CAT001", "CAT002"));
+        final SearchContext filterFederatedDefault = new SearchContext(federatedDefault, 0, 10, "name", false, "filter", "supplierCatalogCodes");
+        list = dtoService.findProducts(filterFederatedDefault);
+        assertEquals(1, list.getTotal());
+        assertEquals("BENDER-ua", list.getItems().get(0).getCode());
 
     }
 

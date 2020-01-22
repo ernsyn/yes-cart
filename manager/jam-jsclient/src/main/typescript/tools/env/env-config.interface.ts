@@ -1,3 +1,4 @@
+
 // Feel free to extend this interface
 // depending on your app specific config.
 export interface EnvConfig {
@@ -6,6 +7,10 @@ export interface EnvConfig {
   DEBUG_ON?: boolean;
   SUPPORTED_LANGS?:string;
   DEFAULT_LANG?:string;
+  CONTEXT_PATH?:string;
+
+  AUTH_JWT_BUFFER?: number;
+  AUTH_USERCHECK_BUFFER?: number;
 
   UI_INPUT_DELAY?: number;
   UI_ALERTCHECK_DELAY?: number;

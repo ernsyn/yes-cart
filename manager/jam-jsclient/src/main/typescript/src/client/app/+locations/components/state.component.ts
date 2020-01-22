@@ -33,11 +33,9 @@ export class StateComponent implements OnInit, OnDestroy {
 
   private _state:StateVO;
 
-  private initialising:boolean = false; // tslint:disable-line:no-unused-variable
   private delayedChange:Future;
 
   private stateForm:any;
-  private stateFormSub:any; // tslint:disable-line:no-unused-variable
 
   constructor(fb: FormBuilder) {
     LogUtil.debug('StateComponent constructed');
@@ -45,8 +43,7 @@ export class StateComponent implements OnInit, OnDestroy {
     this.stateForm = fb.group({
       'countryCode': ['', YcValidators.requiredValidCountryCode],
       'stateCode': ['', YcValidators.requiredNonBlankTrimmed64],
-      'name': ['', YcValidators.requiredNonBlankTrimmed64],
-      'displayName': ['', YcValidators.requiredNonBlankTrimmed],
+      'name': ['']
     });
 
     let that = this;
@@ -56,12 +53,12 @@ export class StateComponent implements OnInit, OnDestroy {
   }
 
   formBind():void {
-    UiUtil.formBind(this, 'stateForm', 'stateFormSub', 'delayedChange', 'initialising');
+    UiUtil.formBind(this, 'stateForm', 'delayedChange');
   }
 
 
   formUnbind():void {
-    UiUtil.formUnbind(this, 'stateFormSub');
+    UiUtil.formUnbind(this, 'stateForm');
   }
 
   formChange():void {
@@ -69,10 +66,14 @@ export class StateComponent implements OnInit, OnDestroy {
     this.dataChanged.emit({ source: this._state, valid: this.stateForm.valid });
   }
 
+  onNameDataChange(event:FormValidationEvent<any>) {
+    UiUtil.formI18nDataChange(this, 'stateForm', 'name', event);
+  }
+
   @Input()
   set state(state:StateVO) {
 
-    UiUtil.formInitialise(this, 'initialising', 'stateForm', '_state', state, true, ['countryCode']);
+    UiUtil.formInitialise(this, 'stateForm', '_state', state, true, ['countryCode']);
 
   }
 

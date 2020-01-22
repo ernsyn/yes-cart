@@ -23,7 +23,7 @@ import org.yes.cart.domain.i18n.impl.FailoverStringI18NModel;
 import org.yes.cart.service.domain.CarrierSlaService;
 import org.yes.cart.service.order.DeliveryBucket;
 import org.yes.cart.shoppingcart.*;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.MoneyUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -67,9 +67,11 @@ public class PriceListDeliveryCostCalculationStrategy implements DeliveryCostCal
 
             for (final Map.Entry<String, Long> supplierCarrierSla : cart.getCarrierSlaId().entrySet()) {
 
+                final String supplier = supplierCarrierSla.getKey();
+
                 supplierBuckets.clear();
                 for (final DeliveryBucket bucket : cartBuckets) {
-                    if (bucket.getSupplier().equals(supplierCarrierSla.getKey())) {
+                    if (bucket.getSupplier().equals(supplier)) {
                         supplierBuckets.add(bucket);
                     }
 
@@ -95,7 +97,7 @@ public class PriceListDeliveryCostCalculationStrategy implements DeliveryCostCal
 
                     final BigDecimal qty = QTY;
 
-                    final SkuPrice price = getSkuPrice(cart, carrierSlaGUID, policy, qty);
+                    final SkuPrice price = getSkuPrice(cart, carrierSlaGUID, policy, supplier, qty);
 
                     if (price != null && price.getSkuPriceId() > 0L) {
 
@@ -148,9 +150,13 @@ public class PriceListDeliveryCostCalculationStrategy implements DeliveryCostCal
         return null;
     }
 
-    protected SkuPrice getSkuPrice(final MutableShoppingCart cart, final String carrierSlaId, final PricingPolicyProvider.PricingPolicy policy, final BigDecimal qty) {
+    protected SkuPrice getSkuPrice(final MutableShoppingCart cart,
+                                   final String carrierSlaId,
+                                   final PricingPolicyProvider.PricingPolicy policy,
+                                   final String supplier,
+                                   final BigDecimal qty) {
 
-        return deliveryCostRegionalPriceResolver.getSkuPrice(cart, carrierSlaId, policy, qty);
+        return deliveryCostRegionalPriceResolver.getSkuPrice(cart, carrierSlaId, policy, supplier, qty);
 
     }
 

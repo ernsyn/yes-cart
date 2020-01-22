@@ -28,9 +28,8 @@ import org.yes.cart.service.domain.AttributeService;
 import org.yes.cart.service.domain.CategoryService;
 import org.yes.cart.service.domain.ContentService;
 import org.yes.cart.service.domain.ShopService;
-import org.yes.cart.util.DomainApiUtils;
-import org.yes.cart.util.TimeContext;
-import org.yes.cart.util.log.Markers;
+import org.yes.cart.utils.TimeContext;
+import org.yes.cart.utils.log.Markers;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -166,6 +165,19 @@ public class ShopServiceImpl extends BaseGenericServiceImpl<Shop> implements Sho
         return shopDao.findSingleByNamedQuery("SHOP.BY.URL", serverName);
     }
 
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Set<Long> getShopsCategoriesIds(final Collection<Long> shopId) {
+        final Set<Long> all = new HashSet<>();
+        for (final Long id : shopId) {
+            all.addAll(shopCategoryRelationshipSupport.getShopCategoriesIds(id));
+        }
+        return all;
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -178,8 +190,32 @@ public class ShopServiceImpl extends BaseGenericServiceImpl<Shop> implements Sho
      * {@inheritDoc}
      */
     @Override
+    public Set<Long> getShopsContentIds(final Collection<Long> shopId) {
+        final Set<Long> all = new HashSet<>();
+        for (final Long id : shopId) {
+            all.addAll(contentService.getShopContentIds(id));
+        }
+        return all;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Set<Long> getShopContentIds(final long shopId) {
-        return shopCategoryRelationshipSupport.getShopContentIds(shopId);
+        return contentService.getShopContentIds(shopId);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Set<Long> getShopsAllCategoriesIds(final Collection<Long> shopId) {
+        final Set<Long> all = new HashSet<>();
+        for (final Long id : shopId) {
+            all.addAll(getShopAllCategoriesIds(id));
+        }
+        return all;
     }
 
     /**
@@ -232,7 +268,7 @@ public class ShopServiceImpl extends BaseGenericServiceImpl<Shop> implements Sho
         final LocalDateTime now = now();
         for (final ShopCategory shopCategory : top) {
             final Category category = categoryService.getById(shopCategory.getCategory().getCategoryId());
-            if (DomainApiUtils.isObjectAvailableNow(!category.isDisabled(), category.getAvailablefrom(), category.getAvailableto(), now)) {
+            if (category.isAvailable(now)) {
                 cats.add(category);
             }
         }
@@ -465,8 +501,8 @@ public class ShopServiceImpl extends BaseGenericServiceImpl<Shop> implements Sho
     @Override
     public Shop create(final Shop instance) {
         final Shop shop = super.create(instance);
-        final Category category = contentService.getRootContent(shop.getShopId());
-        if (category == null) {
+        final Content cn = contentService.getRootContent(shop.getShopId());
+        if (cn == null) {
             contentService.createRootContent(shop.getShopId());
         }
         return shop;

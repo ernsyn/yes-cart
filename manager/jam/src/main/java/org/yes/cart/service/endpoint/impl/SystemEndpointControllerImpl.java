@@ -26,6 +26,7 @@ import org.yes.cart.constants.AttributeNamesKeys;
 import org.yes.cart.domain.dto.impl.CacheInfoDTO;
 import org.yes.cart.domain.dto.impl.ConfigurationDTO;
 import org.yes.cart.domain.dto.impl.ModuleDTO;
+import org.yes.cart.domain.misc.MutablePair;
 import org.yes.cart.domain.vo.*;
 import org.yes.cart.service.async.AsyncContextFactory;
 import org.yes.cart.service.async.model.AsyncContext;
@@ -69,7 +70,7 @@ public class SystemEndpointControllerImpl implements SystemEndpointController {
     public @ResponseBody
     List<VoClusterNode> getClusterInfo() throws Exception {
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_TIMEOUT_MS);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_TIMEOUT_MS);
         final List<Node> cluster = clusterService.getClusterInfo(createCtx(param));
         return voAssemblySupport.assembleVos(VoClusterNode.class, Node.class, cluster);
     }
@@ -79,7 +80,7 @@ public class SystemEndpointControllerImpl implements SystemEndpointController {
     public @ResponseBody
     List<VoModule> getModuleInfo(@PathVariable("node") String node) throws Exception {
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_TIMEOUT_MS);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_TIMEOUT_MS);
         final List<ModuleDTO> modules = clusterService.getModuleInfo(createCtx(param), node);
         return voAssemblySupport.assembleVos(VoModule.class, ModuleDTO.class, modules);
     }
@@ -89,7 +90,7 @@ public class SystemEndpointControllerImpl implements SystemEndpointController {
     public @ResponseBody
     List<VoConfiguration> getConfigurationInfo() throws Exception {
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_TIMEOUT_MS);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_TIMEOUT_MS);
         Map<String, List<ConfigurationDTO>> configuration = clusterService.getConfigurationInfo(createCtx(param));
         final List<VoConfiguration> vos = new ArrayList<>(configuration.size() * 250);
         for (final List<ConfigurationDTO> nodeCfg : configuration.values()) {
@@ -103,7 +104,7 @@ public class SystemEndpointControllerImpl implements SystemEndpointController {
     public @ResponseBody
     List<VoClusterNode> reloadConfigurations() throws Exception {
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_CACHE_TIMEOUT_MS);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_CACHE_TIMEOUT_MS);
         clusterService.reloadConfigurations(createCtx(param));
         evictAllCache();
         return getClusterInfo();
@@ -113,28 +114,24 @@ public class SystemEndpointControllerImpl implements SystemEndpointController {
     /** {@inheritDoc} */
     @Override
     public @ResponseBody
-    List<Object[]> sqlQuery(@RequestBody final String query, @PathVariable("node") final String node) throws Exception{
+    List<MutablePair<String, List<String>>> supportedQueries() throws Exception{
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_SQL_TIMEOUT_MS);
-        return clusterService.sqlQuery(createCtx(param), query, node);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_QUERY_TIMEOUT_MS);
+        final Map<String, List<String>> res = clusterService.supportedQueries(createCtx(param));
+        final List<MutablePair<String, List<String>>> out = new ArrayList<>();
+        for (final Map.Entry<String, List<String>> resItem : res.entrySet()) {
+            out.add(MutablePair.of(resItem.getKey(), resItem.getValue()));
+        }
+        return out;
     }
 
     /** {@inheritDoc} */
     @Override
     public @ResponseBody
-    List<Object[]> hsqlQuery(@RequestBody final String query, @PathVariable("node") final String node) throws Exception {
+    List<Object[]> runQuery(@RequestBody final String query, @PathVariable("type") String type, @PathVariable("node") final String node) throws Exception{
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_SQL_TIMEOUT_MS);
-        return clusterService.hsqlQuery(createCtx(param), query, node);
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public @ResponseBody
-    List<Object[]> ftQuery(@RequestBody final String query, @PathVariable("node") final String node) throws Exception {
-        final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_SQL_TIMEOUT_MS);
-        return clusterService.ftQuery(createCtx(param), query, node);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_QUERY_TIMEOUT_MS);
+        return clusterService.runQuery(createCtx(param), type, query, node);
     }
 
     /** {@inheritDoc} */
@@ -142,7 +139,7 @@ public class SystemEndpointControllerImpl implements SystemEndpointController {
     public @ResponseBody
     List<VoCacheInfo> getCacheInfo() throws Exception {
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_CACHE_TIMEOUT_MS);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_CACHE_TIMEOUT_MS);
         Map<String, List<CacheInfoDTO>> caches = clusterService.getCacheInfo(createCtx(param));
         final List<VoCacheInfo> vos = new ArrayList<>(caches.size() * 250);
         for (final List<CacheInfoDTO> nodeCache : caches.values()) {
@@ -156,7 +153,7 @@ public class SystemEndpointControllerImpl implements SystemEndpointController {
     public @ResponseBody
     List<VoCacheInfo> evictAllCache() throws Exception {
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_CACHE_TIMEOUT_MS);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_CACHE_TIMEOUT_MS);
         clusterService.evictAllCache(createCtx(param));
         return getCacheInfo();
     }
@@ -166,7 +163,7 @@ public class SystemEndpointControllerImpl implements SystemEndpointController {
     public @ResponseBody
     List<VoCacheInfo> evictCache(@PathVariable("name") final String name) throws Exception {
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_CACHE_TIMEOUT_MS);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_CACHE_TIMEOUT_MS);
         clusterService.evictCache(createCtx(param), name);
         return getCacheInfo();
     }
@@ -174,20 +171,20 @@ public class SystemEndpointControllerImpl implements SystemEndpointController {
     /** {@inheritDoc} */
     @Override
     public @ResponseBody
-    List<VoCacheInfo> enableStats(@PathVariable("name") final String name) throws Exception {
+    List<VoCacheInfo> enableCache(@PathVariable("name") final String name) throws Exception {
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_CACHE_TIMEOUT_MS);
-        clusterService.enableStats(createCtx(param), name);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_CACHE_TIMEOUT_MS);
+        clusterService.enableCache(createCtx(param), name);
         return getCacheInfo();
     }
 
     /** {@inheritDoc} */
     @Override
     public @ResponseBody
-    List<VoCacheInfo> disableStats(@PathVariable("name") final String name) throws Exception {
+    List<VoCacheInfo> disableCache(@PathVariable("name") final String name) throws Exception {
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_CACHE_TIMEOUT_MS);
-        clusterService.disableStats(createCtx(param), name);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_CACHE_TIMEOUT_MS);
+        clusterService.disableCache(createCtx(param), name);
         return getCacheInfo();
     }
 
@@ -196,7 +193,7 @@ public class SystemEndpointControllerImpl implements SystemEndpointController {
     public @ResponseBody
     void warmUp() throws Exception {
         final Map<String, Object> param = new HashMap<>();
-        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_BACKDOOR_TIMEOUT_MS);
+        param.put(AsyncContext.TIMEOUT_KEY, AttributeNamesKeys.System.SYSTEM_CONNECTOR_TIMEOUT_MS);
         clusterService.warmUp(createCtx(param));
     }
 

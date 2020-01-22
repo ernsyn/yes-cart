@@ -29,7 +29,7 @@ import org.yes.cart.shoppingcart.ShoppingCart;
 import org.yes.cart.shoppingcart.ShoppingCartCommand;
 import org.yes.cart.shoppingcart.ShoppingCartCommandFactory;
 import org.yes.cart.shoppingcart.impl.ShoppingCartImpl;
-import org.yes.cart.util.TimeContext;
+import org.yes.cart.utils.TimeContext;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -72,6 +72,7 @@ public class PromotionTesterImpl implements PromotionTester {
                                        final String currency,
                                        final String language,
                                        final String customer,
+                                       final String supplier,
                                        final Map<String, BigDecimal> products,
                                        final String shipping,
                                        final List<String> coupons,
@@ -92,7 +93,7 @@ public class PromotionTesterImpl implements PromotionTester {
 
             prepareDefaults(cart, shop.getMaster() != null ? shop.getMaster() : shop, currency, language);
             loginCustomer(cart, customer);
-            addProductsToCart(cart, products);
+            addProductsToCart(cart, supplier, products);
             addCouponsToCart(cart, coupons);
             prepareShipping(cart);
             setShippingMethod(cart, shipping);
@@ -109,10 +110,8 @@ public class PromotionTesterImpl implements PromotionTester {
     private void ensureNoCache(final Shop shop, final String currency) {
         // Ensure no cache
         factory.refresh(shop.getCode(), currency);
-        priceService.refresh(shop.getCode(), currency);
         if (shop.getMaster() != null) {
             factory.refresh(shop.getMaster().getCode(), currency);
-            priceService.refresh(shop.getMaster().getCode(), currency);
         }
     }
 
@@ -139,14 +138,17 @@ public class PromotionTesterImpl implements PromotionTester {
 
     }
 
-    private void addProductsToCart(final ShoppingCart cart, final Map<String, BigDecimal> products) {
+    private void addProductsToCart(final ShoppingCart cart, final String supplier, final Map<String, BigDecimal> products) {
 
         if (products != null) {
             for (final Map.Entry<String, BigDecimal> product : products.entrySet()) {
                 final Map<String, Object> params = new HashMap<>();
                 params.put(ShoppingCartCommand.CMD_ADDTOCART, product.getKey());
                 if (product.getValue() != null) {
-                    params.put(ShoppingCartCommand.CMD_ADDTOCART_P_QTY, product.getValue().toPlainString());
+                    if (StringUtils.isNotBlank(supplier)) {
+                        params.put(ShoppingCartCommand.CMD_P_SUPPLIER, supplier);
+                    }
+                    params.put(ShoppingCartCommand.CMD_P_QTY, product.getValue().toPlainString());
                 }
                 cartCommandFactory.execute(ShoppingCartCommand.CMD_ADDTOCART, cart, params);
             }

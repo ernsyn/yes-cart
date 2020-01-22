@@ -20,6 +20,7 @@ import com.inspiresoftware.lib.dto.geda.adapter.repository.AdaptersRepository;
 import com.inspiresoftware.lib.dto.geda.assembler.Assembler;
 import com.inspiresoftware.lib.dto.geda.assembler.DTOAssembler;
 import org.yes.cart.constants.AttributeGroupNames;
+import org.yes.cart.constants.Constants;
 import org.yes.cart.domain.dto.AttrValueDTO;
 import org.yes.cart.domain.dto.AttrValueSystemDTO;
 import org.yes.cart.domain.dto.AttributeDTO;
@@ -33,7 +34,7 @@ import org.yes.cart.service.domain.GenericService;
 import org.yes.cart.service.domain.SystemService;
 import org.yes.cart.service.dto.DtoAttributeService;
 import org.yes.cart.service.dto.DtoSystemService;
-import org.yes.cart.utils.impl.AttrValueDTOComparatorImpl;
+import org.yes.cart.service.dto.AttrValueDTOComparator;
 
 import java.util.*;
 
@@ -46,7 +47,7 @@ public class DtoSystemServiceImpl implements DtoSystemService {
 
     private static final long YC_ID = 100L;
 
-    private static final AttrValueDTOComparatorImpl ATTR_VALUE_DTO_COMPARATOR = new AttrValueDTOComparatorImpl();
+    private static final AttrValueDTOComparator ATTR_VALUE_DTO_COMPARATOR = new AttrValueDTOComparator();
 
     private final SystemService systemService;
 
@@ -178,5 +179,30 @@ public class DtoSystemServiceImpl implements DtoSystemService {
         dto.setSystemId(entityPk);
         return dto;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getImageRepositoryUrlPattern() {
+        return Constants.SYSTEM_IMAGE_REPOSITORY_URL_PATTERN;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getFileRepositoryUrlPattern() {
+        return Constants.SYSTEM_FILE_REPOSITORY_URL_PATTERN;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String getSysFileRepositoryUrlPattern() {
+        return Constants.SYSTEM_SYSFILE_REPOSITORY_URL_PATTERN;
+    }
+
 
 }

@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.yes.cart.constants.Constants;
 import org.yes.cart.domain.i18n.I18NModel;
 import org.yes.cart.search.query.impl.LuceneSearchUtil;
-import org.yes.cart.search.util.SearchUtil;
+import org.yes.cart.search.utils.SearchUtil;
 
 import java.time.Instant;
 import java.util.Arrays;
@@ -171,6 +171,19 @@ public class LuceneDocumentAdapterUtils {
     public static void addStoredField(final Document document, final String name, final String value) {
         if (value != null) {
             document.add(new StringField(name, value, Field.Store.YES));
+        }
+    }
+
+    /**
+     * Adds a double field (stored and not tokenized)
+     *
+     * @param document document
+     * @param name     field name
+     * @param value    value
+     */
+    public static void addStoredField(final Document document, final String name, final Double value) {
+        if (value != null) {
+            document.add(new StoredField(name, value));
         }
     }
 
@@ -323,6 +336,22 @@ public class LuceneDocumentAdapterUtils {
             LongPoint allows ranges as well LongPoint.newRangeQuery()
          */
         document.add(new LongPoint(name, nonNull));
+
+    }
+
+    /**
+     * Adds a long point field with long value
+     *
+     * @param document     document
+     * @param name         field name
+     * @param value        value (default is 1)
+     */
+    public static void addBoostField(final Document document,
+                                     final String name,
+                                     final Double value) {
+
+        final double nonNull = value != null ? value : 1d;
+        document.add(new DoubleDocValuesField(name, nonNull));
 
     }
 
@@ -530,8 +559,8 @@ public class LuceneDocumentAdapterUtils {
      */
     public static void addFacetField(final Document document, final String name, final String value, final I18NModel model) {
         if (value != null) {
-            if (model != null) {
-                addFacetField(document, name, value + "|" + model.toString());
+            if (model != null && !model.getAllValues().isEmpty()) {
+                addFacetField(document, name, value + Constants.FACET_NAVIGATION_DELIMITER + model.toString());
             } else {
                 addFacetField(document, name, value);
             }
@@ -571,5 +600,36 @@ public class LuceneDocumentAdapterUtils {
              */
             document.add(new NumericDocValuesField(name, value));
         }
+    }
+
+    /**
+     * Determine boost value.
+     *
+     * @param rank      rank of the object
+     * @param origin    rank at which boost should be 1.0
+     * @param step      step for 1.0 boost
+     * @param min       min boost allowed
+     * @param max       max boost allowed
+     *
+     * @return boost
+     */
+    public static double determineBoots(final double rank,
+                                        final double origin,
+                                        final double step,
+                                        final double min,
+                                        final double max) {
+        if (rank == origin) {
+            return 1.0d;
+        }
+
+        final double calc = 1.0d + (origin - rank) / step;
+        if (calc < min) {
+            return min;
+        }
+        if (calc > max) {
+            return max;
+        }
+        return calc;
+        
     }
 }

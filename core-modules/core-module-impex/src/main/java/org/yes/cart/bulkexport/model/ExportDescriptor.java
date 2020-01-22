@@ -16,6 +16,7 @@
 
 package org.yes.cart.bulkexport.model;
 
+import org.yes.cart.bulkcommon.model.ImpExContext;
 import org.yes.cart.bulkcommon.model.ImpExDescriptor;
 
 /**
@@ -23,7 +24,7 @@ import org.yes.cart.bulkcommon.model.ImpExDescriptor;
  * Date: 26/11/2015
  * Time: 08:00
  */
-public interface ExportDescriptor extends ImpExDescriptor<ExportContext, ExportColumn> {
+public interface ExportDescriptor<C extends ImpExContext> extends ImpExDescriptor<C> {
 
     /**
      * Get the export file description.
@@ -33,10 +34,11 @@ public interface ExportDescriptor extends ImpExDescriptor<ExportContext, ExportC
     ExportFile getExportFileDescriptor();
 
     /**
-     * Get select sql, which used to look up objects that are to
+     * Get select command, which used to look up objects that are to
      * be exported (if they exist).
-     * @return        select sql
+     * 
+     * @return        select command
      */
-    String getSelectSql();
+    String getSelectCmd();
 
 }

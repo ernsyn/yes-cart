@@ -98,6 +98,7 @@
                 <property name="target">
                     <bean class="org.yes.cart.service.domain.impl.CategoryServiceImpl">
                         <constructor-arg type="org.yes.cart.dao.GenericDAO" ref="categoryDao"/>
+                        <constructor-arg type="org.yes.cart.search.dao.support.ShopCategoryRelationshipSupport" ref="shopCategoryRelationshipSupport"/>
                         <lookup-method name="getSelf" bean="categoryService"/>
                     </bean>
                 </property>
@@ -105,28 +106,80 @@
         </constructor-arg>
     </bean>
 
-    <bean id="groovyContentServiceTemplateSupport" class="org.yes.cart.service.domain.impl.ContentServiceTemplateSupportGroovyImpl">
+    <bean id="contentServiceTemplateSupport" class="org.yes.cart.service.theme.templates.impl.TemplateProcessorFactoryImpl">
         <constructor-arg>
-            <bean class="org.yes.cart.service.domain.impl.GroovySimpleTemplateSupportImpl">
-                <constructor-arg ref="cacheManager"/>
-            </bean>
+            <array>
+                <bean class="org.yes.cart.service.domain.impl.ContentServiceTemplateSupportThymeleafImpl">
+                    <constructor-arg>
+                        <bean class="org.yes.cart.service.theme.templates.impl.ThymeleafTemplateSupportImpl">
+                            <constructor-arg ref="cacheManager"/>
+                        </bean>
+                    </constructor-arg>
+                </bean>
+                <bean class="org.yes.cart.service.domain.impl.ContentServiceTemplateSupportGroovyImpl">
+                    <constructor-arg>
+                        <bean class="org.yes.cart.service.theme.templates.impl.GroovySimpleTemplateSupportImpl">
+                            <constructor-arg ref="cacheManager"/>
+                        </bean>
+                    </constructor-arg>
+                </bean>
+            </array>
         </constructor-arg>
     </bean>
 
-    <bean id="contentService" class="org.yes.cart.service.domain.impl.ContentServiceCachedImpl">
-        <constructor-arg>
-            <bean parent="txProxyTemplate">
-                <property name="target">
-                    <bean class="org.yes.cart.service.domain.impl.ContentServiceImpl">
-                        <constructor-arg type="org.yes.cart.dao.GenericDAO" ref="categoryDao"/>
-                        <constructor-arg type="org.yes.cart.dao.GenericDAO" ref="shopCategoryDao"/>
-                        <constructor-arg type="org.yes.cart.dao.GenericDAO" ref="shopDao"/>
-                        <constructor-arg type="org.yes.cart.service.domain.ContentServiceTemplateSupport" ref="groovyContentServiceTemplateSupport"/>
-                        <lookup-method name="getSelf" bean="contentService"/>
+    <bean id="contentServiceCMS1" parent="txProxyTemplate">
+        <property name="target">
+            <bean class="org.yes.cart.service.domain.impl.ContentServiceCMS1Impl">
+                <constructor-arg type="org.yes.cart.dao.GenericDAO" ref="categoryDao"/>
+                <constructor-arg type="org.yes.cart.search.dao.support.ShopCategoryRelationshipSupport" ref="shopCategoryRelationshipSupport"/>
+                <constructor-arg type="org.yes.cart.service.theme.templates.TemplateProcessor" ref="contentServiceTemplateSupport"/>
+                <lookup-method name="getSelf" bean="contentService"/>
+                <property name="cfgContext">
+                    <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
+                        <property name="functionalArea" value="CMS"/>
+                        <property name="name" value="contentServiceCMS1"/>
+                        <property name="cfgInterface" value="ContentService"/>
+                        <property name="cfgDefault" value="false"/>
+                        <property name="properties">
+                            <props>
+                                <prop key="extension">SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]</prop>
+                                <prop key="description">Default service that can be overridden via system properties (Disable by commenting out in SYSTEM_EXTENSION_CFG_PROPERTIES using '#')</prop>
+                                <prop key="SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]">CMS.contentService=contentServiceCMS1</prop>
+                            </props>
+                        </property>
                     </bean>
                 </property>
             </bean>
-        </constructor-arg>
+        </property>
+    </bean>
+
+    <bean id="contentServiceCMS3" parent="txProxyTemplate">
+        <property name="target">
+            <bean class="org.yes.cart.service.domain.impl.ContentServiceCMS3Impl">
+                <constructor-arg type="org.yes.cart.dao.GenericDAO" ref="contentDao"/>
+                <constructor-arg type="org.yes.cart.service.theme.templates.TemplateProcessor" ref="contentServiceTemplateSupport"/>
+                <lookup-method name="getSelf" bean="contentService"/>
+                <property name="cfgContext">
+                    <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
+                        <property name="functionalArea" value="CMS"/>
+                        <property name="name" value="contentServiceCMS3"/>
+                        <property name="cfgInterface" value="ContentService"/>
+                        <property name="cfgDefault" value="true"/>
+                        <property name="properties">
+                            <props>
+                                <prop key="extension">SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]</prop>
+                                <prop key="description">Default service that can be overridden via system properties (Disable by commenting out in SYSTEM_EXTENSION_CFG_PROPERTIES using '#')</prop>
+                                <prop key="SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]">CMS.contentService=contentServiceCMS3</prop>
+                            </props>
+                        </property>
+                    </bean>
+                </property>
+            </bean>
+        </property>
+    </bean>
+
+    <bean id="contentService" class="org.yes.cart.service.domain.impl.ContentServiceCachedImpl">
+        <constructor-arg ref="contentServiceCMS3"/>
     </bean>
 
     <bean id="prodTypeAttributeViewGroupService" parent="txProxyTemplate">
@@ -171,18 +224,61 @@
         </constructor-arg>
     </bean>
 
-    <bean id="productAvailabilityStrategy"
-          class="org.yes.cart.shoppingcart.impl.ProductAvailabilityStrategyImpl">
-        <constructor-arg index="0">
-            <bean class="org.yes.cart.shoppingcart.impl.ProductAvailabilityStrategyDefaultImpl">
-                <constructor-arg index="0" ref="warehouseService"/>
-                <constructor-arg index="1" ref="skuWarehouseService"/>
-            </bean>
-        </constructor-arg>
+    <bean id="productAvailabilityStrategyDefault" class="org.yes.cart.shoppingcart.impl.ProductAvailabilityStrategyDefaultImpl">
+        <constructor-arg index="0" ref="warehouseService"/>
+        <constructor-arg index="1" ref="inventoryResolver"/>
         <property name="cfgContext">
             <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
                 <property name="functionalArea" value="inventory"/>
-                <property name="name" value="productAvailabilityStrategy"/>
+                <property name="name" value="productAvailabilityStrategyDefault"/>
+                <property name="cfgInterface" value="ProductAvailabilityStrategy"/>
+                <property name="cfgDefault" value="true"/>
+                <property name="properties">
+                    <props>
+                        <prop key="extension">SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]</prop>
+                        <prop key="description">Default service that can be overridden via system properties (Disable by commenting out in SYSTEM_EXTENSION_CFG_PROPERTIES using '#')</prop>
+                        <prop key="SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]">SHOPCODE.productAvailabilityStrategy=configurationBeanName, where SHOPCODE is the code of the shop and configurationBeanName is custom implementation</prop>
+                    </props>
+                </property>
+            </bean>
+        </property>
+    </bean>
+
+
+    <bean id="productAvailabilityStrategyBackorderInStockOnly" class="org.yes.cart.shoppingcart.impl.ProductAvailabilityStrategyBackorderInStockOnlyImpl">
+        <constructor-arg index="0" ref="warehouseService"/>
+        <constructor-arg index="1" ref="inventoryResolver"/>
+        <property name="cfgContext">
+            <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
+                <property name="functionalArea" value="inventory"/>
+                <property name="name" value="ProductAvailabilityStrategyBackorderInStockOnly"/>
+                <property name="cfgInterface" value="ProductAvailabilityStrategy"/>
+                <property name="cfgDefault" value="false"/>
+                <property name="properties">
+                    <props>
+                        <prop key="extension">SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]</prop>
+                        <prop key="description">Custome service for availability determination, makes BACKORDER items without stock show as unavailable (Disable by commenting out in SYSTEM_EXTENSION_CFG_PROPERTIES using '#')</prop>
+                        <prop key="SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]">SHOPCODE.productAvailabilityStrategy=productAvailabilityStrategyBackorderInStockOnly, where SHOPCODE is the code of the shop</prop>
+                    </props>
+                </property>
+            </bean>
+        </property>
+    </bean>
+
+
+    <bean id="productAvailabilityStrategy"
+          class="org.yes.cart.shoppingcart.impl.ProductAvailabilityStrategyImpl">
+        <constructor-arg index="0" ref="productAvailabilityStrategyDefault"/>
+    </bean>
+
+
+    <bean id="productQuantityStrategyDefault" class="org.yes.cart.shoppingcart.impl.ProductQuantityStrategyDefaultImpl">
+        <constructor-arg index="0" ref="warehouseService"/>
+        <constructor-arg index="1" ref="inventoryResolver"/>
+        <property name="cfgContext">
+            <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
+                <property name="functionalArea" value="inventory"/>
+                <property name="name" value="productAvailabilityStrategyDefault"/>
                 <property name="cfgInterface" value="ProductAvailabilityStrategy"/>
                 <property name="cfgDefault" value="true"/>
                 <property name="properties">
@@ -197,7 +293,9 @@
     </bean>
 
     <bean id="productQuantityStrategy"
-          class="org.yes.cart.shoppingcart.impl.ProductQuantityStrategyDefaultImpl"/>
+          class="org.yes.cart.shoppingcart.impl.ProductQuantityStrategyImpl">
+        <constructor-arg index="0" ref="productQuantityStrategyDefault"/>
+    </bean>
 
     <bean id="addressService" parent="txProxyTemplate">
         <property name="target">
@@ -273,6 +371,86 @@
                 </property>
             </bean>
         </constructor-arg>
+    </bean>
+
+
+    <bean id="contentCMS1ImageNameStrategy" class="org.yes.cart.service.media.impl.MediaFileNameStrategyConfigurableCachedImpl">
+        <constructor-arg>
+            <bean parent="txProxyTemplate">
+                <property name="target">
+                    <bean  class="org.yes.cart.service.media.impl.ContentCMS1MediaFileNameStrategyImpl">
+                        <constructor-arg index="0" value="/imgvault/category/"/>
+                        <constructor-arg index="1" value="category"/>
+                        <constructor-arg index="2" ref="attrValueEntityCategoryDao"/>
+                        <constructor-arg index="3" ref="languageService"/>
+                        <property name="attributePrefix" value="CATEGORY_IMAGE"/>
+                    </bean>
+                </property>
+                <property name="transactionAttributes">
+                    <props>
+                        <prop key="resolveObjectCode">PROPAGATION_REQUIRED,readOnly,-Throwable</prop>
+                        <prop key="*">PROPAGATION_NOT_SUPPORTED</prop>
+                    </props>
+                </property>
+            </bean>
+        </constructor-arg>
+        <property name="cfgContext">
+            <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
+                <property name="functionalArea" value="CMS"/>
+                <property name="name" value="contentCMS1ImageNameStrategy"/>
+                <property name="cfgInterface" value="MediaFileNameStrategy"/>
+                <property name="cfgDefault" value="false"/>
+                <property name="properties">
+                    <props>
+                        <prop key="extension">SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]</prop>
+                        <prop key="description">Default service that can be overridden via system properties (Disable by commenting out in SYSTEM_EXTENSION_CFG_PROPERTIES using '#')</prop>
+                        <prop key="SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]">CMS.contentImageNameStrategy=contentCMS1ImageNameStrategy</prop>
+                    </props>
+                </property>
+            </bean>
+        </property>
+    </bean>
+
+    <bean id="contentCMS3ImageNameStrategy" class="org.yes.cart.service.media.impl.MediaFileNameStrategyConfigurableCachedImpl">
+        <constructor-arg>
+            <bean parent="txProxyTemplate">
+                <property name="target">
+                    <bean  class="org.yes.cart.service.media.impl.ContentCMS3MediaFileNameStrategyImpl">
+                        <constructor-arg index="0" value="/imgvault/content/"/>
+                        <constructor-arg index="1" value="content"/>
+                        <constructor-arg index="2" ref="attrValueEntityContentDao"/>
+                        <constructor-arg index="3" ref="languageService"/>
+                        <property name="attributePrefix" value="CATEGORY_IMAGE"/>
+                    </bean>
+                </property>
+                <property name="transactionAttributes">
+                    <props>
+                        <prop key="resolveObjectCode">PROPAGATION_REQUIRED,readOnly,-Throwable</prop>
+                        <prop key="*">PROPAGATION_NOT_SUPPORTED</prop>
+                    </props>
+                </property>
+            </bean>
+        </constructor-arg>
+        <property name="cfgContext">
+            <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
+                <property name="functionalArea" value="CMS"/>
+                <property name="name" value="contentCMS3ImageNameStrategy"/>
+                <property name="cfgInterface" value="MediaFileNameStrategy"/>
+                <property name="cfgDefault" value="true"/>
+                <property name="properties">
+                    <props>
+                        <prop key="extension">SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]</prop>
+                        <prop key="description">Default service that can be overridden via system properties (Disable by commenting out in SYSTEM_EXTENSION_CFG_PROPERTIES using '#')</prop>
+                        <prop key="SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]">CMS.contentImageNameStrategy=contentCMS3ImageNameStrategy</prop>
+                    </props>
+                </property>
+            </bean>
+        </property>
+    </bean>
+
+    <bean id="contentImageNameStrategy" class="org.yes.cart.service.media.impl.ContentMediaFileNameStrategyFactoryImpl">
+        <constructor-arg ref="contentCMS3ImageNameStrategy"/>
+        <property name="allowKey" value="contentImageNameStrategy"/>
     </bean>
 
     <bean id="productImageNameStrategy" class="org.yes.cart.service.media.impl.MediaFileNameStrategyCachedImpl">
@@ -369,6 +547,7 @@
         <constructor-arg index="1">
             <list>
                 <ref bean="categoryImageNameStrategy"/>
+                <ref bean="contentImageNameStrategy"/>
                 <ref bean="brandImageNameStrategy"/>
                 <ref bean="productImageNameStrategy"/>
                 <ref bean="shopImageNameStrategy"/>
@@ -462,6 +641,87 @@
             </bean>
         </constructor-arg>
     </bean>
+
+
+    <bean id="contentCMS1FileNameStrategy" class="org.yes.cart.service.media.impl.MediaFileNameStrategyConfigurableCachedImpl">
+        <constructor-arg>
+            <bean parent="txProxyTemplate">
+                <property name="target">
+                    <bean  class="org.yes.cart.service.media.impl.ContentCMS1MediaFileNameStrategyImpl">
+                        <constructor-arg index="0" value="/filevault/category/"/>
+                        <constructor-arg index="1" value="category"/>
+                        <constructor-arg index="2" ref="attrValueEntityCategoryDao"/>
+                        <constructor-arg index="3" ref="languageService"/>
+                        <property name="attributePrefix" value="CATEGORY_FILE"/>
+                    </bean>
+                </property>
+                <property name="transactionAttributes">
+                    <props>
+                        <prop key="resolveObjectCode">PROPAGATION_REQUIRED,readOnly,-Throwable</prop>
+                        <prop key="*">PROPAGATION_NOT_SUPPORTED</prop>
+                    </props>
+                </property>
+            </bean>
+        </constructor-arg>
+        <property name="cfgContext">
+            <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
+                <property name="functionalArea" value="CMS"/>
+                <property name="name" value="contentCMS1FileNameStrategy"/>
+                <property name="cfgInterface" value="MediaFileNameStrategy"/>
+                <property name="cfgDefault" value="false"/>
+                <property name="properties">
+                    <props>
+                        <prop key="extension">SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]</prop>
+                        <prop key="description">Default service that can be overridden via system properties (Disable by commenting out in SYSTEM_EXTENSION_CFG_PROPERTIES using '#')</prop>
+                        <prop key="SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]">CMS.contentFileNameStrategy=contentCMS1FileNameStrategy</prop>
+                    </props>
+                </property>
+            </bean>
+        </property>
+    </bean>
+
+    <bean id="contentCMS3FileNameStrategy" class="org.yes.cart.service.media.impl.MediaFileNameStrategyConfigurableCachedImpl">
+        <constructor-arg>
+            <bean parent="txProxyTemplate">
+                <property name="target">
+                    <bean  class="org.yes.cart.service.media.impl.ContentCMS3MediaFileNameStrategyImpl">
+                        <constructor-arg index="0" value="/filevault/content/"/>
+                        <constructor-arg index="1" value="content"/>
+                        <constructor-arg index="2" ref="attrValueEntityContentDao"/>
+                        <constructor-arg index="3" ref="languageService"/>
+                        <property name="attributePrefix" value="CATEGORY_FILE"/>
+                    </bean>
+                </property>
+                <property name="transactionAttributes">
+                    <props>
+                        <prop key="resolveObjectCode">PROPAGATION_REQUIRED,readOnly,-Throwable</prop>
+                        <prop key="*">PROPAGATION_NOT_SUPPORTED</prop>
+                    </props>
+                </property>
+            </bean>
+        </constructor-arg>
+        <property name="cfgContext">
+            <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
+                <property name="functionalArea" value="CMS"/>
+                <property name="name" value="contentCMS3FileNameStrategy"/>
+                <property name="cfgInterface" value="MediaFileNameStrategy"/>
+                <property name="cfgDefault" value="true"/>
+                <property name="properties">
+                    <props>
+                        <prop key="extension">SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]</prop>
+                        <prop key="description">Default service that can be overridden via system properties (Disable by commenting out in SYSTEM_EXTENSION_CFG_PROPERTIES using '#')</prop>
+                        <prop key="SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]">CMS.contentFileNameStrategy=contentCMS3FileNameStrategy</prop>
+                    </props>
+                </property>
+            </bean>
+        </property>
+    </bean>
+
+    <bean id="contentFileNameStrategy" class="org.yes.cart.service.media.impl.ContentMediaFileNameStrategyFactoryImpl">
+        <constructor-arg ref="contentCMS3FileNameStrategy"/>
+        <property name="allowKey" value="contentFileNameStrategy"/>
+    </bean>
+
 
     <bean id="productFileNameStrategy" class="org.yes.cart.service.media.impl.MediaFileNameStrategyCachedImpl">
         <constructor-arg>
@@ -600,6 +860,7 @@
         <constructor-arg index="1">
             <list>
                 <ref bean="categoryFileNameStrategy"/>
+                <ref bean="contentFileNameStrategy"/>
                 <ref bean="brandFileNameStrategy"/>
                 <ref bean="productFileNameStrategy"/>
                 <ref bean="shopFileNameStrategy"/>
@@ -816,10 +1077,11 @@
                 <constructor-arg index="1"  ref="customerDao"/>
                 <constructor-arg index="2"  ref="genericDao"/>
                 <constructor-arg index="3"  ref="customerOrderDeliveryDao"/>
-                <constructor-arg index="4"  ref="orderAssembler"/>
-                <constructor-arg index="5"  ref="deliveryAssembler"/>
-                <constructor-arg index="6"  ref="orderSplittingStrategy"/>
-                <constructor-arg index="7"  ref="cartContentsValidator"/>
+                <constructor-arg index="4"  ref="orderNumberGenerator"/>
+                <constructor-arg index="5"  ref="orderAssembler"/>
+                <constructor-arg index="6"  ref="deliveryAssembler"/>
+                <constructor-arg index="7"  ref="orderSplittingStrategy"/>
+                <constructor-arg index="8"  ref="cartContentsValidator"/>
             </bean>
         </property>
     </bean>
@@ -863,16 +1125,50 @@
         </property>
     </bean>
 
+    <bean id="customerManagerService" class="org.yes.cart.service.domain.impl.CustomerManagerServiceCachedImpl">
+        <constructor-arg>
+            <bean parent="txProxyTemplate">
+                <property name="target">
+                    <bean class="org.yes.cart.service.domain.impl.CustomerManagerServiceImpl">
+                        <constructor-arg index="0" type="org.yes.cart.dao.GenericDAO" ref="managerDao"/>
+                        <constructor-arg index="1" type="org.yes.cart.service.domain.HashHelper" ref="passwordHashHelper"/>
+                        <constructor-arg index="2" type="org.yes.cart.service.domain.AttributeService" ref="attributeService"/>
+                        <constructor-arg index="3" type="org.yes.cart.service.domain.ShopService" ref="shopService"/>
+                        <constructor-arg index="4" type="org.yes.cart.service.customer.CustomerNameFormatter" ref="customerNameFormatter"/>
+                    </bean>
+                </property>
+            </bean>
+        </constructor-arg>
+    </bean>
+
     <bean id="managerService" class="org.yes.cart.service.domain.impl.ManagerServiceCachedImpl">
        <constructor-arg>
            <bean parent="txProxyTemplate">
                <property name="target">
                    <bean class="org.yes.cart.service.domain.impl.ManagerServiceImpl">
                        <constructor-arg index="0" type="org.yes.cart.dao.GenericDAO" ref="managerDao"/>
+                       <constructor-arg index="1" type="org.yes.cart.dao.GenericDAO" ref="roleDao"/>
+                       <constructor-arg index="2" type="org.yes.cart.dao.GenericDAO" ref="managerRoleDao"/>
                    </bean>
                </property>
            </bean>
        </constructor-arg>
+    </bean>
+
+    <bean id="managerRoleService" parent="txProxyTemplate">
+       <property name="target">
+           <bean class="org.yes.cart.service.domain.impl.BaseGenericServiceImpl">
+               <constructor-arg index="0" type="org.yes.cart.dao.GenericDAO" ref="managerRoleDao"/>
+           </bean>
+       </property>
+    </bean>
+
+    <bean id="roleService" parent="txProxyTemplate">
+        <property name="target">
+            <bean class="org.yes.cart.service.domain.impl.BaseGenericServiceImpl">
+                <constructor-arg index="0" type="org.yes.cart.dao.GenericDAO" ref="roleDao"/>
+            </bean>
+        </property>
     </bean>
 
     <bean id="skuWarehouseService" class="org.yes.cart.service.domain.impl.SkuWarehouseServiceCachedImpl">
@@ -933,7 +1229,7 @@
         <constructor-arg index="0" ref="promotionCouponService"/>
     </bean>
 
-    <bean id="promotionContextFactoryActionsMapping" class="org.yes.cart.util.spring.LinkedHashMapBean">
+    <bean id="promotionContextFactoryActionsMapping" class="org.yes.cart.utils.spring.LinkedHashMapBean">
         <constructor-arg>
             <map>
                 <entry key="O">
@@ -985,7 +1281,7 @@
         </constructor-arg>
     </bean>
 
-    <bean id="promotionCouponContextActionsMapping" class="org.yes.cart.util.spring.LinkedHashMapBean">
+    <bean id="promotionCouponContextActionsMapping" class="org.yes.cart.utils.spring.LinkedHashMapBean">
         <constructor-arg>
             <map>
                 <entry key="P" value-ref="promoActionOrderDiscount"/>
@@ -1011,9 +1307,11 @@
     <bean id="promoActionItemAmountOff" class="org.yes.cart.promotion.impl.action.ItemAmountOffPromotionAction"/>
     <bean id="promoActionItemGift" class="org.yes.cart.promotion.impl.action.ItemGiftPromotionAction">
         <constructor-arg index="0" ref="priceResolver"/>
-        <constructor-arg index="1" ref="shopService"/>
-        <constructor-arg index="2" ref="productService"/>
-        <constructor-arg index="3" ref="orderSplittingStrategy"/>
+        <constructor-arg index="1" ref="inventoryResolver"/>
+        <constructor-arg index="2" ref="shopService"/>
+        <constructor-arg index="3" ref="warehouseService"/>
+        <constructor-arg index="4" ref="productService"/>
+        <constructor-arg index="5" ref="orderSplittingStrategy"/>
     </bean>
 
     <bean id="promoActionOrderDiscount" class="org.yes.cart.promotion.impl.action.OrderDiscountPromotionAction"/>
@@ -1021,9 +1319,11 @@
     <bean id="promoActionOrderAmountOff" class="org.yes.cart.promotion.impl.action.OrderAmountOffPromotionAction"/>
     <bean id="promoActionOrderGift" class="org.yes.cart.promotion.impl.action.OrderGiftPromotionAction">
         <constructor-arg index="0" ref="priceResolver"/>
-        <constructor-arg index="1" ref="shopService"/>
-        <constructor-arg index="2" ref="productService"/>
-        <constructor-arg index="3" ref="orderSplittingStrategy"/>
+        <constructor-arg index="1" ref="inventoryResolver"/>
+        <constructor-arg index="2" ref="shopService"/>
+        <constructor-arg index="3" ref="warehouseService"/>
+        <constructor-arg index="4" ref="productService"/>
+        <constructor-arg index="5" ref="orderSplittingStrategy"/>
     </bean>
 
     <bean id="promoActionShippingDiscount" class="org.yes.cart.promotion.impl.action.ShippingDiscountPromotionAction"/>
@@ -1097,15 +1397,16 @@
 
     <!-- ############################# ExtendedConversionService ################################# -->
 
-    <bean id="extendedConversionService" class="org.yes.cart.utils.impl.ExtendedConversionService"/>
+    <bean id="extendedConversionService" class="org.yes.cart.service.misc.impl.ExtendedConversionService"/>
 
     <!-- ########################################### Mail ######################################## -->
 
     <bean id="mailTemplateResourcesProviderShopContent"
           class="org.yes.cart.service.mail.impl.MailTemplateResourcesProviderShopContentImpl">
         <constructor-arg index="0" ref="contentService"/>
-        <constructor-arg index="1" ref="systemService"/>
-        <constructor-arg index="2" ref="imageService"/>
+        <constructor-arg index="1" ref="contentImageNameStrategy"/>
+        <constructor-arg index="2" ref="systemService"/>
+        <constructor-arg index="3" ref="imageService"/>
     </bean>
 
     <bean id="mailTemplateResourcesProviderTheme"
@@ -1128,11 +1429,24 @@
     <bean id="mailComposer" class="org.yes.cart.service.mail.impl.MailComposerImpl">
         <constructor-arg index="0" ref="mailTemplateResourcesProvider"/>
         <constructor-arg index="1">
-            <bean class="org.yes.cart.service.mail.impl.MailComposerTemplateSupportGroovyImpl">
+            <bean class="org.yes.cart.service.theme.templates.impl.TemplateProcessorFactoryImpl">
                 <constructor-arg>
-                    <bean class="org.yes.cart.service.domain.impl.GroovyGStringTemplateSupportImpl">
-                        <constructor-arg ref="cacheManager"/>
-                    </bean>
+                    <array>
+                        <bean class="org.yes.cart.service.mail.impl.MailComposerTemplateSupportThymeleafImpl">
+                            <constructor-arg>
+                                <bean class="org.yes.cart.service.theme.templates.impl.ThymeleafTemplateSupportImpl">
+                                    <constructor-arg ref="cacheManager"/>
+                                </bean>
+                            </constructor-arg>
+                        </bean>
+                        <bean class="org.yes.cart.service.mail.impl.MailComposerTemplateSupportGroovyImpl">
+                            <constructor-arg>
+                                <bean class="org.yes.cart.service.theme.templates.impl.GroovyGStringTemplateSupportImpl">
+                                    <constructor-arg ref="cacheManager"/>
+                                </bean>
+                            </constructor-arg>
+                        </bean>
+                    </array>
                 </constructor-arg>
             </bean>
         </constructor-arg>
@@ -1140,32 +1454,37 @@
 
     <!-- ############################# Shopping Cart Commands and Events ######################### -->
 
-    <bean id="shoppingCartCommandConfigurationCheckoutVisitor" class="org.yes.cart.shoppingcart.impl.ShoppingCartCommandConfigurationCheckoutVisitorImpl">
+    <bean id="customerResolver" class="org.yes.cart.shoppingcart.impl.CustomerResolverDefaultImpl">
         <constructor-arg index="0" ref="customerService"/>
+        <constructor-arg index="1" ref="customerManagerService"/>
+    </bean>
+
+    <bean id="shoppingCartCommandConfigurationCheckoutVisitor" class="org.yes.cart.shoppingcart.impl.ShoppingCartCommandConfigurationCheckoutVisitorImpl">
+        <constructor-arg index="0" ref="customerResolver"/>
         <constructor-arg index="1" ref="shopService"/>
         <property name="visitorId" value="CHECKOUT"/>
     </bean>
 
     <bean id="shoppingCartCommandConfigurationCustomerTypeVisitor" class="org.yes.cart.shoppingcart.impl.ShoppingCartCommandConfigurationCustomerTypeVisitorImpl">
-        <constructor-arg index="0" ref="customerService"/>
+        <constructor-arg index="0" ref="customerResolver"/>
         <constructor-arg index="1" ref="shopService"/>
         <property name="visitorId" value="CUSTOMERTYPE"/>
     </bean>
 
     <bean id="shoppingCartCommandConfigurationCustomerVisitor" class="org.yes.cart.shoppingcart.impl.ShoppingCartCommandConfigurationCustomerVisitorImpl">
-        <constructor-arg index="0" ref="customerService"/>
+        <constructor-arg index="0" ref="customerResolver"/>
         <constructor-arg index="1" ref="shopService"/>
         <property name="visitorId" value="CUSTOMER"/>
     </bean>
 
     <bean id="shoppingCartCommandConfigurationDefaultAddressVisitor" class="org.yes.cart.shoppingcart.impl.ShoppingCartCommandConfigurationDefaultAddressVisitorImpl">
-        <constructor-arg index="0" ref="customerService"/>
+        <constructor-arg index="0" ref="customerResolver"/>
         <constructor-arg index="1" ref="shopService"/>
         <property name="visitorId" value="DEFAULTADDRESS"/>
     </bean>
 
     <bean id="shoppingCartCommandConfigurationTaxOptionsVisitor" class="org.yes.cart.shoppingcart.impl.ShoppingCartCommandConfigurationTaxOptionsVisitorImpl">
-        <constructor-arg index="0" ref="customerService"/>
+        <constructor-arg index="0" ref="customerResolver"/>
         <constructor-arg index="1" ref="shopService"/>
         <property name="visitorId" value="TAX"/>
     </bean>
@@ -1235,18 +1554,13 @@
         </constructor-arg>
     </bean>
 
-    <bean id="deliveryTimeEstimationVisitor" class="org.yes.cart.shoppingcart.impl.DeliveryTimeEstimationVisitorImpl">
-        <constructor-arg index="0" ref="shopService"/>
-        <constructor-arg index="1">
-            <bean class="org.yes.cart.shoppingcart.impl.DeliveryTimeEstimationVisitorDefaultImpl">
-                <constructor-arg index="0" ref="warehouseService"/>
-                <constructor-arg index="1" ref="carrierSlaService"/>
-            </bean>
-        </constructor-arg>
+    <bean id="deliveryTimeEstimationVisitorDefault" class="org.yes.cart.shoppingcart.impl.DeliveryTimeEstimationVisitorDefaultImpl">
+        <constructor-arg index="0" ref="warehouseService"/>
+        <constructor-arg index="1" ref="carrierSlaService"/>
         <property name="cfgContext">
             <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
                 <property name="functionalArea" value="fulfilment"/>
-                <property name="name" value="deliveryTimeEstimationVisitor"/>
+                <property name="name" value="deliveryTimeEstimationVisitorDefault"/>
                 <property name="cfgInterface" value="DeliveryTimeEstimationVisitor"/>
                 <property name="cfgDefault" value="true"/>
                 <property name="properties">
@@ -1260,17 +1574,18 @@
         </property>
     </bean>
 
-    <bean id="taxProvider" class="org.yes.cart.shoppingcart.impl.TaxProviderImpl">
-        <constructor-arg index="0">
-            <bean class="org.yes.cart.shoppingcart.impl.TaxProviderDefaultImpl">
-                <constructor-arg index="0" ref="taxService"/>
-                <constructor-arg index="1" ref="taxConfigService"/>
-            </bean>
-        </constructor-arg>
+    <bean id="deliveryTimeEstimationVisitor" class="org.yes.cart.shoppingcart.impl.DeliveryTimeEstimationVisitorImpl">
+        <constructor-arg index="0" ref="shopService"/>
+        <constructor-arg index="1" ref="deliveryTimeEstimationVisitorDefault"/>
+    </bean>
+
+    <bean id="taxProviderDefault" class="org.yes.cart.shoppingcart.impl.TaxProviderDefaultImpl">
+        <constructor-arg index="0" ref="taxService"/>
+        <constructor-arg index="1" ref="taxConfigService"/>
         <property name="cfgContext">
             <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
                 <property name="functionalArea" value="pricing"/>
-                <property name="name" value="taxProvider"/>
+                <property name="name" value="taxProviderDefault"/>
                 <property name="cfgInterface" value="TaxProvider"/>
                 <property name="cfgDefault" value="true"/>
                 <property name="properties">
@@ -1284,17 +1599,17 @@
         </property>
     </bean>
 
-    <bean id="pricingPolicyProvider" class="org.yes.cart.shoppingcart.impl.PricingPolicyProviderImpl">
-        <constructor-arg index="0">
-            <bean class="org.yes.cart.shoppingcart.impl.PricingPolicyProviderCustomerAttributeImpl">
-                <constructor-arg index="0" ref="customerService"/>
-                <constructor-arg index="1" ref="shopService"/>
-            </bean>
-        </constructor-arg>
+    <bean id="taxProvider" class="org.yes.cart.shoppingcart.impl.TaxProviderImpl">
+        <constructor-arg index="0" ref="taxProviderDefault"/>
+    </bean>
+
+    <bean id="pricingPolicyProviderCustomerAttribute" class="org.yes.cart.shoppingcart.impl.PricingPolicyProviderCustomerAttributeImpl">
+        <constructor-arg index="0" ref="customerService"/>
+        <constructor-arg index="1" ref="shopService"/>
         <property name="cfgContext">
             <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
                 <property name="functionalArea" value="pricing"/>
-                <property name="name" value="pricingPolicyProvider"/>
+                <property name="name" value="pricingPolicyProviderCustomerAttribute"/>
                 <property name="cfgInterface" value="PricingPolicyProvider"/>
                 <property name="cfgDefault" value="true"/>
                 <property name="properties">
@@ -1308,16 +1623,16 @@
         </property>
     </bean>
 
-    <bean id="priceResolver" class="org.yes.cart.shoppingcart.impl.PriceResolverImpl">
-        <constructor-arg index="0">
-            <bean class="org.yes.cart.shoppingcart.impl.PriceResolverDefaultImpl">
-                <constructor-arg index="0" ref="priceService"/>
-            </bean>
-        </constructor-arg>
+    <bean id="pricingPolicyProvider" class="org.yes.cart.shoppingcart.impl.PricingPolicyProviderImpl">
+        <constructor-arg index="0" ref="pricingPolicyProviderCustomerAttribute"/>
+    </bean>
+
+    <bean id="priceResolverDefault" class="org.yes.cart.shoppingcart.impl.PriceResolverDefaultImpl">
+        <constructor-arg index="0" ref="priceService"/>
         <property name="cfgContext">
             <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
                 <property name="functionalArea" value="pricing"/>
-                <property name="name" value="priceResolver"/>
+                <property name="name" value="priceResolverDefault"/>
                 <property name="cfgInterface" value="PriceResolver"/>
                 <property name="cfgDefault" value="true"/>
                 <property name="properties">
@@ -1331,16 +1646,16 @@
         </property>
     </bean>
 
-    <bean id="inventoryResolver" class="org.yes.cart.shoppingcart.impl.InventoryResolverImpl">
-        <constructor-arg index="0">
-            <bean class="org.yes.cart.shoppingcart.impl.InventoryResolverDefaultImpl">
-                <constructor-arg index="0" ref="skuWarehouseService"/>
-            </bean>
-        </constructor-arg>
+    <bean id="priceResolver" class="org.yes.cart.shoppingcart.impl.PriceResolverImpl">
+        <constructor-arg index="0" ref="priceResolverDefault"/>
+    </bean>
+
+    <bean id="inventoryResolverDefault" class="org.yes.cart.shoppingcart.impl.InventoryResolverDefaultImpl">
+        <constructor-arg index="0" ref="skuWarehouseService"/>
         <property name="cfgContext">
             <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
                 <property name="functionalArea" value="inventory"/>
-                <property name="name" value="inventoryResolver"/>
+                <property name="name" value="inventoryResolverDefault"/>
                 <property name="cfgInterface" value="InventoryResolver"/>
                 <property name="cfgDefault" value="true"/>
                 <property name="properties">
@@ -1354,6 +1669,10 @@
         </property>
     </bean>
 
+    <bean id="inventoryResolver" class="org.yes.cart.shoppingcart.impl.InventoryResolverImpl">
+        <constructor-arg index="0" ref="inventoryResolverDefault"/>
+    </bean>
+
     <bean id="baseCartContentsValidator" class="org.yes.cart.shoppingcart.impl.CompoundCartContentsValidator">
         <constructor-arg index="0">
             <list>
@@ -1361,14 +1680,10 @@
                 <bean class="org.yes.cart.shoppingcart.impl.ItemsAvailableValidator"/>
             </list>
         </constructor-arg>
-    </bean>
-
-    <bean id="cartContentsValidator" class="org.yes.cart.shoppingcart.impl.DefaultCartContentsValidator">
-        <constructor-arg index="0" ref="baseCartContentsValidator"/>
         <property name="cfgContext">
             <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
                 <property name="functionalArea" value="checkout"/>
-                <property name="name" value="cartContentsValidator"/>
+                <property name="name" value="baseCartContentsValidator"/>
                 <property name="cfgInterface" value="CartContentsValidator"/>
                 <property name="cfgDefault" value="true"/>
                 <property name="properties">
@@ -1382,8 +1697,16 @@
         </property>
     </bean>
 
-    <bean id="orderNumberGenerator" class="org.yes.cart.service.order.impl.DefaultOrderNumberGeneratorImpl">
-        <constructor-arg index="0" ref="customerOrderDao"/>
+    <bean id="cartContentsValidator" class="org.yes.cart.shoppingcart.impl.DefaultCartContentsValidator">
+        <constructor-arg index="0" ref="baseCartContentsValidator"/>
+    </bean>
+
+    <bean id="orderNumberGenerator"  parent="txProxyTemplate">
+        <property name="target">
+            <bean class="org.yes.cart.service.order.impl.DefaultOrderNumberGeneratorImpl">
+                <constructor-arg index="0" ref="customerOrderDao"/>
+            </bean>
+        </property>
     </bean>
 
     <bean id="orderAddressFormatter" class="org.yes.cart.service.order.impl.DefaultOrderAddressFormatterImpl">
@@ -1397,17 +1720,18 @@
     <bean id="orderAssembler" parent="txProxyTemplate">
         <property name="target">
             <bean  class="org.yes.cart.service.order.impl.OrderAssemblerImpl">
-                <constructor-arg index="0" ref="orderNumberGenerator"/>
-                <constructor-arg index="1" ref="genericDao"/>
-                <constructor-arg index="2" ref="customerService"/>
-                <constructor-arg index="3" ref="shopService"/>
-                <constructor-arg index="4" ref="productService"/>
-                <constructor-arg index="5" ref="productSkuService"/>
-                <constructor-arg index="6" ref="priceResolver"/>
+                <constructor-arg index="0" ref="genericDao"/>
+                <constructor-arg index="1" ref="customerService"/>
+                <constructor-arg index="2" ref="shopService"/>
+                <constructor-arg index="3" ref="productService"/>
+                <constructor-arg index="4" ref="productSkuService"/>
+                <constructor-arg index="5" ref="priceResolver"/>
+                <constructor-arg index="6" ref="inventoryResolver"/>
                 <constructor-arg index="7" ref="orderAddressFormatter"/>
                 <constructor-arg index="8" ref="promotionCouponService"/>
                 <constructor-arg index="9" ref="addressService"/>
                 <constructor-arg index="10" ref="attributeService"/>
+                <constructor-arg index="11" ref="warehouseService"/>
             </bean>
         </property>
     </bean>

@@ -16,6 +16,7 @@
 
 package org.yes.cart.web.service.rest;
 
+import io.swagger.annotations.Api;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
@@ -23,15 +24,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.yes.cart.domain.dto.ProductSearchResultDTO;
+import org.springframework.web.bind.annotation.*;
 import org.yes.cart.domain.dto.ProductSearchResultPageDTO;
 import org.yes.cart.domain.entity.Category;
-import org.yes.cart.domain.entity.ProductAvailabilityModel;
-import org.yes.cart.domain.entity.PriceModel;
 import org.yes.cart.domain.entity.ProductTypeAttr;
 import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.domain.ro.*;
@@ -46,17 +41,21 @@ import org.yes.cart.web.page.component.filterednavigation.PriceFilteredNavigatio
 import org.yes.cart.web.service.rest.impl.BookmarkMixin;
 import org.yes.cart.web.service.rest.impl.CartMixin;
 import org.yes.cart.web.service.rest.impl.RoMappingMixin;
+import org.yes.cart.web.service.rest.impl.SearchSupportMixin;
 import org.yes.cart.web.support.constants.WebParametersKeys;
 import org.yes.cart.web.support.service.CategoryServiceFacade;
 import org.yes.cart.web.support.service.CentralViewResolver;
 import org.yes.cart.web.support.service.CurrencySymbolService;
 import org.yes.cart.web.support.service.ProductServiceFacade;
-import org.yes.cart.web.support.util.ProductSortingUtils;
+import org.yes.cart.web.support.utils.ProductSortingUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.math.BigDecimal;
-import java.util.*;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * User: denispavlov
@@ -64,6 +63,7 @@ import java.util.*;
  * Time: 15:17
  */
 @Controller
+@Api(value = "Search", tags = "search")
 @RequestMapping("/search")
 public class SearchController {
 
@@ -91,9 +91,11 @@ public class SearchController {
     private RoMappingMixin mappingMixin;
     @Autowired
     private BookmarkMixin bookmarkMixin;
+    @Autowired
+    private SearchSupportMixin searchSupportMixin;
 
     /**
-     * Interface: PUT /yes-api/rest/search
+     * Interface: POST /api/rest/search
      * <p>
      * <p>
      * Perform a product search.
@@ -370,6 +372,7 @@ public class SearchController {
      *     &lt;product-image-height&gt;280&lt;/product-image-height&gt;
      *     &lt;product-image-width&gt;280&lt;/product-image-width&gt;
      *     &lt;products&gt;
+     *     &lt;product&gt;
      *         &lt;availability&gt;1&lt;/availability&gt;
      *         &lt;code&gt;910-002&lt;/code&gt;
      *         &lt;default-image&gt;Logitech-M187_910-002-742_a.png&lt;/default-image&gt;
@@ -442,6 +445,7 @@ public class SearchController {
      *             &lt;/sku&gt;
      *             ...
      *         &lt;/skus&gt;
+     *     &lt;/product&gt;
      *     &lt;/products&gt;
      *     ...
      *     &lt;search&gt;
@@ -469,13 +473,15 @@ public class SearchController {
      */
     @RequestMapping(
             value = "",
-            method = RequestMethod.PUT,
+            method = RequestMethod.POST,
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE },
             consumes =  { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody SearchResultRO search(final @RequestBody SearchRO search,
-                                               final HttpServletRequest request,
-                                               final HttpServletResponse response) {
+    public @ResponseBody
+    SearchResultProductRO search(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                 final @RequestBody SearchRO search,
+                                 final HttpServletRequest request,
+                                 final HttpServletResponse response) {
 
         cartMixin.throwSecurityExceptionIfRequireLoggedIn();
         cartMixin.persistShoppingCart(request, response);
@@ -486,7 +492,7 @@ public class SearchController {
         final long browsingShopId = cart.getShoppingContext().getCustomerShopId();
         final String locale = cart.getCurrentLocale();
 
-        final SearchResultRO result = new SearchResultRO();
+        final SearchResultProductRO result = new SearchResultProductRO();
         result.setSearch(search);
 
         final Pair<String, String> templates = resolveTemplate(categoryId);
@@ -535,7 +541,7 @@ public class SearchController {
                                             final String locale,
                                             final String currencyCode,
                                             final NavigationContext context,
-                                            final SearchResultRO result) {
+                                            final SearchResultProductRO result) {
 
         final Category category = categoryServiceFacade.getCategory(categoryId, browsingShopId);
 
@@ -698,7 +704,7 @@ public class SearchController {
     }
 
     private void populateSearchResults(final NavigationContext context,
-                                       final SearchResultRO result,
+                                       final SearchResultProductRO result,
                                        final ShoppingCart cart) {
 
         ProductSearchResultPageDTO products = productServiceFacade.getListProducts(
@@ -707,38 +713,7 @@ public class SearchController {
 
         result.setTotalResults(products.getTotalHits());
 
-        final List<ProductSearchResultRO> ros = new ArrayList<>();
-        if (CollectionUtils.isNotEmpty(products.getResults())) {
-
-            final Pair<String, Boolean> symbol = currencySymbolService.getCurrencySymbol(cart.getCurrencyCode());
-
-            for (final ProductSearchResultDTO hit : products.getResults()) {
-
-                final ProductAvailabilityModel skuPam = productServiceFacade.getProductAvailability(hit, context.getCustomerShopId());
-
-                final ProductSearchResultRO ro = mappingMixin.map(hit, ProductSearchResultRO.class, ProductSearchResultDTO.class);
-
-                final ProductAvailabilityModelRO amRo = mappingMixin.map(skuPam, ProductAvailabilityModelRO.class, ProductAvailabilityModel.class);
-                ro.setProductAvailabilityModel(amRo);
-
-                final PriceModel price = productServiceFacade.getSkuPrice(
-                        cart,
-                        null,
-                        skuPam.getFirstAvailableSkuCode(),
-                        BigDecimal.ONE
-                );
-
-                final SkuPriceRO priceRo = mappingMixin.map(price, SkuPriceRO.class, PriceModel.class);
-                priceRo.setSymbol(symbol.getFirst());
-                priceRo.setSymbolPosition(symbol.getSecond() != null && symbol.getSecond() ? "after" : "before");
-
-                ro.setPrice(priceRo);
-
-                ros.add(ro);
-
-            }
-        }
-        result.setProducts(ros);
+        result.setItems(searchSupportMixin.map(products.getResults(), cart));
 
     }
 
@@ -746,7 +721,7 @@ public class SearchController {
                                             final long browsingShopId,
                                             final String locale,
                                             final String currency,
-                                            final SearchResultRO result) {
+                                            final SearchResultProductRO result) {
 
         final List<String> itemsPerPageValues = categoryServiceFacade.getItemsPerPageOptionsConfig(categoryId, browsingShopId);
         final int selectedItemPerPage;
@@ -767,6 +742,9 @@ public class SearchController {
                 );
             }
         }
+        if (result.getSearch().getSortField() != null && !sortPageValues.values().contains(result.getSearch().getSortField())) {
+            result.getSearch().setSortField(null);
+        }
 
         final Pair<String, String> widthHeight = categoryServiceFacade.getProductListImageSizeConfig(categoryId, browsingShopId);
 
@@ -776,8 +754,8 @@ public class SearchController {
             result.getSearch().setPageNumber(0); // do not allow negative start page
         }
         result.getSearch().setPageSize(selectedItemPerPage);
-        result.setProductImageWidth(widthHeight.getFirst());
-        result.setProductImageHeight(widthHeight.getSecond());
+        result.setItemImageWidth(widthHeight.getFirst());
+        result.setItemImageHeight(widthHeight.getSecond());
 
     }
 
@@ -785,7 +763,7 @@ public class SearchController {
                                                       final long browsingShopId,
                                                       final String locale,
                                                       final long categoryId,
-                                                      final SearchResultRO result) {
+                                                      final SearchResultProductRO result) {
 
         final Pair<List<Long>, Boolean> currentCategoriesIds = categoryServiceFacade.getSearchCategoriesIds(categoryId, browsingShopId);
 

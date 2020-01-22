@@ -27,14 +27,12 @@ import org.yes.cart.constants.AttributeNamesKeys;
 import org.yes.cart.constants.Constants;
 import org.yes.cart.dao.GenericDAO;
 import org.yes.cart.domain.entity.*;
+import org.yes.cart.domain.misc.Pair;
+import org.yes.cart.domain.misc.SearchContext;
 import org.yes.cart.service.customer.CustomerNameFormatter;
-import org.yes.cart.service.domain.AttributeService;
-import org.yes.cart.service.domain.CustomerService;
-import org.yes.cart.service.domain.HashHelper;
-import org.yes.cart.service.domain.ShopService;
-import org.yes.cart.util.log.Markers;
+import org.yes.cart.service.domain.*;
 import org.yes.cart.utils.HQLUtils;
-import org.yes.cart.utils.impl.AttributeRankComparator;
+import org.yes.cart.utils.log.Markers;
 
 import java.util.*;
 
@@ -158,27 +156,63 @@ public class CustomerServiceImpl extends BaseGenericServiceImpl<Customer> implem
 
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public List<Customer> findCustomer(final String email,
-                                       final String firstname,
-                                       final String lastname,
-                                       final String middlename,
-                                       final String tag,
-                                       final String customerType,
-                                       final String pricingPolicy) {
+    private Pair<String, Object[]> findCustomerQuery(final boolean count,
+                                                     final String sort,
+                                                     final boolean sortDescending,
+                                                     final Map<String, List> filter) {
 
-        return getGenericDao().findByNamedQuery(
-                "CUSTOMER.BY.EMAIL.NAME.TAG.TYPE",
-                HQLUtils.criteriaIlikeAnywhere(email),
-                HQLUtils.criteriaIlikeAnywhere(firstname),
-                HQLUtils.criteriaIlikeAnywhere(lastname),
-                HQLUtils.criteriaIlikeAnywhere(middlename),
-                HQLUtils.criteriaIlikeAnywhere(tag),
-                HQLUtils.criteriaIlikeAnywhere(customerType),
-                HQLUtils.criteriaIlikeAnywhere(pricingPolicy)
+        final Map<String, List> currentFilter = filter != null ? new HashMap<>(filter) : null;
+
+        final StringBuilder hqlCriteria = new StringBuilder();
+        final List<Object> params = new ArrayList<>();
+
+        if (count) {
+            hqlCriteria.append("select count(distinct c.customerId) from CustomerEntity c left join c.shops cse ");
+        } else {
+            hqlCriteria.append("select distinct c from CustomerEntity c left join fetch c.shops cse ");
+        }
+
+        Boolean disabled = Boolean.FALSE;
+        if (currentFilter != null) {
+            final List disabledParam = currentFilter.remove("disabled");
+            if (CollectionUtils.isNotEmpty(disabledParam)) {
+                final Object disabledFilter = disabledParam.get(0);
+                if (disabledFilter instanceof String) {
+                    disabled = Boolean.valueOf((String) disabledFilter);
+                } else if (disabledFilter instanceof Boolean) {
+                    disabled = (Boolean) disabledFilter;
+                } else if (disabledFilter == SearchContext.MatchMode.ANY) {
+                    disabled = null;
+                }
+            }
+        }
+
+        final List shops = currentFilter != null ? currentFilter.remove("shopIds") : null;
+        if (CollectionUtils.isNotEmpty(shops)) {
+            hqlCriteria.append(" where (cse.shop.shopId in (?1) or cse.shop.master.shopId in (?1)) ");
+            params.add(shops);
+        }
+
+        if (disabled != null) {
+            if (params.isEmpty()) {
+                hqlCriteria.append(" where (cse.disabled = ?1) ");
+            } else {
+                hqlCriteria.append(" and (cse.disabled = ?2) ");
+            }
+            params.add(disabled);
+        }
+
+        HQLUtils.appendFilterCriteria(hqlCriteria, params, "c", currentFilter);
+
+        if (StringUtils.isNotBlank(sort)) {
+
+            hqlCriteria.append(" order by c." + sort + " " + (sortDescending ? "desc" : "asc"));
+
+        }
+
+        return new Pair<>(
+                hqlCriteria.toString(),
+                params.toArray(new Object[params.size()])
         );
 
     }
@@ -187,10 +221,43 @@ public class CustomerServiceImpl extends BaseGenericServiceImpl<Customer> implem
      * {@inheritDoc}
      */
     @Override
+    public List<Customer> findCustomers(final int start,
+                                        final int offset,
+                                        final String sort,
+                                        final boolean sortDescending,
+                                        final Map<String, List> filter) {
+
+        final Pair<String, Object[]> query = findCustomerQuery(false, sort, sortDescending, filter);
+
+        return getGenericDao().findRangeByQuery(
+                query.getFirst(),
+                start, offset,
+                query.getSecond()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int findCustomerCount(final Map<String, List> filter) {
+
+        final Pair<String, Object[]> query = findCustomerQuery(true, null, false, filter);
+
+        return getGenericDao().findCountByQuery(
+                query.getFirst(),
+                query.getSecond()
+        );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public boolean isCustomerExists(final String email, final Shop shop) {
-        final List<Object> counts = (List) getGenericDao().findQueryObjectByNamedQuery("EMAIL.CHECK", email.toLowerCase(), shop.getShopId());
-        if (CollectionUtils.isNotEmpty(counts)) {
-            return ((Number) counts.get(0)).intValue() > 0;
+        if (StringUtils.isNotBlank(email)) {
+            final int counts = getGenericDao().findCountByNamedQuery("EMAIL.CHECK", email.toLowerCase(), shop.getShopId());
+            return counts > 0;
         }
         return false;
     }
@@ -202,17 +269,18 @@ public class CustomerServiceImpl extends BaseGenericServiceImpl<Customer> implem
     public boolean isPasswordValid(final String email, final Shop shop, final String password) {
         try {
 
+            if (StringUtils.isBlank(password)) {
+                return false;
+            }
+
             final String hash = passwordHashHelper.getHash(password);
 
-            final List<Object> counts = (List) getGenericDao().findQueryObjectByNamedQuery("PASS.CHECK", email.toLowerCase(), shop.getShopId(), hash, Boolean.FALSE);
+            final int validLoginsFound = getGenericDao().findCountByNamedQuery("PASS.CHECK", email.toLowerCase(), shop.getShopId(), hash, Boolean.FALSE);
 
-            if (CollectionUtils.isNotEmpty(counts)) {
-                final int validLoginsFound = ((Number) counts.get(0)).intValue();
-                if (validLoginsFound == 1) {
-                    return true;
-                } else if (validLoginsFound > 1) {
-                    LOG.warn(Markers.alert(), "Customer {} assigned to multiple shops when checking {} ... password will be marked as invalid", email, shop.getCode());
-                }
+            if (validLoginsFound == 1) {
+                return true;
+            } else if (validLoginsFound > 1) {
+                LOG.warn(Markers.alert(), "Customer {} assigned to multiple shops when checking {} ... password will be marked as invalid", email, shop.getCode());
             }
             return false;
 

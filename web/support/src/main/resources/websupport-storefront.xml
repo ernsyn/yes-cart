@@ -52,6 +52,10 @@
 
     <bean id="shopRequireLoginFilter" class="org.yes.cart.web.filter.ShopRequireLoginFilter"/>
 
+    <bean id="sacFilter" class="org.yes.cart.web.filter.SecurityAccessControlFilter">
+        <property name="allowKey" value="httpSecurityAccessControlService"/>
+    </bean>
+
     <!-- ################################### filter delegates end ################################### -->
 
     <!-- ################################### cart persistence start ################################# -->
@@ -135,7 +139,8 @@
                 <!--</description>-->
                 <!--<property name="corePoolSize" value="1"/>-->
                 <!--<property name="maxPoolSize" value="1"/>-->
-            <!--</bean>-->
+                <!--<property name="threadNamePrefix" value="[websupport-cartupdate]-"/>-->
+        <!--</bean>-->
         <!--</constructor-arg>-->
     </bean>
 
@@ -179,6 +184,8 @@
                 <value>expireCartCmd</value>
                 <value>loginCmd</value>
                 <value>logoutCmd</value>
+                <value>loginOnBehalfCmd</value>
+                <value>logoutOnBehalfCmd</value>
                 <value>removeCouponCmd</value>
                 <value>removeFromWishListCmd</value>
                 <value>removeAllSkuCmd</value>
@@ -195,8 +202,10 @@
                 <value>setPriceCmd</value>
                 <value>recalculatePriceCmd</value>
                 <value>qty</value>
+                <value>supplier</value>
                 <value>type</value>
                 <value>wlv</value>
+                <value>wln</value>
                 <value>sku</value>
                 <value>wla</value>
                 <value>cip</value>
@@ -217,6 +226,7 @@
                 <value>cleanCartCmd</value>
                 <value>expireCartCmd</value>
                 <value>loginCmd</value>
+                <value>loginOnBehalfCmd</value>
                 <value>setBillingAddressSeparateCmd</value>
                 <value>splitCartItemsCmd</value>
                 <value>setCarrierSlaCmd</value>
@@ -434,8 +444,10 @@
         <constructor-arg index="1" ref="categoryService"/>
         <constructor-arg index="2" ref="contentService"/>
         <constructor-arg index="3" ref="productService"/>
-        <constructor-arg index="4" ref="languageService"/>
-        <constructor-arg index="5" ref="runtimeConstants"/>
+        <constructor-arg index="4" ref="warehouseService"/>
+        <constructor-arg index="5" ref="skuWarehouseService"/>
+        <constructor-arg index="6" ref="languageService"/>
+        <constructor-arg index="7" ref="runtimeConstants"/>
     </bean>
 
     <bean id="i18nSupport" class="org.yes.cart.web.support.i18n.impl.I18NWebSupportImpl"/>
@@ -443,15 +455,17 @@
     <bean id="decoratorFacade" class="org.yes.cart.web.support.entity.decorator.impl.DecoratorFacadeImpl">
         <constructor-arg index="0" ref="imageService"/>
         <constructor-arg index="1" ref="categoryImageService"/>
-        <constructor-arg index="2" ref="productImageService"/>
+        <constructor-arg index="2" ref="contentImageService"/>
         <constructor-arg index="3" ref="productImageService"/>
-        <constructor-arg index="4" ref="categoryService"/>
-        <constructor-arg index="5" ref="productService"/>
-        <constructor-arg index="6" ref="i18nSupport"/>
+        <constructor-arg index="4" ref="productImageService"/>
+        <constructor-arg index="5" ref="categoryService"/>
+        <constructor-arg index="6" ref="contentService"/>
+        <constructor-arg index="7" ref="productService"/>
+        <constructor-arg index="8" ref="i18nSupport"/>
     </bean>
 
     <!-- ################################### presentation layer support end ######################### -->
-
+    
     <!-- ################################ Register module  ####################################################### -->
 
     <bean class="org.yes.cart.env.impl.ModuleImpl">

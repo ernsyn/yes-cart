@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.yes.cart.promotion.PromotionAction;
 import org.yes.cart.shoppingcart.CartItem;
 import org.yes.cart.shoppingcart.MutableShoppingCart;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.MoneyUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -70,7 +70,7 @@ public class ItemNonSaleDiscountPromotionAction extends AbstractItemPromotionAct
                 promoPrice = cartItem.getPrice();
             }
 
-            cart.setProductSkuPromotion(cartItem.getProductSkuCode(), promoPrice, getPromotionCode(context));
+            cart.setProductSkuPromotion(cartItem.getSupplierCode(), cartItem.getProductSkuCode(), promoPrice, getPromotionCode(context));
 
         }
     }

@@ -16,10 +16,12 @@
 
 package org.yes.cart.service.federation.impl;
 
-import org.yes.cart.domain.dto.ShopDTO;
 import org.yes.cart.service.federation.ShopFederationStrategy;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * User: denispavlov
@@ -64,6 +66,14 @@ public class TestShopFederationStrategyImpl implements ShopFederationStrategy {
      * {@inheritDoc}
      */
     @Override
+    public boolean isSupplierCatalogAccessibleByCurrentManager(final String catalogCode) {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Set<Long> getAccessibleShopIdsByCurrentManager() {
         return new HashSet<>(Arrays.asList(10L, 20L, 30L, 40L, 50L, 60L));
     }
@@ -80,8 +90,21 @@ public class TestShopFederationStrategyImpl implements ShopFederationStrategy {
      * {@inheritDoc}
      */
     @Override
-    public List<ShopDTO> getAccessibleShopsByCurrentManager() {
-        return Collections.emptyList();
+    public Set<String> getAccessibleSupplierCatalogCodesByCurrentManager() {
+        return new HashSet<>(Arrays.asList("CAT001", "CAT002", "CAT003"));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Set<String> getAccessibleCategoryCatalogCodesByCurrentManager() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public Set<Long> getAccessibleCatalogIdsByCurrentManager() {
+        return Collections.emptySet();
     }
 
     /**

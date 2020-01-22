@@ -28,6 +28,7 @@ import org.yes.cart.dao.impl.AbstractTestDAO;
 import org.yes.cart.domain.dto.ProductSearchResultDTO;
 import org.yes.cart.domain.dto.ProductSearchResultPageDTO;
 import org.yes.cart.domain.dto.ProductSkuSearchResultDTO;
+import org.yes.cart.domain.dto.ProductSkuSearchResultPageDTO;
 import org.yes.cart.domain.entity.*;
 import org.yes.cart.domain.entity.impl.*;
 import org.yes.cart.domain.i18n.I18NModel;
@@ -43,6 +44,7 @@ import org.yes.cart.service.domain.ProductSkuService;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
 
@@ -496,6 +498,92 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
         });
     }
 
+    @Test
+    public void testSkuSearch() throws InterruptedException {
+
+        getTxReadOnly().execute(new TransactionCallbackWithoutResult() {
+            @Override
+            public void doInTransactionWithoutResult(TransactionStatus status) {
+
+                productDao.fullTextSearchReindex(false, 1000);
+                productSkuDao.fullTextSearchReindex(false, 1000);
+
+                NavigationContext pContext;
+                NavigationContext sContext;
+
+                // Search for TEST
+                pContext = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, null,
+                        false, Collections.singletonMap(ProductSearchQueryBuilder.QUERY, (List) Collections.singletonList("TEST")));
+
+                // Get product search result
+                ProductSearchResultPageDTO page = productService.getProductSearchResultDTOByQuery(pContext, 0, 10, null, false);
+                List<ProductSearchResultDTO> products = page.getResults();
+                assertFalse("Failed [" + pContext.getProductQuery().toString() + "]", products.isEmpty());
+
+                sContext = searchQueryFactory.getSkuSnowBallQuery(pContext, products);
+
+                // Get relevant SKU
+                ProductSkuSearchResultPageDTO skus = productSkuService.getProductSkuSearchResultDTOByQuery(sContext);
+                assertFalse("Failed [" + sContext.getProductSkuQuery().toString() + "]", skus.getResults().isEmpty());
+
+                // Verify that we find all single SKUs
+                assertSearchSkuMatchesBaseSku(products, skus.getResults());
+
+                // Search for Sobot
+                pContext = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, null,
+                        false, Collections.singletonMap(ProductSearchQueryBuilder.QUERY, (List) Collections.singletonList("SOBOT")));
+
+                // Get product search result
+                page = productService.getProductSearchResultDTOByQuery(pContext, 0, 10, null, false);
+                products = page.getResults();
+                assertFalse("Failed [" + pContext.getProductQuery().toString() + "]", products.isEmpty());
+
+                sContext = searchQueryFactory.getSkuSnowBallQuery(pContext, products);
+
+                // Get relevant SKU
+                skus = productSkuService.getProductSkuSearchResultDTOByQuery(sContext);
+                assertFalse("Failed [" + sContext.getProductSkuQuery().toString() + "]", skus.getResults().isEmpty());
+
+                // Verify that we find all multi SKUs in multiple fulfilment centres
+                assertSearchSkuMatchesBaseSku(products, skus.getResults());
+
+                status.setRollbackOnly();
+            }
+
+            void assertSearchSkuMatchesBaseSku(final List<ProductSearchResultDTO> products, final List<ProductSkuSearchResultDTO> skus) {
+                final Map<Long, List<ProductSkuSearchResultDTO>> skuMap = new HashMap<>();
+                for (ProductSkuSearchResultDTO sku : skus) {
+                    List<ProductSkuSearchResultDTO> skuForProduct = skuMap.computeIfAbsent(sku.getProductId(), k -> new ArrayList<>());
+                    skuForProduct.add(sku);
+                }
+
+                for (final ProductSearchResultDTO product : products) {
+
+                    final List<ProductSkuSearchResultDTO> searchSkus = skuMap.get(product.getId());
+                    assertNotNull("Entries for product " + product.getCode() + " must be present", searchSkus);
+
+                    for (final ProductSkuSearchResultDTO baseSku : product.getBaseSkus().values()) {
+
+                        ProductSkuSearchResultDTO match = null;
+
+                        for (final ProductSkuSearchResultDTO searchSku : searchSkus) {
+                            if (searchSku.getId() == baseSku.getId()
+                                    && searchSku.getFulfilmentCentreCode().equals(baseSku.getFulfilmentCentreCode())) {
+                                match = searchSku;
+                                break;
+                            }
+                        }
+
+                        assertNotNull("Entries for SKU " + baseSku.getCode() + "/" + baseSku.getFulfilmentCentreCode() + " must be present", match);
+
+                    }
+
+                }
+            }
+        });
+
+    }
+
 
 
     @Test
@@ -521,17 +609,17 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                 ProductSearchResultPageDTO page = productService.getProductSearchResultDTOByQuery(pContext, 0, 100, null, false);
                 List<ProductSearchResultDTO> products = page.getResults();
                 assertFalse("Failed [" + pContext.getProductQuery().toString() + "]", products.isEmpty());
-                assertEquals("SOBOT", 1, products.size());
-                assertEquals("SOBOT is best match", "SOBOT", products.get(0).getCode());
+                assertEquals("SOBOT supplied by WAREHOUSE_1 only", 1, products.size());
+                assertEquals("SOBOT (SOBOT-LIGHT) is best match", "SOBOT", products.get(0).getCode());
 
                 sContext = searchQueryFactory.getSkuSnowBallQuery(pContext, products);
 
                 // Get relevant SKU
-                List<ProductSkuSearchResultDTO> skus = productSkuService.getProductSkuSearchResultDTOByQuery(sContext);
-                assertFalse("Failed [" + sContext.getProductSkuQuery().toString() + "]", skus.isEmpty());
-                assertEquals("SOBOT is best match", products.get(0).getId(), skus.get(0).getProductId());
-                assertEquals("There are 4 Sobot SKU", 4, skus.size());
-                assertEquals("SOBOT-LIGHT is best match", "SOBOT-LIGHT", skus.get(0).getCode());
+                ProductSkuSearchResultPageDTO skus = productSkuService.getProductSkuSearchResultDTOByQuery(sContext);
+                assertFalse("Failed [" + sContext.getProductSkuQuery().toString() + "]", skus.getResults().isEmpty());
+                assertEquals("SOBOT is best match", products.get(0).getId(), skus.getResults().get(0).getProductId());
+                assertEquals("There are 4 Sobot SKU, SOBOT-ORIG has 2 suppliers (client needs to filter out WAREHOUSE_2)", 5, skus.getResults().size());
+                assertEquals("SOBOT-LIGHT is best match", "SOBOT-LIGHT", skus.getResults().get(0).getCode());
 
 
                 // Search for Sobot xxl (it is size of a SOBOT-ORIG SKU in Sobot product) only indexed attributes are considered
@@ -549,14 +637,13 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
 
                 // Get relevant SKU
                 skus = productSkuService.getProductSkuSearchResultDTOByQuery(sContext);
-                assertFalse("Failed [" + sContext.getProductSkuQuery().toString() + "]", skus.isEmpty());
-                assertEquals("SOBOT is best match", products.get(0).getId(), skus.get(0).getProductId());
-                assertEquals("There are 4 SKU", 4, skus.size());
-                assertEquals("SOBOT-ORIG is best match", "SOBOT-ORIG", skus.get(0).getCode());
+                assertFalse("Failed [" + sContext.getProductSkuQuery().toString() + "]", skus.getResults().isEmpty());
+                assertEquals("SOBOT is best match", products.get(0).getId(), skus.getResults().get(0).getProductId());
+                assertEquals("There are 4 Sobot SKU, SOBOT-ORIG has 2 suppliers", 5, skus.getResults().size());
+                assertEquals("SOBOT-ORIG is best match", "SOBOT-ORIG", skus.getResults().get(0).getCode());
 
 
                 // Search for Sobot small (it is size of a SOBOT-PINK SKU in Sobot product) only indexed attributes are considered
-
                 pContext = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, null,
                         false, Collections.singletonMap(ProductSearchQueryBuilder.QUERY, (List) Collections.singletonList("Sobot large")));
 
@@ -564,16 +651,18 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                 page = productService.getProductSearchResultDTOByQuery(pContext, 0, 100, null, false);
                 products = page.getResults();
                 assertFalse("Failed [" + pContext.getProductQuery().toString() + "]", products.isEmpty());
+                assertEquals("SOBOT supplied by WAREHOUSE_1 only", 1, products.size());
                 assertEquals("SOBOT is best match", "SOBOT", products.get(0).getCode());
+                assertEquals("SOBOT-PINK is best match (not available on WAREHOUSE_2)", "WAREHOUSE_1", products.get(0).getFulfilmentCentreCode());
 
                 sContext = searchQueryFactory.getSkuSnowBallQuery(pContext, products);
 
                 // Get relevant SKU
                 skus = productSkuService.getProductSkuSearchResultDTOByQuery(sContext);
-                assertFalse("Failed [" + sContext.getProductSkuQuery().toString() + "]", skus.isEmpty());
-                assertEquals("SOBOT is best match", products.get(0).getId(), skus.get(0).getProductId());
-                assertEquals("There are 4 SKU", 4, skus.size());
-                assertEquals("SOBOT-PINK is best match", "SOBOT-PINK", skus.get(0).getCode());
+                assertFalse("Failed [" + sContext.getProductSkuQuery().toString() + "]", skus.getResults().isEmpty());
+                assertEquals("SOBOT is best match", products.get(0).getId(), skus.getResults().get(0).getProductId());
+                assertEquals("There are 4 Sobot SKU, SOBOT-ORIG has 2 suppliers (client needs to filter out WAREHOUSE_2)", 5, skus.getResults().size());
+                assertEquals("SOBOT-PINK is best match", "SOBOT-PINK", skus.getResults().get(0).getCode());
 
                 status.setRollbackOnly();
             }
@@ -610,8 +699,10 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                 assertEquals(2, brandFacetResults.size());
 
                 final List<Pair<Pair<String, I18NModel>, Integer>> expectedInCategory = Arrays.asList(
+                        // BENDER has 1 supplier, count is 1
                         new Pair<>(new Pair<>("FutureRobots", null), 1),
-                        new Pair<>(new Pair<>("Unknown", null), 1)
+                        // SOBOT has 2 suppliers and hence count is 2
+                        new Pair<>(new Pair<>("Unknown", null), 2)
                 );
 
                 for (final Pair<Pair<String, I18NModel>, Integer> brandFacetResultItem : brandFacetResults) {
@@ -632,7 +723,7 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                         new Pair<>(new Pair<>("Samsung", null), 2),
                         new Pair<>(new Pair<>("Sony", null), 1),
                         new Pair<>(new Pair<>("LG", null), 1),
-                        new Pair<>(new Pair<>("Unknown", null), 1)
+                        new Pair<>(new Pair<>("Unknown", null), 2)
                 );
 
                 for (final Pair<Pair<String, I18NModel>, Integer> brandFacetResultItem : brandFacetResults) {
@@ -652,7 +743,7 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
 
                 final List<Pair<Pair<String, I18NModel>, Integer>> subExpectedInCategory = Arrays.asList(
                         new Pair<>(new Pair<>("FutureRobots", null), 1),
-                        new Pair<>(new Pair<>("Unknown", null), 1)
+                        new Pair<>(new Pair<>("Unknown", null), 2)
                 );
 
                 for (final Pair<Pair<String, I18NModel>, Integer> brandFacetResultItem : brandFacetResults) {
@@ -667,6 +758,174 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
         });
 
     }
+
+
+    @Test
+    public void testProductTypeFaceting() throws InterruptedException {
+
+        getTxReadOnly().execute(new TransactionCallbackWithoutResult() {
+            @Override
+            public void doInTransactionWithoutResult(TransactionStatus status) {
+
+                productDao.fullTextSearchReindex(false, 1000);
+
+                NavigationContext context;
+                Map<String, List<Pair<Pair<String, I18NModel>, Integer>>> facets;
+                List<Pair<Pair<String, I18NModel>, Integer>> productTypeFacetResults;
+                final FilteredNavigationRecordRequest productTypes =
+                        new FilteredNavigationRecordRequestImpl(
+                                "productTypeFacet",
+                                "facet_" + ProductSearchQueryBuilder.PRODUCT_TYPE_FIELD
+                        );
+
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, Collections.singletonList(101L), false, null);
+                facets = productDao.fullTextSearchNavigation(context.getProductQuery(), Collections.singletonList(productTypes));
+                assertEquals("Failed [" + context.getProductQuery().toString() +"]", 1, facets.size());
+
+                productTypeFacetResults = facets.get("productTypeFacet");
+                assertNotNull(productTypeFacetResults);
+                assertEquals(1, productTypeFacetResults.size());
+
+                final List<Pair<Pair<String, I18NModel>, Integer>> expectedInCategory = Arrays.asList(
+                        // BENDER has 1 supplier, SOBOT has 2 suppliers and hence count is 3
+                        new Pair<>(new Pair<>("Robots", new StringI18NModel("en#~#Robots#~#ru#~#Роботы#~#ua#~#Роботи#~#")), 3)
+                );
+
+                for (final Pair<Pair<String, I18NModel>, Integer> productTypeFacetResultItem : productTypeFacetResults) {
+                    assertTrue("Unexpected pair: " + productTypeFacetResultItem, expectedInCategory.contains(productTypeFacetResultItem));
+                }
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, null, false, null);
+                facets = productDao.fullTextSearchNavigation(context.getProductQuery(), Collections.singletonList(productTypes));
+                assertEquals("Failed [" + context.getProductQuery().toString() +"]", 1, facets.size());
+
+                productTypeFacetResults = facets.get("productTypeFacet");
+                assertNotNull(productTypeFacetResults);
+                assertEquals(3, productTypeFacetResults.size());
+
+                final List<Pair<Pair<String, I18NModel>, Integer>> expectedInShop = Arrays.asList(
+                        new Pair<>(new Pair<>("DVD Player", null), 14),
+                        new Pair<>(new Pair<>("Robots", new StringI18NModel("en#~#Robots#~#ru#~#Роботы#~#ua#~#Роботи#~#")), 4),
+                        new Pair<>(new Pair<>("Digital product", null), 4)
+                );
+
+                for (final Pair<Pair<String, I18NModel>, Integer> productTypeFacetResultItem : productTypeFacetResults) {
+                    assertTrue("Unexpected pair: " + productTypeFacetResultItem, expectedInShop.contains(productTypeFacetResultItem));
+                }
+
+
+                // Brand faceting in a sub shop
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 1010L, null, Collections.singletonList(101L), false, null);
+                facets = productDao.fullTextSearchNavigation(context.getProductQuery(), Collections.singletonList(productTypes));
+                assertEquals("Failed [" + context.getProductQuery().toString() +"]", 1, facets.size());
+
+                productTypeFacetResults = facets.get("productTypeFacet");
+                assertNotNull(productTypeFacetResults);
+                assertEquals(1, productTypeFacetResults.size());
+
+                final List<Pair<Pair<String, I18NModel>, Integer>> subExpectedInCategory = Arrays.asList(
+                        new Pair<>(new Pair<>("Robots", new StringI18NModel("en#~#Robots#~#ru#~#Роботы#~#ua#~#Роботи#~#")), 3)
+                );
+
+                for (final Pair<Pair<String, I18NModel>, Integer> productTypeFacetResultItem : productTypeFacetResults) {
+                    assertTrue("Unexpected pair: " + productTypeFacetResultItem, subExpectedInCategory.contains(productTypeFacetResultItem));
+                }
+
+
+
+                status.setRollbackOnly();
+
+            }
+        });
+
+    }
+
+
+    @Test
+    public void testTagFaceting() throws InterruptedException {
+
+        getTxReadOnly().execute(new TransactionCallbackWithoutResult() {
+            @Override
+            public void doInTransactionWithoutResult(TransactionStatus status) {
+
+                productDao.fullTextSearchReindex(false, 1000);
+
+                NavigationContext context;
+                Map<String, List<Pair<Pair<String, I18NModel>, Integer>>> facets;
+                List<Pair<Pair<String, I18NModel>, Integer>> tagFacetResults;
+                final FilteredNavigationRecordRequest tags =
+                        new FilteredNavigationRecordRequestImpl(
+                                "tagsFacet",
+                                "facet_" + ProductSearchQueryBuilder.PRODUCT_TAG_FIELD
+                        );
+
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, Collections.singletonList(101L), false, null);
+                facets = productDao.fullTextSearchNavigation(context.getProductQuery(), Collections.singletonList(tags));
+                assertEquals("Failed [" + context.getProductQuery().toString() +"]", 1, facets.size());
+
+                tagFacetResults = facets.get("tagsFacet");
+                assertNotNull(tagFacetResults);
+                assertEquals(2, tagFacetResults.size());
+
+                final List<Pair<Pair<String, I18NModel>, Integer>> expectedInCategory = Arrays.asList(
+                        new Pair<>(new Pair<>("sale", null), 1),
+                        new Pair<>(new Pair<>("newarrival", null), 2)
+                );
+
+                for (final Pair<Pair<String, I18NModel>, Integer> tagFacetResultItem : tagFacetResults) {
+                    assertTrue("Unexpected pair: " + tagFacetResultItem, expectedInCategory.contains(tagFacetResultItem));
+                }
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, null, false, null);
+                facets = productDao.fullTextSearchNavigation(context.getProductQuery(), Collections.singletonList(tags));
+                assertEquals("Failed [" + context.getProductQuery().toString() +"]", 1, facets.size());
+
+                tagFacetResults = facets.get("tagsFacet");
+                assertNotNull(tagFacetResults);
+                assertEquals(3, tagFacetResults.size());
+
+                final List<Pair<Pair<String, I18NModel>, Integer>> expectedInShop = Arrays.asList(
+                        new Pair<>(new Pair<>("sale", null), 2),
+                        new Pair<>(new Pair<>("newarrival", null), 3),
+                        new Pair<>(new Pair<>("specialpromo", null), 2)
+                );
+
+                for (final Pair<Pair<String, I18NModel>, Integer> tagFacetResultItem : tagFacetResults) {
+                    assertTrue("Unexpected pair: " + tagFacetResultItem, expectedInShop.contains(tagFacetResultItem));
+                }
+
+
+                // Brand faceting in a sub shop
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 1010L, null, Collections.singletonList(101L), false, null);
+                facets = productDao.fullTextSearchNavigation(context.getProductQuery(), Collections.singletonList(tags));
+                assertEquals("Failed [" + context.getProductQuery().toString() +"]", 1, facets.size());
+
+                tagFacetResults = facets.get("tagsFacet");
+                assertNotNull(tagFacetResults);
+                assertEquals(2, tagFacetResults.size());
+
+                final List<Pair<Pair<String, I18NModel>, Integer>> subExpectedInCategory = Arrays.asList(
+                        new Pair<>(new Pair<>("sale", null), 1),
+                        new Pair<>(new Pair<>("newarrival", null), 2)
+                );
+
+                for (final Pair<Pair<String, I18NModel>, Integer> tagFacetResultItem : tagFacetResults) {
+                    assertTrue("Unexpected pair: " + tagFacetResultItem, subExpectedInCategory.contains(tagFacetResultItem));
+                }
+
+
+
+                status.setRollbackOnly();
+
+            }
+        });
+
+    }
+
 
 
     @Test
@@ -821,7 +1080,7 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                 assertEquals("00001500-_-00001600", priceFacetResults.get(1).getFirst().getFirst());
                 assertEquals(Integer.valueOf(1), priceFacetResults.get(1).getSecond());
                 assertEquals("00001600-_-00030000", priceFacetResults.get(2).getFirst().getFirst());
-                assertEquals(Integer.valueOf(12), priceFacetResults.get(2).getSecond());
+                assertEquals(Integer.valueOf(13), priceFacetResults.get(2).getSecond());
                 assertEquals("00025000-_-00030000", priceFacetResults.get(3).getFirst().getFirst());
                 assertEquals(Integer.valueOf(1), priceFacetResults.get(3).getSecond());
                 assertEquals("00030000-_-00040000", priceFacetResults.get(4).getFirst().getFirst());
@@ -863,7 +1122,7 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                 assertEquals("00006000-_-00010000", priceFacetResults.get(5).getFirst().getFirst());
                 assertEquals(Integer.valueOf(2), priceFacetResults.get(5).getSecond());
                 assertEquals("00010000-_-01000000", priceFacetResults.get(6).getFirst().getFirst());
-                assertEquals(Integer.valueOf(5), priceFacetResults.get(6).getSecond());
+                assertEquals(Integer.valueOf(6), priceFacetResults.get(6).getSecond());
 
 
 
@@ -1029,7 +1288,9 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                 assertEquals(2, materialFacetResults.size());
 
                 final List<Pair<Pair<String, I18NModel>, Integer>> expectedMaterialInCategory = Arrays.asList(
-                        new Pair<>(new Pair<>("Plastik", new StringI18NModel("en#~#Plastiс#~#ru#~#Пластик#~#ua#~#Пластик#~#")), 1),
+                        // SOBOT is by 2 suppliers, so count is 2
+                        new Pair<>(new Pair<>("Plastik", new StringI18NModel("en#~#Plastiс#~#ru#~#Пластик#~#ua#~#Пластик#~#")), 2),
+                        // BENDER is single supplier, count 1
                         new Pair<>(new Pair<>("metal", new StringI18NModel("en#~#Metal#~#ru#~#Сталь#~#ua#~#Сталь#~#")), 1)
                 );
 
@@ -1045,7 +1306,8 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                         new Pair<>(new Pair<>("small", null), 1),
                         new Pair<>(new Pair<>("medium", null), 1),
                         new Pair<>(new Pair<>("large", null), 1),
-                        new Pair<>(new Pair<>("xxl", null), 1)
+                        // SOBOT-ORIG is by 2 suppliers
+                        new Pair<>(new Pair<>("xxl", null), 2)
                 );
 
                 for (final Pair<Pair<String, I18NModel>, Integer> sizeFacetResultItem : sizeFacetResults) {
@@ -1063,7 +1325,7 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                 assertEquals(2, materialFacetResults.size());
 
                 final List<Pair<Pair<String, I18NModel>, Integer>> expectedMaterialInShop = Arrays.asList(
-                        new Pair<>(new Pair<>("Plastik", new StringI18NModel("en#~#Plastiс#~#ru#~#Пластик#~#ua#~#Пластик#~#")), 1),
+                        new Pair<>(new Pair<>("Plastik", new StringI18NModel("en#~#Plastiс#~#ru#~#Пластик#~#ua#~#Пластик#~#")), 2),
                         new Pair<>(new Pair<>("metal", new StringI18NModel("en#~#Metal#~#ru#~#Сталь#~#ua#~#Сталь#~#")), 1)
                 );
 
@@ -1079,7 +1341,7 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                         new Pair<>(new Pair<>("small", null), 1),
                         new Pair<>(new Pair<>("medium", null), 1),
                         new Pair<>(new Pair<>("large", null), 1),
-                        new Pair<>(new Pair<>("xxl", null), 1)
+                        new Pair<>(new Pair<>("xxl", null), 2)
                 );
 
                 for (final Pair<Pair<String, I18NModel>, Integer> sizeFacetResultItem : sizeFacetResults) {
@@ -1098,7 +1360,7 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                 assertEquals(2, materialFacetResults.size());
 
                 final List<Pair<Pair<String, I18NModel>, Integer>> subExpectedMaterialInCategory = Arrays.asList(
-                        new Pair<>(new Pair<>("Plastik", new StringI18NModel("en#~#Plastiс#~#ru#~#Пластик#~#ua#~#Пластик#~#")), 1),
+                        new Pair<>(new Pair<>("Plastik", new StringI18NModel("en#~#Plastiс#~#ru#~#Пластик#~#ua#~#Пластик#~#")), 2),
                         new Pair<>(new Pair<>("metal", new StringI18NModel("en#~#Metal#~#ru#~#Сталь#~#ua#~#Сталь#~#")), 1)
                 );
 
@@ -1114,7 +1376,7 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                         new Pair<>(new Pair<>("small", null), 1),
                         new Pair<>(new Pair<>("medium", null), 1),
                         new Pair<>(new Pair<>("large", null), 1),
-                        new Pair<>(new Pair<>("xxl", null), 1)
+                        new Pair<>(new Pair<>("xxl", null), 2)
                 );
 
                 for (final Pair<Pair<String, I18NModel>, Integer> sizeFacetResultItem : sizeFacetResults) {
@@ -1175,15 +1437,15 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
 
                 context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, Collections.singletonList(101L), false, null);
                 List<Product> products = productDao.fullTextSearch(context.getProductQuery());
-                assertEquals("Failed [" + context.getProductQuery().toString() +"]", 2, products.size());
+                assertEquals("Failed [" + context.getProductQuery().toString() +"]", 3, products.size());
 
                 context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, Arrays.asList(101L, 200L, 123L, 2435L), false, null);
                 products = productDao.fullTextSearch(context.getProductQuery());
-                assertEquals("Failed [" + context.getProductQuery().toString() + "]", 2, products.size());
+                assertEquals("Failed [" + context.getProductQuery().toString() + "]", 3, products.size());
 
                 context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, Arrays.asList(101L, 104L), false, null);
                 products = productDao.fullTextSearch(context.getProductQuery());
-                assertEquals("Failed [" + context.getProductQuery().toString() +"]", 15, products.size());
+                assertEquals("Failed [" + context.getProductQuery().toString() +"]", 16, products.size());
 
                 status.setRollbackOnly();
 
@@ -1277,13 +1539,13 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
                 context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, Collections.singletonList(101L),
                         false, Collections.singletonMap("MATERIAL", (List) Collections.singletonList("Plastik")));
                 products = productDao.fullTextSearch(context.getProductQuery());
-                assertEquals(1, products.size());
+                assertEquals(context.getProductQuery().toString(), 2, products.size());
                 assertEquals("SOBOT is best match", "SOBOT", products.get(0).getCode());
                 //No category limitation, so we expect all plastic robots
                 context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, null,
                         false, Collections.singletonMap("MATERIAL", (List) Collections.singletonList("Plastik")));
                 products = productDao.fullTextSearch(context.getProductQuery());
-                assertEquals(context.getProductQuery().toString(), 1, products.size());
+                assertEquals(context.getProductQuery().toString(), 2, products.size());
                 assertEquals("SOBOT is best match", "SOBOT", products.get(0).getCode());
                 // Robot from plastic not in 104 category
                 context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, Collections.singletonList(104L),
@@ -1473,6 +1735,97 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
 
 
     @Test
+    public void testProductTypeNavigation() {
+
+
+        getTx().execute(new TransactionCallbackWithoutResult() {
+            @Override
+            public void doInTransactionWithoutResult(TransactionStatus status) {
+
+                 productDao.fullTextSearchReindex(false, 1000);
+
+                List<Product> foundProducts;
+                NavigationContext context;
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, Collections.singletonList(101L),
+                        false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_TYPE_FIELD, (List) Collections.singletonList("Robots")));
+                foundProducts = productDao.fullTextSearch(context.getProductQuery());
+                assertNotNull(foundProducts);
+                assertEquals(context.getProductQuery().toString(), 3, foundProducts.size());
+                for (final Product fp : foundProducts) {
+                    assertEquals("Must be correct type", "Robots", fp.getProducttype().getName());
+                }
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, null,
+                        false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_TYPE_FIELD, (List) Collections.singletonList("Robots")));
+                foundProducts = productDao.fullTextSearch(context.getProductQuery());
+                assertNotNull(foundProducts);
+                assertEquals(context.getProductQuery().toString(), 4, foundProducts.size());
+                for (final Product fp : foundProducts) {
+                    assertEquals("Must be correct type", "Robots", fp.getProducttype().getName());
+                }
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 1010L, null, Collections.singletonList(101L),
+                        false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_TYPE_FIELD, (List) Collections.singletonList("Robots")));
+                foundProducts = productDao.fullTextSearch(context.getProductQuery());
+                assertNotNull(foundProducts);
+                assertEquals(context.getProductQuery().toString(), 3, foundProducts.size());
+                for (final Product fp : foundProducts) {
+                    assertEquals("Must be correct type", "Robots", fp.getProducttype().getName());
+                }
+
+                status.setRollbackOnly();
+
+            }
+        });
+
+    }
+
+    @Test
+    public void testTagNavigation() {
+
+
+        getTx().execute(new TransactionCallbackWithoutResult() {
+            @Override
+            public void doInTransactionWithoutResult(TransactionStatus status) {
+
+                 productDao.fullTextSearchReindex(false, 1000);
+
+                List<Product> foundProducts;
+                NavigationContext context;
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, Collections.singletonList(101L),
+                        false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_TAG_FIELD, (List) Collections.singletonList("sale")));
+                foundProducts = productDao.fullTextSearch(context.getProductQuery());
+                assertNotNull(foundProducts);
+                assertEquals(context.getProductQuery().toString(), 1, foundProducts.size());
+                assertTrue("Must be correct tag", foundProducts.get(0).getTag().contains("sale"));
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 10L, null, null,
+                        false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_TAG_FIELD, (List) Collections.singletonList("sale")));
+                foundProducts = productDao.fullTextSearch(context.getProductQuery());
+                assertNotNull(foundProducts);
+                assertEquals(context.getProductQuery().toString(), 2, foundProducts.size());
+                assertTrue("Must be correct tag", foundProducts.get(0).getTag().contains("sale"));
+                assertTrue("Must be correct tag", foundProducts.get(1).getTag().contains("sale"));
+
+                context = searchQueryFactory.getFilteredNavigationQueryChain(10L, 1010L, null, Collections.singletonList(101L),
+                        false, Collections.singletonMap(ProductSearchQueryBuilder.PRODUCT_TAG_FIELD, (List) Collections.singletonList("sale")));
+                foundProducts = productDao.fullTextSearch(context.getProductQuery());
+                assertNotNull(foundProducts);
+                assertEquals(context.getProductQuery().toString(), 1, foundProducts.size());
+                assertTrue("Must be correct tag", foundProducts.get(0).getTag().contains("sale"));
+
+                status.setRollbackOnly();
+
+            }
+        });
+
+    }
+
+
+
+    @Test
     public void testPriceNavigation() throws Exception {
 
 
@@ -1552,7 +1905,6 @@ public class FullTextSearchConfigurationTest extends AbstractTestDAO {
 
     private long createProduct(long brandId, String productCode, String productName, long productTypeId, long productCategoryId, long shopId) {
         Product product = new ProductEntity();
-        product.setAvailability(Product.AVAILABILITY_STANDARD);
         Brand brand = brandDao.findById(brandId);
         assertNotNull(brand);
         product.setBrand(brand);

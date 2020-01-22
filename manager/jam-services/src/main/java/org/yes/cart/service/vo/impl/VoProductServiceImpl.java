@@ -18,10 +18,11 @@ package org.yes.cart.service.vo.impl;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.springframework.security.access.AccessDeniedException;
-import org.yes.cart.constants.Constants;
 import org.yes.cart.domain.dto.*;
 import org.yes.cart.domain.misc.MutablePair;
 import org.yes.cart.domain.misc.Pair;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.domain.vo.*;
 import org.yes.cart.service.domain.ProductService;
 import org.yes.cart.service.dto.*;
@@ -30,7 +31,10 @@ import org.yes.cart.service.vo.VoAssemblySupport;
 import org.yes.cart.service.vo.VoIOSupport;
 import org.yes.cart.service.vo.VoProductService;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * User: denispavlov
@@ -82,9 +86,6 @@ public class VoProductServiceImpl implements VoProductService {
                 new VoAttributesCRUDTemplate<VoAttrValueProduct, AttrValueProductDTO>(
                         VoAttrValueProduct.class,
                         AttrValueProductDTO.class,
-                        Constants.PRODUCT_IMAGE_REPOSITORY_URL_PATTERN,
-                        Constants.PRODUCT_FILE_REPOSITORY_URL_PATTERN,
-                        Constants.PRODUCT_SYSFILE_REPOSITORY_URL_PATTERN,
                         this.dtoProductService,
                         this.dtoAttributeService,
                         this.voAssemblySupport,
@@ -117,9 +118,6 @@ public class VoProductServiceImpl implements VoProductService {
                 new VoAttributesCRUDTemplate<VoAttrValueProductSku, AttrValueProductSkuDTO>(
                         VoAttrValueProductSku.class,
                         AttrValueProductSkuDTO.class,
-                        Constants.PRODUCT_IMAGE_REPOSITORY_URL_PATTERN,
-                        Constants.PRODUCT_FILE_REPOSITORY_URL_PATTERN,
-                        Constants.PRODUCT_SYSFILE_REPOSITORY_URL_PATTERN,
                         this.dtoProductSkuService,
                         this.dtoAttributeService,
                         this.voAssemblySupport,
@@ -158,21 +156,35 @@ public class VoProductServiceImpl implements VoProductService {
 
     /** {@inheritDoc} */
     @Override
-    public List<VoProduct> getFilteredProducts(final String filter, final int max) throws Exception {
+    public VoSearchResult<VoProduct> getFilteredProducts(final VoSearchContext filter) throws Exception {
 
+        final VoSearchResult<VoProduct> result = new VoSearchResult<>();
         final List<VoProduct> results = new ArrayList<>();
+        result.setSearchContext(filter);
+        result.setItems(results);
 
-        int start = 0;
-        do {
-            final List<ProductDTO> batch = dtoProductService.findBy(filter, start, max);
-            if (batch.isEmpty()) {
-                break;
-            }
-            federationFacade.applyFederationFilter(batch, ProductDTO.class);
-            results.addAll(voAssemblySupport.assembleVos(VoProduct.class, ProductDTO.class, batch));
-            start++;
-        } while (results.size() < max && max != Integer.MAX_VALUE);
-        return results.size() > max ? results.subList(0, max) : results;
+        final Map<String, List> params = new HashMap<>();
+        if (filter.getParameters() != null) {
+            params.putAll(filter.getParameters());
+        }
+        if (!federationFacade.isCurrentUserSystemAdmin()) {
+            params.put("supplierCatalogCodes", new ArrayList(federationFacade.getAccessibleSupplierCatalogCodesByCurrentManager()));
+        }
+
+        final SearchContext searchContext = new SearchContext(
+                params,
+                filter.getStart(),
+                filter.getSize(),
+                filter.getSortBy(),
+                filter.isSortDesc(),
+                "filter", "supplierCatalogCodes"
+        );
+
+        final SearchResult<ProductDTO> batch = dtoProductService.findProducts(searchContext);
+        results.addAll(voAssemblySupport.assembleVos(VoProduct.class, ProductDTO.class, batch.getItems()));
+        result.setTotal(batch.getTotal());
+
+        return result;
 
     }
 
@@ -371,7 +383,7 @@ public class VoProductServiceImpl implements VoProductService {
 
     /** {@inheritDoc} */
     @Override
-    public List<VoAttrValueProduct> updateProduct(final List<MutablePair<VoAttrValueProduct, Boolean>> vo) throws Exception {
+    public List<VoAttrValueProduct> updateProductAttributes(final List<MutablePair<VoAttrValueProduct, Boolean>> vo) throws Exception {
 
         final long productId = this.voProductAttributesCRUDTemplate.verifyAccessAndUpdateAttributes(vo, true);
 
@@ -399,21 +411,37 @@ public class VoProductServiceImpl implements VoProductService {
 
     /** {@inheritDoc} */
     @Override
-    public List<VoProductSku> getFilteredProductSkus(final String filter, final int max) throws Exception {
+    public VoSearchResult<VoProductSku> getFilteredProductSkus(final VoSearchContext filter) throws Exception {
 
+
+        final VoSearchResult<VoProductSku> result = new VoSearchResult<>();
         final List<VoProductSku> results = new ArrayList<>();
+        result.setSearchContext(filter);
+        result.setItems(results);
 
-        int start = 0;
-        do {
-            final List<ProductSkuDTO> batch = dtoProductSkuService.findBy(filter, start, max);
-            if (batch.isEmpty()) {
-                break;
-            }
-            batch.removeIf(productSkuDTO -> !federationFacade.isManageable(productSkuDTO.getProductId(), ProductDTO.class));
-            results.addAll(voAssemblySupport.assembleVos(VoProductSku.class, ProductSkuDTO.class, batch));
-            start++;
-        } while (results.size() < max && max != Integer.MAX_VALUE);
-        return results.size() > max ? results.subList(0, max) : results;
+        final Map<String, List> params = new HashMap<>();
+        if (filter.getParameters() != null) {
+            params.putAll(filter.getParameters());
+        }
+        if (!federationFacade.isCurrentUserSystemAdmin()) {
+            params.put("supplierCatalogCodes", new ArrayList(federationFacade.getAccessibleSupplierCatalogCodesByCurrentManager()));
+        }
+
+        final SearchContext searchContext = new SearchContext(
+                params,
+                filter.getStart(),
+                filter.getSize(),
+                filter.getSortBy(),
+                filter.isSortDesc(),
+                "filter", "supplierCatalogCodes"
+        );
+
+        final SearchResult<ProductSkuDTO> batch = dtoProductSkuService.findProductSkus(searchContext);
+        results.addAll(voAssemblySupport.assembleVos(VoProductSku.class, ProductSkuDTO.class, batch.getItems()));
+        result.setTotal(batch.getTotal());
+
+        return result;
+
     }
 
     /** {@inheritDoc} */
@@ -488,7 +516,7 @@ public class VoProductServiceImpl implements VoProductService {
 
     /** {@inheritDoc} */
     @Override
-    public List<VoAttrValueProductSku> updateSku(final List<MutablePair<VoAttrValueProductSku, Boolean>> vo) throws Exception {
+    public List<VoAttrValueProductSku> updateSkuAttributes(final List<MutablePair<VoAttrValueProductSku, Boolean>> vo) throws Exception {
 
         final long skuId = this.voSkuAttributesCRUDTemplate.verifyAccessAndUpdateAttributes(vo, true);
 

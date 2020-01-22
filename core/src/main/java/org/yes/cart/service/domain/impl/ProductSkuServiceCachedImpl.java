@@ -20,7 +20,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.yes.cart.dao.GenericDAO;
 import org.yes.cart.dao.ResultsIteratorCallback;
-import org.yes.cart.domain.dto.ProductSkuSearchResultDTO;
+import org.yes.cart.domain.dto.ProductSkuSearchResultPageDTO;
 import org.yes.cart.domain.entity.ProductSku;
 import org.yes.cart.domain.entity.SkuPrice;
 import org.yes.cart.domain.entity.SkuWarehouse;
@@ -30,6 +30,7 @@ import org.yes.cart.service.domain.ProductSkuService;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * User: denispavlov
@@ -74,7 +75,7 @@ public class ProductSkuServiceCachedImpl implements ProductSkuService {
      */
     @Override
     @Cacheable(value = "productSkuService-productSkuSearchResultDTOByQuery")
-    public List<ProductSkuSearchResultDTO> getProductSkuSearchResultDTOByQuery(final NavigationContext navigationContext) {
+    public ProductSkuSearchResultPageDTO getProductSkuSearchResultDTOByQuery(final NavigationContext navigationContext) {
         return productSkuService.getProductSkuSearchResultDTOByQuery(navigationContext);
     }
 
@@ -123,8 +124,7 @@ public class ProductSkuServiceCachedImpl implements ProductSkuService {
      */
     @Override
     @CacheEvict(value = {
-            "skuWarehouseService-productSkusOnWarehouse",
-            "skuWarehouseService-productOnWarehouse"
+            "skuWarehouseService-productSkusOnWarehouse"
     }, allEntries = true)
     public void removeAllInventory(final long productId) {
         productSkuService.removeAllInventory(productId);
@@ -135,8 +135,7 @@ public class ProductSkuServiceCachedImpl implements ProductSkuService {
      */
     @Override
     @CacheEvict(value = {
-            "skuWarehouseService-productSkusOnWarehouse",
-            "skuWarehouseService-productOnWarehouse"
+            "skuWarehouseService-productSkusOnWarehouse"
     }, allEntries = true)
     public void removeAllInventory(final ProductSku sku) {
         productSkuService.removeAllInventory(sku);
@@ -156,6 +155,22 @@ public class ProductSkuServiceCachedImpl implements ProductSkuService {
     @Override
     public void removeAllEnsembleOptions(final ProductSku sku) {
         productSkuService.removeAllEnsembleOptions(sku);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ProductSku> findProductSkus(final int start, final int offset, final String sort, final boolean sortDescending, final Map<String, List> filter) {
+        return productSkuService.findProductSkus(start, offset, sort, sortDescending, filter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int findProductSkuCount(final Map<String, List> filter) {
+        return productSkuService.findProductSkuCount(filter);
     }
 
     /**
@@ -196,7 +211,6 @@ public class ProductSkuServiceCachedImpl implements ProductSkuService {
     @Override
     @CacheEvict(value = {
             "skuWarehouseService-productSkusOnWarehouse",
-            "skuWarehouseService-productOnWarehouse",
             "productSkuService-productSkuBySkuCode",
             "productService-skuById",
             "productService-productById"
@@ -223,7 +237,6 @@ public class ProductSkuServiceCachedImpl implements ProductSkuService {
     @Override
     @CacheEvict(value = {
             "skuWarehouseService-productSkusOnWarehouse",
-            "skuWarehouseService-productOnWarehouse",
             "productSkuService-productSkuBySkuCode",
             "productService-skuById",
             "productService-productById"

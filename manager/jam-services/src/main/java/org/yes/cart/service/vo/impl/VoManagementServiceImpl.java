@@ -25,12 +25,16 @@ import org.springframework.core.io.Resource;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.yes.cart.domain.dto.CategoryDTO;
 import org.yes.cart.domain.dto.ManagerDTO;
 import org.yes.cart.domain.dto.RoleDTO;
 import org.yes.cart.domain.dto.ShopDTO;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.domain.vo.*;
 import org.yes.cart.exception.UnableToCreateInstanceException;
 import org.yes.cart.exception.UnmappedInterfaceException;
+import org.yes.cart.service.dto.DtoCategoryService;
 import org.yes.cart.service.dto.DtoShopService;
 import org.yes.cart.service.dto.ManagementService;
 import org.yes.cart.service.federation.FederationFacade;
@@ -38,10 +42,7 @@ import org.yes.cart.service.vo.VoAssemblySupport;
 import org.yes.cart.service.vo.VoManagementService;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * User: denispavlov
@@ -54,6 +55,7 @@ public class VoManagementServiceImpl implements VoManagementService {
 
     private final ManagementService managementService;
     private final DtoShopService shopService;
+    private final DtoCategoryService dtoCategoryService;
     private final FederationFacade federationFacade;
     private final VoAssemblySupport voAssemblySupport;
 
@@ -67,10 +69,12 @@ public class VoManagementServiceImpl implements VoManagementService {
 
     public VoManagementServiceImpl(final ManagementService managementService,
                                    final DtoShopService shopService,
+                                   final DtoCategoryService dtoCategoryService,
                                    final FederationFacade federationFacade,
                                    final VoAssemblySupport voAssemblySupport) {
         this.managementService = managementService;
         this.shopService = shopService;
+        this.dtoCategoryService = dtoCategoryService;
         this.federationFacade = federationFacade;
         this.voAssemblySupport = voAssemblySupport;
     }
@@ -129,7 +133,7 @@ public class VoManagementServiceImpl implements VoManagementService {
 
     /** {@inheritDoc} */
     @Override
-    public VoManager getByEmail(String email) throws Exception {
+    public VoManager getManagerByEmail(String email) throws Exception {
         if (federationFacade.isManageable(email, ManagerDTO.class)) {
             final VoManager voManager = getByEmailInternal(email);
             if (voManager != null) {
@@ -158,11 +162,43 @@ public class VoManagementServiceImpl implements VoManagementService {
             for (final RoleDTO role : managementService.getAssignedManagerRoles(voManager.getEmail())) {
                 final VoManagerRole link = new VoManagerRole();
                 link.setManagerId(voManager.getManagerId());
-                link.setRoleId(role.getRoleId());
                 link.setCode(role.getCode());
                 voManagerRoles.add(link);
             }
             voManager.setManagerRoles(voManagerRoles);
+            final List<VoManagerSupplierCatalog> voManagerSupplierCatalogs = new ArrayList<>();
+            for (final String supplierCatalogCode : managerDTO.getProductSupplierCatalogs()) {
+                final VoManagerSupplierCatalog link = new VoManagerSupplierCatalog();
+                link.setManagerId(voManager.getManagerId());
+                link.setCode(supplierCatalogCode);
+                voManagerSupplierCatalogs.add(link);
+            }
+            voManager.setManagerSupplierCatalogs(voManagerSupplierCatalogs);
+
+            final List<VoManagerCategoryCatalog> voManagerCategoryCatalogs = new ArrayList<>();
+            if (CollectionUtils.isNotEmpty(managerDTO.getCategoryCatalogs())) {
+                final SearchContext filter = new SearchContext(
+                        Collections.singletonMap("GUIDs", new ArrayList<>(managerDTO.getCategoryCatalogs())),
+                        0,
+                        managerDTO.getCategoryCatalogs().size(),
+                        "name",
+                        false,
+                        "GUIDs"
+                );
+                final SearchResult<CategoryDTO> assigned = dtoCategoryService.findCategories(filter);
+                if (!assigned.getItems().isEmpty()) {
+                    for (final CategoryDTO category : assigned.getItems()) {
+                        final VoManagerCategoryCatalog link = new VoManagerCategoryCatalog();
+                        link.setManagerId(voManager.getManagerId());
+                        link.setCategoryId(category.getCategoryId());
+                        link.setCode(category.getGuid());
+                        link.setName(category.getName());
+                        voManagerCategoryCatalogs.add(link);
+                    }
+                }
+            }
+            voManager.setManagerCategoryCatalogs(voManagerCategoryCatalogs);
+
             return voManager;
         } else {
             return null;
@@ -172,12 +208,11 @@ public class VoManagementServiceImpl implements VoManagementService {
     /** {@inheritDoc} */
     @Override
     public VoManager createManager(VoManager voManager) throws Exception {
+
         if (voManager != null && CollectionUtils.isNotEmpty(voManager.getManagerShops())) {
-            for (final VoManagerShop shop : voManager.getManagerShops()) {
-                if (!federationFacade.isShopAccessibleByCurrentManager(shop.getShopId())) {
-                    throw new AccessDeniedException("Access is denied");
-                }
-            }
+
+            checkShopsAndRoles(voManager);
+
             final ShopDTO shop = shopService.getById(voManager.getManagerShops().get(0).getShopId());
             managementService.addUser(
                     voManager.getEmail(),
@@ -198,40 +233,89 @@ public class VoManagementServiceImpl implements VoManagementService {
 
             if (CollectionUtils.isNotEmpty(voManager.getManagerRoles())) {
 
-                final List<RoleDTO> roles = managementService.getRolesList();
-                final Map<Long, String> roleMap = new HashMap<>();
-                for (final RoleDTO roleDTO : roles) {
-                    roleMap.put(roleDTO.getRoleId(), roleDTO.getCode());
-                }
                 for (final VoManagerRole managerRole : voManager.getManagerRoles()) {
-                    final String roleCode = roleMap.get(managerRole.getRoleId());
-                    if ("ROLE_SMADMIN".equals(roleCode) && !federationFacade.isCurrentUserSystemAdmin()) {
+
+                    if ("ROLE_SMADMIN".equals(managerRole.getCode()) && !federationFacade.isCurrentUserSystemAdmin()) {
                         throw new AccessDeniedException("Access is denied");
                     }
-                    managementService.grantRole(voManager.getEmail(), roleCode);
+                    managementService.grantRole(voManager.getEmail(), managerRole.getCode());
+
                 }
             }
 
-            final List<ManagerDTO> managers = managementService.getManagers(voManager.getEmail(), null, null);
-            if (CollectionUtils.isNotEmpty(managers)) {
-                return voAssemblySupport.assembleVo(VoManager.class, ManagerDTO.class, new VoManager(), managers.get(0));
+            if (CollectionUtils.isNotEmpty(voManager.getManagerSupplierCatalogs())) {
+
+                for (final VoManagerSupplierCatalog managerSupplierCatalog : voManager.getManagerSupplierCatalogs())  {
+                    managementService.grantSupplierCatalog(voManager.getEmail(), managerSupplierCatalog.getCode());
+                }
+
             }
+
+            if (CollectionUtils.isNotEmpty(voManager.getManagerCategoryCatalogs())) {
+
+                for (final VoManagerCategoryCatalog managerCategoryCatalog : voManager.getManagerCategoryCatalogs())  {
+                    managementService.grantCategoryCatalog(voManager.getEmail(), managerCategoryCatalog.getCode());
+                }
+
+            }
+
+            return getByEmailInternal(voManager.getEmail());
+
         } else {
             throw new AccessDeniedException("Access is denied");
         }
-        return null;
+
+    }
+
+    void checkShopsAndRoles(final VoManager voManager) throws UnmappedInterfaceException, UnableToCreateInstanceException {
+
+        for (final VoManagerShop shop : voManager.getManagerShops()) {
+            if (!federationFacade.isShopAccessibleByCurrentManager(shop.getShopId())) {
+                throw new AccessDeniedException("Access is denied");
+            }
+        }
+
+        if (CollectionUtils.isNotEmpty(voManager.getManagerRoles())) {
+            final List<RoleDTO> roles = managementService.getRolesList();
+            final Set<String> availableRole = new HashSet<>();
+            for (final RoleDTO roleDTO : roles) {
+                availableRole.add(roleDTO.getCode());
+            }
+            for (final VoManagerRole roleVo : voManager.getManagerRoles()) {
+                if (roleVo.getCode() == null || !availableRole.contains(roleVo.getCode())) {
+                    throw new AccessDeniedException("Access is denied");
+                }
+            }
+        }
+
+        if (CollectionUtils.isNotEmpty(voManager.getManagerSupplierCatalogs())) {
+            for (final VoManagerSupplierCatalog catalog : voManager.getManagerSupplierCatalogs()) {
+                if (!federationFacade.isSupplierCatalogAccessibleByCurrentManager(catalog.getCode())) {
+                    throw new AccessDeniedException("Access is denied");
+                }
+            }
+        }
+
+        if (CollectionUtils.isNotEmpty(voManager.getManagerCategoryCatalogs())) {
+            for (final VoManagerCategoryCatalog catalog : voManager.getManagerCategoryCatalogs()) {
+                if (!federationFacade.isManageable(catalog.getCategoryId(), CategoryDTO.class)) {
+                    throw new AccessDeniedException("Access is denied");
+                }
+            }
+        }
     }
 
     /** {@inheritDoc} */
     @Override
     public VoManager updateManager(VoManager voManager) throws Exception {
-        if (voManager != null && CollectionUtils.isNotEmpty(voManager.getManagerShops())) {
+
+        if (voManager != null &&
+                (CollectionUtils.isNotEmpty(voManager.getManagerShops()) ||
+                        federationFacade.isCurrentUserSystemAdmin())) {
+
             allowUpdateOnlyBySysAdmin(voManager.getEmail());
-            for (final VoManagerShop shop : voManager.getManagerShops()) {
-                if (!federationFacade.isShopAccessibleByCurrentManager(shop.getShopId())) {
-                    throw new AccessDeniedException("Access is denied");
-                }
-            }
+            checkShopsAndRoles(voManager);
+
             managementService.updateUser(
                     voManager.getEmail(),
                     voManager.getFirstName(),
@@ -241,48 +325,107 @@ public class VoManagementServiceImpl implements VoManagementService {
                     voManager.getCompanyDepartment()
             );
 
+            // Shops
+            final Set<String> shopsToRevoke = new HashSet<>();
             for (final ShopDTO link : managementService.getAssignedManagerShops(voManager.getEmail(), false)) {
                 if (federationFacade.isShopAccessibleByCurrentManager(link.getShopId())) {
-                    managementService.revokeShop(voManager.getEmail(), link.getCode());
+                    shopsToRevoke.add(link.getCode());
                 } // else skip updates for inaccessible shops
             }
-
-            for (final VoManagerShop link : voManager.getManagerShops()) {
-                if (federationFacade.isShopAccessibleByCurrentManager(link.getShopId())) {
+            if (CollectionUtils.isNotEmpty(voManager.getManagerShops())) {
+                for (final VoManagerShop link : voManager.getManagerShops()) {
                     final ShopDTO shop = shopService.getById(link.getShopId());
-                    managementService.grantShop(voManager.getEmail(), shop.getCode());
-                } // else skip updates for inaccessible shops
+                    if (federationFacade.isShopAccessibleByCurrentManager(link.getShopId())) {
+                        if (!shopsToRevoke.contains(shop.getCode())) {
+                            managementService.grantShop(voManager.getEmail(), shop.getCode());
+                        }
+                    } // else skip updates for inaccessible shops
+                    shopsToRevoke.remove(shop.getCode()); // Do not revoke, it is still active
+                }
+            }
+            for (final String shopToRevoke : shopsToRevoke) {
+                managementService.revokeShop(voManager.getEmail(), shopToRevoke);
             }
 
-            final List<RoleDTO> roles = managementService.getRolesList();
-            final Map<Long, String> roleMap = new HashMap<>();
-            for (final RoleDTO roleDTO : roles) {
-                roleMap.put(roleDTO.getRoleId(), roleDTO.getCode());
-            }
-
+            // Roles
+            final Set<String> rolesToRevoke = new HashSet<>();
             for (final RoleDTO managerRole : managementService.getAssignedManagerRoles(voManager.getEmail())) {
                 if ("ROLE_SMADMIN".equals(managerRole.getCode()) && !federationFacade.isCurrentUserSystemAdmin()) {
                     continue;
                 }
-                managementService.revokeRole(voManager.getEmail(), managerRole.getCode());
+                rolesToRevoke.add(managerRole.getCode());
             }
-
             for (final VoManagerRole managerRole : voManager.getManagerRoles()) {
-                final String roleCode = roleMap.get(managerRole.getRoleId());
-                if ("ROLE_SMADMIN".equals(roleCode) && !federationFacade.isCurrentUserSystemAdmin()) {
+                if ("ROLE_SMADMIN".equals(managerRole.getCode()) && !federationFacade.isCurrentUserSystemAdmin()) {
                     continue;
                 }
-                managementService.grantRole(voManager.getEmail(), roleCode);
+                if (!rolesToRevoke.contains(managerRole.getCode())) {
+                    managementService.grantRole(voManager.getEmail(), managerRole.getCode());
+                }
+                rolesToRevoke.remove(managerRole.getCode()); // Do not revoke, it is still active
+            }
+            for (final String roleToRevoke : rolesToRevoke) {
+                managementService.revokeRole(voManager.getEmail(), roleToRevoke);
             }
 
-            final List<ManagerDTO> managers = managementService.getManagers(voManager.getEmail(), null, null);
-            if (CollectionUtils.isNotEmpty(managers)) {
-                return voAssemblySupport.assembleVo(VoManager.class, ManagerDTO.class, new VoManager(), managers.get(0));
+            // Suppliers
+            final Set<String> suppliersToRevoke = new HashSet<>();
+            for (final String managerCat : managementService.getAssignedManagerSupplierCatalogs(voManager.getEmail())) {
+                if (federationFacade.isSupplierCatalogAccessibleByCurrentManager(managerCat)) {
+                    suppliersToRevoke.add(managerCat);
+                } // else skip updates for inaccessible suppliers
             }
+            for (final VoManagerSupplierCatalog managerCat : voManager.getManagerSupplierCatalogs()) {
+                if (federationFacade.isSupplierCatalogAccessibleByCurrentManager(managerCat.getCode())) {
+                    if (!suppliersToRevoke.contains(managerCat.getCode())) {
+                        managementService.grantSupplierCatalog(voManager.getEmail(), managerCat.getCode());
+                    }
+                }
+                suppliersToRevoke.remove(managerCat.getCode());  // Do not revoke, it is still active
+            }
+            for (final String supplierToRevoke : suppliersToRevoke) {
+                managementService.revokeSupplierCatalog(voManager.getEmail(), supplierToRevoke);
+            }
+
+            // Categories
+            final Set<String> categoriesToRevoke = new HashSet<>();
+            final List<String> codes = managementService.getAssignedManagerCategoryCatalogs(voManager.getEmail());
+            if (CollectionUtils.isNotEmpty(codes)) {
+                final SearchContext filter = new SearchContext(
+                        Collections.singletonMap("GUIDs", new ArrayList<>(codes)),
+                        0,
+                        codes.size(),
+                        "name",
+                        false,
+                        "GUIDs"
+                );
+                final SearchResult<CategoryDTO> assigned = dtoCategoryService.findCategories(filter);
+                if (!assigned.getItems().isEmpty()) {
+                    for (final CategoryDTO category : assigned.getItems()) {
+                        if (federationFacade.isManageable(category.getCategoryId(), CategoryDTO.class)) {
+                            categoriesToRevoke.add(category.getGuid());
+                        } // else skip updates for inaccessible suppliers
+                    }
+                }
+            }
+            for (final VoManagerCategoryCatalog managerCat : voManager.getManagerCategoryCatalogs()) {
+                if (federationFacade.isManageable(managerCat.getCategoryId(), CategoryDTO.class)) {
+                    if (!categoriesToRevoke.contains(managerCat.getCode())) {
+                        managementService.grantCategoryCatalog(voManager.getEmail(), managerCat.getCode());
+                    }
+                }
+                categoriesToRevoke.remove(managerCat.getCode());  // Do not revoke, it is still active
+            }
+            for (final String supplierToRevoke : categoriesToRevoke) {
+                managementService.revokeCategoryCatalog(voManager.getEmail(), supplierToRevoke);
+            }
+
+            return getByEmailInternal(voManager.getEmail());
+            
         } else {
             throw new AccessDeniedException("Access is denied");
         }
-        return null;
+
     }
 
     /** {@inheritDoc} */

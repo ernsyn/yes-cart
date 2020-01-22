@@ -52,10 +52,13 @@ public class ProductSkuRO implements Serializable {
     @DtoField(value = "manufacturerCode", readOnly = true)
     private String manufacturerCode;
 
+    @DtoField(value = "tag", readOnly = true)
+    private String tag;
+
     @DtoField(value = "name", readOnly = true)
     private String name;
 
-    @DtoField(value = "displayName", converter = "i18nStringConverter", readOnly = true)
+    @DtoField(value = "displayName", converter = "i18nModelConverter", readOnly = true)
     private Map<String, String> displayNames;
 
     @DtoField(value = "description", readOnly = true)
@@ -82,19 +85,20 @@ public class ProductSkuRO implements Serializable {
     @DtoField(value = "seo.metadescription", entityBeanKeys = "org.yes.cart.domain.entity.Seo", readOnly = true)
     private String metadescription;
 
-    @DtoField(value = "seo.displayTitle", converter = "i18nStringConverter", readOnly = true)
+    @DtoField(value = "seo.displayTitle", converter = "i18nModelConverter", readOnly = true)
     private Map<String, String> displayTitles;
 
-    @DtoField(value = "seo.displayMetakeywords", converter = "i18nStringConverter", readOnly = true)
+    @DtoField(value = "seo.displayMetakeywords", converter = "i18nModelConverter", readOnly = true)
     private Map<String, String> displayMetakeywords;
 
-    @DtoField(value = "seo.displayMetadescription", converter = "i18nStringConverter", readOnly = true)
+    @DtoField(value = "seo.displayMetadescription", converter = "i18nModelConverter", readOnly = true)
     private Map<String, String> displayMetadescriptions;
 
     private String uitemplate;
     private String uitemplateFallback;
 
-    private ProductAvailabilityModelRO productAvailabilityModel;
+    private ProductAvailabilityModelRO skuAvailabilityModel;
+    private ProductQuantityModelRO skuQuantityModel;
 
     private SkuPriceRO price;
 
@@ -136,6 +140,14 @@ public class ProductSkuRO implements Serializable {
 
     public void setManufacturerCode(final String manufacturerCode) {
         this.manufacturerCode = manufacturerCode;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(final String tag) {
+        this.tag = tag;
     }
 
     public String getName() {
@@ -270,13 +282,22 @@ public class ProductSkuRO implements Serializable {
         this.uitemplateFallback = uitemplateFallback;
     }
 
-    @XmlElement(name = "product-availability")
-    public ProductAvailabilityModelRO getProductAvailabilityModel() {
-        return productAvailabilityModel;
+    @XmlElement(name = "sku-availability")
+    public ProductAvailabilityModelRO getSkuAvailabilityModel() {
+        return skuAvailabilityModel;
     }
 
-    public void setProductAvailabilityModel(final ProductAvailabilityModelRO productAvailabilityModel) {
-        this.productAvailabilityModel = productAvailabilityModel;
+    public void setSkuAvailabilityModel(final ProductAvailabilityModelRO skuAvailabilityModel) {
+        this.skuAvailabilityModel = skuAvailabilityModel;
+    }
+
+    @XmlElement(name = "sku-quantity")
+    public ProductQuantityModelRO getSkuQuantityModel() {
+        return skuQuantityModel;
+    }
+
+    public void setSkuQuantityModel(final ProductQuantityModelRO skuQuantityModel) {
+        this.skuQuantityModel = skuQuantityModel;
     }
 
     public SkuPriceRO getPrice() {

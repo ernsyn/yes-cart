@@ -16,9 +16,9 @@
 
 
 import { Injectable } from '@angular/core';
-import { Http, Headers, RequestOptions, Response } from '@angular/http';
+import { Http, Response } from '@angular/http';
 import { Config } from '../config/env.config';
-import { CountryVO, StateVO } from '../model/index';
+import { CountryInfoVO, CountryVO, StateVO, SearchContextVO, SearchResultVO } from '../model/index';
 import { ErrorEventBus } from './error-event-bus.service';
 import { Util } from './util';
 import { LogUtil } from './../log/index';
@@ -45,9 +45,13 @@ export class LocationService {
    * Get list of all countries,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
-  getAllCountries() {
-    return this.http.get(this._serviceBaseUrl + '/country/all')
-      .map(res => <CountryVO[]> this.json(res))
+  getFilteredCountries(filter:SearchContextVO) {
+
+    let body = JSON.stringify(filter);
+
+    return this.http.post(this._serviceBaseUrl + '/country/filtered', body,
+      Util.requestOptions())
+      .map(res => <SearchResultVO<CountryInfoVO>> this.json(res))
       .catch(this.handleError);
   }
 
@@ -57,7 +61,7 @@ export class LocationService {
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getCountryById(id:number) {
-    return this.http.get(this._serviceBaseUrl + '/country/' + id)
+    return this.http.get(this._serviceBaseUrl + '/country/' + id, Util.requestOptions())
       .map(res => <CountryVO> this.json(res))
       .catch(this.handleError);
   }
@@ -70,15 +74,13 @@ export class LocationService {
   saveCountry(country:CountryVO) {
 
     let body = JSON.stringify(country);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
     if (country.countryId > 0) {
-      return this.http.post(this._serviceBaseUrl + '/country', body, options)
+      return this.http.post(this._serviceBaseUrl + '/country', body, Util.requestOptions())
         .map(res => <CountryVO> this.json(res))
         .catch(this.handleError);
     } else {
-      return this.http.put(this._serviceBaseUrl + '/country', body, options)
+      return this.http.put(this._serviceBaseUrl + '/country', body, Util.requestOptions())
         .map(res => <CountryVO> this.json(res))
         .catch(this.handleError);
     }
@@ -91,10 +93,8 @@ export class LocationService {
    * @returns {Observable<R>}
    */
   removeCountry(country:CountryVO) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/country/' + country.countryId, options)
+    return this.http.delete(this._serviceBaseUrl + '/country/' + country.countryId, Util.requestOptions())
       .catch(this.handleError);
   }
 
@@ -103,9 +103,23 @@ export class LocationService {
    * Get list of all country states,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
-  getAllStates(country:CountryVO) {
-    return this.http.get(this._serviceBaseUrl + '/state/all/' + country.countryId)
+  getCountryStates(country:CountryVO) {
+    return this.http.get(this._serviceBaseUrl + '/country/state/' + country.countryId, Util.requestOptions())
       .map(res => <StateVO[]> this.json(res))
+      .catch(this.handleError);
+  }
+
+  /**
+   * Get list of all country states, which are accessible to manage or view,
+   * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
+   */
+  getFilteredStates(filter:SearchContextVO) {
+
+    let body = JSON.stringify(filter);
+
+    return this.http.post(this._serviceBaseUrl + '/country/state/filtered', body,
+      Util.requestOptions())
+      .map(res => <SearchResultVO<StateVO>> this.json(res))
       .catch(this.handleError);
   }
 
@@ -116,7 +130,7 @@ export class LocationService {
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getStateById(id:number) {
-    return this.http.get(this._serviceBaseUrl + '/state/' + id)
+    return this.http.get(this._serviceBaseUrl + '/state/' + id, Util.requestOptions())
       .map(res => <StateVO> this.json(res))
       .catch(this.handleError);
   }
@@ -128,15 +142,13 @@ export class LocationService {
    */
   saveState(state:StateVO) {
     let body = JSON.stringify(state);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
     if (state.stateId > 0) {
-      return this.http.post(this._serviceBaseUrl + '/state', body, options)
+      return this.http.post(this._serviceBaseUrl + '/state', body, Util.requestOptions())
         .map(res => <StateVO> this.json(res))
         .catch(this.handleError);
     } else {
-      return this.http.put(this._serviceBaseUrl + '/state', body, options)
+      return this.http.put(this._serviceBaseUrl + '/state', body, Util.requestOptions())
         .map(res => <StateVO> this.json(res))
         .catch(this.handleError);
     }
@@ -148,10 +160,8 @@ export class LocationService {
    * @returns {Observable<R>}
    */
   removeState(state:StateVO) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/state/' + state.stateId, options)
+    return this.http.delete(this._serviceBaseUrl + '/state/' + state.stateId, Util.requestOptions())
       .catch(this.handleError);
   }
 

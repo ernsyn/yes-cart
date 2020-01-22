@@ -24,6 +24,8 @@ import org.yes.cart.domain.dto.CustomerOrderDeliveryDetailDTO;
 import org.yes.cart.domain.dto.PromotionDTO;
 import org.yes.cart.domain.entity.CustomerOrder;
 import org.yes.cart.domain.misc.Result;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.domain.vo.*;
 import org.yes.cart.payment.persistence.entity.CustomerOrderPayment;
 import org.yes.cart.payment.service.CustomerOrderPaymentService;
@@ -33,7 +35,7 @@ import org.yes.cart.service.federation.FederationFacade;
 import org.yes.cart.service.order.OrderFlow;
 import org.yes.cart.service.vo.VoAssemblySupport;
 import org.yes.cart.service.vo.VoCustomerOrderService;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.MoneyUtils;
 
 import java.util.*;
 
@@ -71,25 +73,43 @@ public class VoCustomerOrderServiceImpl implements VoCustomerOrderService {
         this.voAssemblySupport = voAssemblySupport;
     }
 
+
+
     @Override
-    public List<VoCustomerOrderInfo> getFiltered(final String lang, final String filter, final int max) throws Exception {
+    public VoSearchResult<VoCustomerOrderInfo> getFilteredOrders(final String lang, final VoSearchContext filter) throws Exception {
 
+        final boolean removeSecureDetails = !isSecureDetailsViewable();
+
+        final VoSearchResult<VoCustomerOrderInfo> result = new VoSearchResult<>();
         final List<VoCustomerOrderInfo> results = new ArrayList<>();
+        result.setSearchContext(filter);
+        result.setItems(results);
 
-        final boolean removeSupplierDetails = !isSupplierDetailsViewable();
-
-        Map<String, String> pgNames = Collections.emptyMap();
-        int start = 0;
-        do {
-            final List<CustomerOrderDTO> batch = dtoCustomerOrderService.findBy(filter, start, max);
-            if (batch.isEmpty()) {
-                break;
-            } else if (start == 0) {
-                pgNames = dtoCustomerOrderService.getOrderPgLabels(lang);
+        final Map<String, List> all = filter.getParameters() != null ? new HashMap<>(filter.getParameters()) : new HashMap<>();
+        if (!federationFacade.isCurrentUserSystemAdmin()) {
+            final Set<Long> shopIds = federationFacade.getAccessibleShopIdsByCurrentManager();
+            if (CollectionUtils.isEmpty(shopIds)) {
+                return result;
             }
-            federationFacade.applyFederationFilter(batch, CustomerOrderDTO.class);
+            all.put("shopIds", new ArrayList(shopIds));
+        }
 
-            for (final CustomerOrderDTO order : batch) {
+        final SearchContext searchContext = new SearchContext(
+                all,
+                filter.getStart(),
+                filter.getSize(),
+                filter.getSortBy(),
+                filter.isSortDesc(),
+                "filter", "shopIds", "statuses"
+        );
+
+        final SearchResult<CustomerOrderDTO> batch = dtoCustomerOrderService.findOrders(searchContext);
+
+        if (!batch.getItems().isEmpty()) {
+
+            final Map<String, String> pgNames = dtoCustomerOrderService.getOrderPgLabels(lang);
+
+            for (final CustomerOrderDTO order : batch.getItems()) {
 
                 final VoCustomerOrderInfo vo =
                         voAssemblySupport.assembleVo(VoCustomerOrderInfo.class, CustomerOrderDTO.class, new VoCustomerOrderInfo(), order);
@@ -98,55 +118,19 @@ public class VoCustomerOrderServiceImpl implements VoCustomerOrderService {
                 vo.setOrderStatusNextOptions(determineOrderStatusNextOptions(vo));
                 vo.setOrderPaymentStatus(determinePaymentStatus(vo));
 
-                if (removeSupplierDetails) {
-                    removeOrderDetails(vo, "SUPPLIER");
+                if (removeSecureDetails) {
+                    removeSecureOrderDetails(vo);
                 }
 
                 results.add(vo);
             }
-            start++;
-        } while (results.size() < max && max != Integer.MAX_VALUE);
-        return results.size() > max ? results.subList(0, max) : results;
-    }
 
+        }
 
+        result.setTotal(batch.getTotal());
 
-    @Override
-    public List<VoCustomerOrderInfo> getFiltered(final String lang, final String filter, final List<String> statuses, final int max) throws Exception {
+        return result;
 
-        final List<VoCustomerOrderInfo> results = new ArrayList<>();
-
-        final boolean removeSupplierDetails = !isSupplierDetailsViewable();
-
-        Map<String, String> pgNames = Collections.emptyMap();
-        int start = 0;
-        do {
-            final List<CustomerOrderDTO> batch = dtoCustomerOrderService.findBy(filter, statuses, start, max);
-            if (batch.isEmpty()) {
-                break;
-            } else if (start == 0) {
-                pgNames = dtoCustomerOrderService.getOrderPgLabels(lang);
-            }
-            federationFacade.applyFederationFilter(batch, CustomerOrderDTO.class);
-
-            for (final CustomerOrderDTO order : batch) {
-
-                final VoCustomerOrderInfo vo =
-                        voAssemblySupport.assembleVo(VoCustomerOrderInfo.class, CustomerOrderDTO.class, new VoCustomerOrderInfo(), order);
-
-                vo.setPgName(pgNames.get(vo.getPgLabel()));
-                vo.setOrderStatusNextOptions(determineOrderStatusNextOptions(vo));
-                vo.setOrderPaymentStatus(determinePaymentStatus(vo));
-
-                if (removeSupplierDetails) {
-                    removeOrderDetails(vo, "SUPPLIER");
-                }
-
-                results.add(vo);
-            }
-            start++;
-        } while (results.size() < max && max != Integer.MAX_VALUE);
-        return results.size() > max ? results.subList(0, max) : results;
     }
 
 
@@ -188,26 +172,26 @@ public class VoCustomerOrderServiceImpl implements VoCustomerOrderService {
 
     }
 
-    private boolean isSupplierDetailsViewable() {
+    private boolean isSecureDetailsViewable() {
         return federationFacade.isCurrentUserSystemAdmin() || federationFacade.isCurrentUser("ROLE_SMSHOPADMIN");
     }
 
-    private void removeOrderDetails(final VoCustomerOrderInfo vo, final String displayValue) {
-        vo.getAllValues().removeIf(next -> displayValue.equals(next.getSecond().getSecond()));
+    private void removeSecureOrderDetails(final VoCustomerOrderInfo vo) {
+        vo.getAllValues().removeIf(next -> next.getAttribute().isSecure());
     }
 
-    private void removeAllDetails(final VoCustomerOrder vo, final String displayValue) {
+    private void removeAllSecureDetails(final VoCustomerOrder vo) {
 
-        removeOrderDetails(vo, displayValue);
+        removeSecureOrderDetails(vo);
 
         for (final VoCustomerOrderLine line : vo.getLines()) {
-            removeLineDetails(line, displayValue);
+            removeSecureLineDetails(line);
         }
 
     }
 
-    private void removeLineDetails(final VoCustomerOrderLine vo, final String displayValue) {
-        vo.getAllValues().removeIf(next -> displayValue.equals(next.getSecond().getSecond()));
+    private void removeSecureLineDetails(final VoCustomerOrderLine vo) {
+        vo.getAllValues().removeIf(next -> next.getAttribute().isSecure());
     }
 
     private List<String> determineOrderStatusNextOptions(final VoCustomerOrderInfo vo) {
@@ -219,7 +203,7 @@ public class VoCustomerOrderServiceImpl implements VoCustomerOrderService {
     }
 
     @Override
-    public VoCustomerOrder getById(final String lang, final long orderId) throws Exception {
+    public VoCustomerOrder getOrderById(final String lang, final long orderId) throws Exception {
 
         if (federationFacade.isManageable(orderId, CustomerOrderDTO.class)) {
 
@@ -257,14 +241,14 @@ public class VoCustomerOrderServiceImpl implements VoCustomerOrderService {
                 final List<PromotionDTO> promotions = dtoPromotionService.findByCodes(promoCodes);
                 vo.setPromotions(voAssemblySupport.assembleVos(VoPromotion.class, PromotionDTO.class, promotions));
             } else {
-                vo.setPromotions(Collections.EMPTY_LIST);
+                vo.setPromotions(Collections.emptyList());
             }
 
-            vo.setPayments(voAssemblySupport.assembleVos(VoPayment.class, CustomerOrderPayment.class, customerOrderPaymentService.findBy(vo.getOrdernum(), null, (String) null, (String) null)));
+            vo.setPayments(voAssemblySupport.assembleVos(VoPayment.class, CustomerOrderPayment.class, customerOrderPaymentService.findPayments(vo.getOrdernum(), null, (String) null, (String) null)));
 
-            final boolean removeSupplierDetails = !isSupplierDetailsViewable();
-            if (removeSupplierDetails) {
-                removeAllDetails(vo, "SUPPLIER");
+            final boolean removeSecureDetails = !isSecureDetailsViewable();
+            if (removeSecureDetails) {
+                removeAllSecureDetails(vo);
             }
 
             return vo;
@@ -315,7 +299,7 @@ public class VoCustomerOrderServiceImpl implements VoCustomerOrderService {
 
             dtoCustomerOrderService.updateOrderExportStatus(lang, id, export);
 
-            return getById(lang, id);
+            return getOrderById(lang, id);
 
         } else {
             throw new AccessDeniedException("Access is denied");

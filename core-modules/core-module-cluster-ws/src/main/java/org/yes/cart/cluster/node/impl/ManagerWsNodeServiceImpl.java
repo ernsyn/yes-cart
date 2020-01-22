@@ -25,7 +25,7 @@ import org.yes.cart.cluster.node.Node;
 import org.yes.cart.cluster.node.NodeService;
 import org.yes.cart.service.async.model.AsyncContext;
 import org.yes.cart.service.domain.SystemService;
-import org.yes.cart.util.log.Markers;
+import org.yes.cart.utils.log.Markers;
 import org.yes.cart.web.service.ws.WebServiceInboundChannel;
 import org.yes.cart.web.service.ws.WsMessage;
 import org.yes.cart.web.service.ws.client.WsClientAbstractFactory;
@@ -92,7 +92,7 @@ public class ManagerWsNodeServiceImpl extends AbstractWsNodeServiceImpl implemen
                 WebServiceInboundChannel service = factory.getService();
                 try {
                     final WsMessage rsp = service.accept(new WsMessage(wsMessage));
-                    if (rsp instanceof WsMessage) {
+                    if (rsp != null) {
                         wsMessage.addResponse(
                                 new BasicMessageImpl(
                                         rsp.getSource(),
@@ -151,7 +151,7 @@ public class ManagerWsNodeServiceImpl extends AbstractWsNodeServiceImpl implemen
 
 
     private WsClientFactory<WebServiceInboundChannel> getWebServiceInboundChannel(final AsyncContext context,
-                                                                                  final String backdoorUrl,
+                                                                                  final String connectorUrl,
                                                                                   final String timeoutKey) {
 
 
@@ -163,7 +163,7 @@ public class ManagerWsNodeServiceImpl extends AbstractWsNodeServiceImpl implemen
 
         final int timeout = NumberUtils.toInt(getConfiguration().get(timeoutKey), 1000);
 
-        return wsClientAbstractFactory.getFactory(WebServiceInboundChannel.class, userName, pwd, hashed, backdoorUrl, timeout);
+        return wsClientAbstractFactory.getFactory(WebServiceInboundChannel.class, userName, pwd, hashed, connectorUrl, timeout);
 
     }
 

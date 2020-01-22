@@ -16,6 +16,7 @@
 
 package org.yes.cart.web.service.rest;
 
+import io.swagger.annotations.Api;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +37,7 @@ import org.yes.cart.service.order.impl.CustomerTypeAdapter;
 import org.yes.cart.shoppingcart.ShoppingCart;
 import org.yes.cart.shoppingcart.ShoppingCartCommand;
 import org.yes.cart.shoppingcart.ShoppingCartCommandFactory;
-import org.yes.cart.util.RegExUtils;
+import org.yes.cart.utils.RegExUtils;
 import org.yes.cart.web.service.rest.impl.CartMixin;
 import org.yes.cart.web.service.rest.impl.RoMappingMixin;
 import org.yes.cart.web.support.service.AddressBookFacade;
@@ -53,6 +54,7 @@ import java.util.regex.Pattern;
  * Time: 14:46
  */
 @Controller
+@Api(value = "Authentication", tags = "auth")
 @RequestMapping("/auth")
 public class AuthenticationController {
 
@@ -84,7 +86,7 @@ public class AuthenticationController {
 
 
     /**
-     * Interface: GET /yes-api/rest/auth/check
+     * Interface: GET /api/rest/auth/check
      * <p>
      * <p>
      * Check interface that allows to check authentication state of user. The token for the authenticated cart is
@@ -149,7 +151,8 @@ public class AuthenticationController {
             method = RequestMethod.GET,
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody AuthenticationResultRO check(final HttpServletRequest request,
+    public @ResponseBody AuthenticationResultRO check(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                      final HttpServletRequest request,
                                                       final HttpServletResponse response) {
 
         final ShoppingCart cart = cartMixin.getCurrentCart();
@@ -183,7 +186,7 @@ public class AuthenticationController {
     }
 
     /**
-     * Interface: PUT /yes-api/rest/auth/login
+     * Interface: PUT /api/rest/auth/login
      * <p>
      * <p>
      * Login interface that allows to authenticate user cart. The token for the authenticated cart is
@@ -269,36 +272,35 @@ public class AuthenticationController {
             method = RequestMethod.PUT,
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody AuthenticationResultRO login(final @RequestBody LoginRO loginRO,
+    public @ResponseBody AuthenticationResultRO login(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                      final @RequestParam(value = "customer", required = false)  Boolean customer,
+                                                      final @RequestBody LoginRO loginRO,
                                                       final HttpServletRequest request,
                                                       final HttpServletResponse response) {
 
-        final Customer customer = customerServiceFacade.getCustomerByEmail(cartMixin.getCurrentShop(), loginRO.getUsername());
-
-        if (customer != null) {
-
+        if (customer != null && customer) {
+            executeLoginOnBehalf(loginRO.getUsername());
+        } else {
             executeLoginCommand(loginRO.getUsername(), loginRO.getPassword());
+        }
 
-            final TokenRO token = cartMixin.persistShoppingCart(request, response);
+        final TokenRO token = cartMixin.persistShoppingCart(request, response);
 
-            ShoppingCart cart = cartMixin.getCurrentCart();
-            final int logOnState = cart.getLogonState();
-            if (logOnState == ShoppingCart.LOGGED_IN) {
+        ShoppingCart cart = cartMixin.getCurrentCart();
+        final int logOnState = cart.getLogonState();
+        if (logOnState == ShoppingCart.LOGGED_IN) {
 
-                return new AuthenticationResultRO(cart.getCustomerName(), token);
-
-            }
-
-            return new AuthenticationResultRO("AUTH_FAILED");
+            return new AuthenticationResultRO(cart.getCustomerName(), token);
 
         }
 
-        return new AuthenticationResultRO("USER_FAILED");
+        return new AuthenticationResultRO("AUTH_FAILED");
+        
     }
 
 
     /**
-     * Interface: GET /yes-api/rest/auth/logout
+     * Interface: GET /api/rest/auth/logout
      * <p>
      * <p>
      * Logout interface that allows to de-authenticate user cart. The token for the authenticated cart is
@@ -356,18 +358,39 @@ public class AuthenticationController {
      */
     @RequestMapping(
             value = "/logout",
-            method = RequestMethod.GET,
+            method = RequestMethod.PUT,
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody AuthenticationResultRO logout(final HttpServletRequest request,
+    public @ResponseBody AuthenticationResultRO logout(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                       final @RequestParam(value = "customer", required = false)  Boolean customer,
+                                                       final HttpServletRequest request,
                                                        final HttpServletResponse response) {
 
         final ShoppingCart cart = cartMixin.getCurrentCart();
 
         if (cart.getLogonState() == ShoppingCart.LOGGED_IN) {
 
-            executeLogoutCommand();
-            cartMixin.persistShoppingCart(request, response);
+            if (customer != null && customer) {
+
+                executeLogoutCustomerCommand();
+
+                final TokenRO token = cartMixin.persistShoppingCart(request, response);
+
+                ShoppingCart freshCart = cartMixin.getCurrentCart();
+                final int logOnState = freshCart.getLogonState();
+                if (logOnState == ShoppingCart.LOGGED_IN) {
+
+                    return new AuthenticationResultRO(freshCart.getCustomerName(), token);
+
+                }
+
+            } else {
+                
+                executeLogoutCommand();
+                cartMixin.persistShoppingCart(request, response);
+
+            }
+
 
         }
 
@@ -377,7 +400,7 @@ public class AuthenticationController {
 
 
     /**
-     * Interface: GET /yes-api/rest/auth/register
+     * Interface: GET /api/rest/auth/register
      * <p>
      * <p>
      * Interface to list all attributes required for registration.
@@ -482,9 +505,10 @@ public class AuthenticationController {
             method = RequestMethod.GET,
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody RegisterFormRO register(final HttpServletRequest request,
-                                                 final HttpServletResponse response,
-                                                 final @RequestParam(value = "customerType", required = false) String customerType) {
+    public @ResponseBody RegisterFormRO register(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                 final @RequestParam(value = "customerType", required = false) String customerType,
+                                                 final HttpServletRequest request,
+                                                 final HttpServletResponse response) {
 
         cartMixin.persistShoppingCart(request, response);
         final Shop shop = cartMixin.getCurrentShop();
@@ -542,7 +566,7 @@ public class AuthenticationController {
 
     }
 
-    private List<AttrValueWithAttribute> getAllRegistrationAttributes(final @RequestParam(value = "customerType", required = false) String customerType, final Shop shop) {
+    private List<AttrValueWithAttribute> getAllRegistrationAttributes(final String customerType, final Shop shop) {
         final List<AttrValueWithAttribute> allReg = new ArrayList<>();
         final List<AttrValueWithAttribute> avs = customerServiceFacade.getShopRegistrationAttributes(shop, customerType);
 
@@ -567,7 +591,7 @@ public class AuthenticationController {
 
 
     /**
-     * Interface: PUT /yes-api/rest/auth/register
+     * Interface: PUT /api/rest/auth/register
      * <p>
      * <p>
      * Register interface that allows to register user. The token for the authenticated cart is
@@ -652,6 +676,8 @@ public class AuthenticationController {
      * <p>
      * <h3>Error codes</h3><p>
      * <table border="1">
+     *     <tr><td>USER_EXISTS</td><td>Customer already exists</td></tr>
+     *     <tr><td>USER_TYPE_FAILED</td><td>Unsupported customer type</td></tr>
      *     <tr><td>EMAIL_FAILED</td><td>email must be more than 6 and less than 256 chars (^[_A-Za-z0-9-]+(\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*((\.[A-Za-z]{2,}){1}$)) </td></tr>
      *     <tr><td>FIRSTNAME_FAILED</td><td>must be not blank</td></tr>
      *     <tr><td>LASTNAME_FAILED</td><td>must be not blank</td></tr>
@@ -681,16 +707,20 @@ public class AuthenticationController {
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE },
             consumes =  { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody AuthenticationResultRO register(final @RequestBody RegisterRO registerRO,
+    public @ResponseBody AuthenticationResultRO register(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                         final @RequestBody RegisterRO registerRO,
                                                          final HttpServletRequest request,
                                                          final HttpServletResponse response) {
 
         // No existing users, non-typed customers or guests allowed
-        if (customerServiceFacade.isCustomerRegistered(cartMixin.getCurrentShop(), registerRO.getEmail())
-                || StringUtils.isBlank(registerRO.getCustomerType()) || AttributeNamesKeys.Cart.CUSTOMER_TYPE_GUEST.equals(registerRO.getCustomerType())
+        if (customerServiceFacade.isCustomerRegistered(cartMixin.getCurrentShop(), registerRO.getEmail())) {
+            return new AuthenticationResultRO("USER_EXISTS");
+        }
+
+        if (StringUtils.isBlank(registerRO.getCustomerType()) || AttributeNamesKeys.Cart.CUSTOMER_TYPE_GUEST.equals(registerRO.getCustomerType())
                 || !customerServiceFacade.isShopCustomerTypeSupported(cartMixin.getCurrentShop(), registerRO.getCustomerType())) {
 
-            return new AuthenticationResultRO("USER_FAILED");
+            return new AuthenticationResultRO("USER_TYPE_FAILED");
 
         }
 
@@ -729,14 +759,14 @@ public class AuthenticationController {
                     emailAttr = av.getAttributeCode();
                 }
 
-                final String value = av.getAttributeCode().equals(emailAttr) ? registerRO.getEmail() : registerRO.getCustom().get(attr.getCode());
+                final String value = av.getAttributeCode().equals(emailAttr) ? registerRO.getEmail() : registerRO.getCustom().get(av.getAttributeCode());
 
                 final AuthenticationResultRO result = checkValid(attr, value, cart.getCurrentLocale());
                 if (result != null) {
                     return result;
                 }
 
-                data.put(attr.getCode(), value);
+                data.put(av.getAttributeCode(), value);
 
             }
         }
@@ -755,13 +785,13 @@ public class AuthenticationController {
         loginRO.setUsername(registerRO.getEmail());
         loginRO.setPassword(password);
 
-        return login(loginRO, request, response);
+        return login(requestToken, null, loginRO, request, response);
 
     }
 
 
     /**
-     * Interface: PUT /yes-api/rest/auth/guest
+     * Interface: PUT /api/rest/auth/guest
      * <p>
      * <p>
      * Guest interface that allows create guest user. The token for the authenticated cart is
@@ -875,7 +905,8 @@ public class AuthenticationController {
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE },
             consumes =  { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody AuthenticationResultRO guest(final @RequestBody RegisterRO registerRO,
+    public @ResponseBody AuthenticationResultRO guest(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                      final @RequestBody RegisterRO registerRO,
                                                       final HttpServletRequest request,
                                                       final HttpServletResponse response) {
 
@@ -951,7 +982,7 @@ public class AuthenticationController {
 
 
     /**
-     * Interface: POST /yes-api/rest/auth/resetpassword
+     * Interface: POST /api/rest/auth/resetpassword
      * <p>
      * <p>
      * Reset password interface that allows to request password to be reset and reset it.
@@ -1029,9 +1060,10 @@ public class AuthenticationController {
             method = RequestMethod.POST,
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody AuthenticationResultRO resetPassword(@RequestParam(value = "email", required = false) final String email,
-                                                              @RequestParam(value = "authToken", required = false) final String authToken,
-                                                              @RequestParam(value = "newPassword", required = false) final String newPassword,
+    public @ResponseBody AuthenticationResultRO resetPassword(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                              final @RequestParam(value = "email", required = false) String email,
+                                                              final @RequestParam(value = "authToken", required = false) String authToken,
+                                                              final @RequestParam(value = "newPassword", required = false) String newPassword,
                                                               final HttpServletRequest request,
                                                               final HttpServletResponse response) {
 
@@ -1060,7 +1092,7 @@ public class AuthenticationController {
 
 
     /**
-     * Interface: POST /yes-api/rest/auth/deleteaccount
+     * Interface: POST /api/rest/auth/deleteaccount
      * <p>
      * <p>
      * Delete account of currently logged in user.
@@ -1133,8 +1165,9 @@ public class AuthenticationController {
             method = RequestMethod.POST,
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody AuthenticationResultRO deleteAccount(@RequestParam(value = "authToken", required = false) final String authToken,
-                                                              @RequestParam(value = "password", required = false) final String password,
+    public @ResponseBody AuthenticationResultRO deleteAccount(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                              final @RequestParam(value = "authToken", required = false) String authToken,
+                                                              final @RequestParam(value = "password", required = false) String password,
                                                               final HttpServletRequest request,
                                                               final HttpServletResponse response) {
 
@@ -1147,7 +1180,7 @@ public class AuthenticationController {
             }
             return new AuthenticationResultRO("INVALID_TOKEN");
 
-        } else if (check(request, response).isAuthenticated()) {
+        } else if (check(requestToken, request, response).isAuthenticated()) {
 
             final Shop shop = cartMixin.getCurrentShop();
             final ShoppingCart cart = cartMixin.getCurrentCart();
@@ -1165,7 +1198,7 @@ public class AuthenticationController {
 
 
     /**
-     * Interface: POST /yes-api/rest/auth/signupnewsletter
+     * Interface: POST /api/rest/auth/signupnewsletter
      * <p>
      * <p>
      * Sign up for newsletter interface sends email request to shop administrator with provided
@@ -1230,7 +1263,8 @@ public class AuthenticationController {
             method = RequestMethod.POST,
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody AuthenticationResultRO signUpNewsletter(@RequestParam(value = "email", required = false) final String email,
+    public @ResponseBody AuthenticationResultRO signUpNewsletter(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                                 final @RequestParam(value = "email", required = false) String email,
                                                                  final HttpServletRequest request,
                                                                  final HttpServletResponse response) {
 
@@ -1248,7 +1282,7 @@ public class AuthenticationController {
 
     }
 
-    private AuthenticationResultRO checkValidEmail(final @RequestParam(value = "email", required = false) String email, final Shop shop) {
+    private AuthenticationResultRO checkValidEmail(final String email, final Shop shop) {
 
         final AttrValueWithAttribute emailConfig = customerServiceFacade.getShopEmailAttribute(shop);
         if (emailConfig != null) {
@@ -1272,7 +1306,7 @@ public class AuthenticationController {
     }
 
     /**
-     * Interface: POST /yes-api/rest/auth/contactus
+     * Interface: POST /api/rest/auth/contactus
      * <p>
      * <p>
      * Contact Us interface sends email request to shop administrator with provided
@@ -1337,11 +1371,12 @@ public class AuthenticationController {
             method = RequestMethod.POST,
             produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE }
     )
-    public @ResponseBody AuthenticationResultRO contactUs(@RequestParam(value = "email", required = false) final String email,
-                                                          @RequestParam(value = "name", required = false) final String name,
-                                                          @RequestParam(value = "phone", required = false) final String phone,
-                                                          @RequestParam(value = "subject", required = false) final String subject,
-                                                          @RequestParam(value = "message", required = false) final String message,
+    public @ResponseBody AuthenticationResultRO contactUs(final @RequestHeader(value = "yc", required = false) String requestToken,
+                                                          final @RequestParam(value = "email", required = false) String email,
+                                                          final @RequestParam(value = "name", required = false) String name,
+                                                          final @RequestParam(value = "phone", required = false) String phone,
+                                                          final @RequestParam(value = "subject", required = false) String subject,
+                                                          final @RequestParam(value = "message", required = false) String message,
                                                           final HttpServletRequest request,
                                                           final HttpServletResponse response) {
 
@@ -1396,12 +1431,37 @@ public class AuthenticationController {
     }
 
     /**
+     * Execute login command.
+     *
+     * @param email     customer.
+     */
+    protected void executeLoginOnBehalf(final String email) {
+        shoppingCartCommandFactory.execute(ShoppingCartCommand.CMD_LOGIN_ON_BEHALF, cartMixin.getCurrentCart(),
+                new HashMap<String, Object>() {{
+                    put(ShoppingCartCommand.CMD_LOGIN_P_EMAIL, email);
+                    put(ShoppingCartCommand.CMD_LOGIN_ON_BEHALF, ShoppingCartCommand.CMD_LOGIN_ON_BEHALF);
+                }}
+        );
+    }
+
+    /**
      * Execute logout command.
      */
     protected void executeLogoutCommand() {
         shoppingCartCommandFactory.execute(ShoppingCartCommand.CMD_LOGOUT, cartMixin.getCurrentCart(),
                 new HashMap<String, Object>() {{
                     put(ShoppingCartCommand.CMD_LOGOUT, ShoppingCartCommand.CMD_LOGOUT);
+                }}
+        );
+    }
+
+    /**
+     * Execute logout command.
+     */
+    protected void executeLogoutCustomerCommand() {
+        shoppingCartCommandFactory.execute(ShoppingCartCommand.CMD_LOGOUT_ON_BEHALF, cartMixin.getCurrentCart(),
+                new HashMap<String, Object>() {{
+                    put(ShoppingCartCommand.CMD_LOGOUT_ON_BEHALF, ShoppingCartCommand.CMD_LOGOUT_ON_BEHALF);
                 }}
         );
     }

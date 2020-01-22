@@ -20,8 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yes.cart.service.locator.InstantiationStrategy;
 import org.yes.cart.service.locator.ServiceLocator;
+import org.yes.cart.utils.MessageFormatUtils;
 
-import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,8 +73,8 @@ public class ServiceLocatorImpl implements ServiceLocator {
         final InstantiationStrategy instantiationStrategy = protocolStrategyMap.get(strategyKey);
         if (instantiationStrategy == null) {
             throw new RuntimeException(
-                    MessageFormat.format(
-                            "Instantiation strategy can not be found for key {0} from url {1}",
+                    MessageFormatUtils.format(
+                            "Instantiation strategy can not be found for key {} from url {}",
                             strategyKey,
                             serviceUrl
                     )
@@ -111,8 +111,8 @@ public class ServiceLocatorImpl implements ServiceLocator {
             return getInstantiationStrategy(serviceUrl).getInstance(serviceUrl, iface, loginName, password);
         } catch (Exception e) {
             throw new RuntimeException(
-                    MessageFormat.format
-                            ("Can not create {0} instance. Given interface is {1}. See root cause for more detail",
+                    MessageFormatUtils.format
+                            ("Can not create {} instance. Given interface is {}. See root cause for more detail",
                                     serviceUrl, iface.getName()), e);
         }
     }

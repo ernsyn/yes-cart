@@ -32,6 +32,8 @@ public interface CustomerWishList extends Auditable {
 
     String SHOPPING_LIST_ITEM = "S";
 
+    String MANAGED_LIST_ITEM = "M";
+
     String CART_SAVE_FOR_LATER = "C";
 
     String REMIND_WHEN_WILL_BE_AVAILABLE = "A";
@@ -59,19 +61,35 @@ public interface CustomerWishList extends Auditable {
      */
     void setCustomerwishlistId(long customerwishlistId);
 
-    /**
-     * Product sku
-     *
-     * @return {@link ProductSku}
-     */
-    ProductSku getSkus();
 
     /**
-     * Set {@link ProductSku}
+     * Get SKU code.
      *
-     * @param skus Product Sku
+     * @return sku
      */
-    void setSkus(ProductSku skus);
+    String getSkuCode();
+
+    /**
+     * Set SKU code.
+     *
+     * @param skuCode SKU code
+     */
+    void setSkuCode(String skuCode);
+
+
+    /**
+     * Get supplier.
+     *
+     * @return supplier
+     */
+    String getSupplierCode();
+
+    /**
+     * Set supplier.
+     *
+     * @param supplierCode supplier
+     */
+    void setSupplierCode(String supplierCode);
 
     /**
      * Get customer
@@ -131,6 +149,21 @@ public interface CustomerWishList extends Auditable {
      * @param tag space separated product tags.
      */
     void setTag(String tag);
+
+    /**
+     * Get notification email of the creator of this wishlist.
+     *
+     * @return notification email
+     */
+    String getNotificationEmail();
+
+    /**
+     * Set notification email of the creator of this wishlist.
+     *
+     * @param notificationEmail notification email
+     */
+    void setNotificationEmail(String notificationEmail);
+
 
     /**
      * Quantity in wish list.

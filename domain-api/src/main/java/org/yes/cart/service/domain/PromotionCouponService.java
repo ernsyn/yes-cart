@@ -19,6 +19,7 @@ package org.yes.cart.service.domain;
 import org.yes.cart.domain.entity.PromotionCoupon;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * User: denispavlov
@@ -30,11 +31,11 @@ public interface PromotionCouponService extends GenericService<PromotionCoupon> 
     /**
      * Get all coupons for given promotion.
      *
-     * @param promotionId promotion PK
+     * @param couponCode coupon code
      *
-     * @return list of coupons
+     * @return coupon
      */
-    List<PromotionCoupon> findByPromotionId(Long promotionId);
+    PromotionCoupon findByCode(String couponCode);
 
     /**
      * Create named coupon for given promotion with limits provided.
@@ -74,5 +75,43 @@ public interface PromotionCouponService extends GenericService<PromotionCoupon> 
      *               before usage records persisted)
      */
     void updateUsage(PromotionCoupon promotionCoupon, int offset);
+
+    /**
+     * Remove all coupons by promotion ID
+     *
+     * @param promotionId promo ID
+     */
+    void removeAll(long promotionId);
+
+
+
+    /**
+     * Find promotion coupons by given search criteria. Search will be performed using like operation.
+     *
+     * @param start             start
+     * @param offset            page size
+     * @param sort              optional sort property
+     * @param sortDescending    optional sort property direction
+     * @param filter            optional filters (e.g. name, guid)
+     *
+     * @return list of coupons.
+     */
+    List<PromotionCoupon> findPromotionCoupons(int start,
+                                               int offset,
+                                               String sort,
+                                               boolean sortDescending,
+                                               Map<String, List> filter);
+
+    /**
+     * Find promotion coupons by given search criteria. Search will be performed using like operation.
+     *
+     * @param filter            optional filters (e.g. name, guid)
+     *
+     * @return count
+     */
+    int findPromotionCouponCount(Map<String, List> filter);
+
+
+
 
 }

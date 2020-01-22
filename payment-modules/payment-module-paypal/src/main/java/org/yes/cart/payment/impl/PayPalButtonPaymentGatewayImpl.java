@@ -34,8 +34,8 @@ import org.yes.cart.payment.dto.impl.PaymentImpl;
 import org.yes.cart.service.payment.PaymentLocaleTranslator;
 import org.yes.cart.service.payment.impl.PaymentLocaleTranslatorImpl;
 import org.yes.cart.shoppingcart.Total;
-import org.yes.cart.util.HttpParamsUtils;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.HttpParamsUtils;
+import org.yes.cart.utils.MoneyUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -176,6 +176,7 @@ public class PayPalButtonPaymentGatewayImpl extends AbstractPayPalPaymentGateway
         final IPNMessage ipn = createIPNMessage(request);
 
         final boolean valid = ipn.validate();
+        final String paymentStatus = ipn.getIpnValue("payment_status");
 
         if (valid || forceProcessing) {
 
@@ -185,14 +186,18 @@ public class PayPalButtonPaymentGatewayImpl extends AbstractPayPalPaymentGateway
                 LOG.warn("Signature is not valid ... forced processing");
             }
 
-            final String paymentStatus = ipn.getIpnValue("payment_status");
-
             final boolean settled = "Completed".equalsIgnoreCase(paymentStatus);
 
-            return settled ? CallbackAware.CallbackResult.OK : CallbackAware.CallbackResult.UNSETTLED;
+            if (settled) {
+                LOG.debug("Payment result is {}: {}", paymentStatus, CallbackAware.CallbackResult.OK);
+                return CallbackAware.CallbackResult.OK;
+            }
+            LOG.debug("Payment result is {}: {}", paymentStatus, CallbackAware.CallbackResult.UNSETTLED);
+            return CallbackAware.CallbackResult.UNSETTLED;
         } else {
             LOG.debug("Signature is not valid");
         }
+        LOG.debug("Payment result is {}: {}", paymentStatus, CallbackAware.CallbackResult.FAILED);
         return CallbackAware.CallbackResult.FAILED;
 
     }
@@ -417,6 +422,8 @@ public class PayPalButtonPaymentGatewayImpl extends AbstractPayPalPaymentGateway
         }
         form.append(getHiddenFieldValue("tax_cart", payment.getTaxAmount().toPlainString()));
 
+        LOG.debug("PayPalButton form request: {}", form);
+
         return form.toString();
     }
 
@@ -470,14 +477,6 @@ public class PayPalButtonPaymentGatewayImpl extends AbstractPayPalPaymentGateway
 
         return payment;
 
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getLabel() {
-        return "payPalButtonPaymentGateway";
     }
 
     /**

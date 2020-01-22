@@ -74,20 +74,68 @@
         </property>
     </bean>
 
-    <bean id="dtoContentService" parent="txProxyTemplate">
+    <bean id="dtoContentServiceCMS1" parent="txProxyTemplate">
         <property name="target">
-            <bean class="org.yes.cart.service.dto.impl.DtoContentServiceImpl">
+            <bean class="org.yes.cart.service.dto.impl.DtoContentCMS1ServiceImpl">
                 <constructor-arg index="0" type="org.yes.cart.domain.dto.factory.DtoFactory" ref="dtoInterfaceToClassFactory"/>
                 <constructor-arg index="1" ref="contentService"/>
-                <constructor-arg index="2" ref="productTypeService"/>
-                <constructor-arg index="3" ref="dtoAttributeService"/>
-                <constructor-arg index="4" ref="attrValueEntityCategoryDao"/>
-                <constructor-arg index="5" ref="imageService"/>
-                <constructor-arg index="6" ref="fileService"/>
-                <constructor-arg index="7" ref="dtoAssemblerAdaptersRepository"/>
-                <constructor-arg index="8" ref="systemService"/>
+                <constructor-arg index="2" ref="dtoAttributeService"/>
+                <constructor-arg index="3" ref="attrValueEntityCategoryDao"/>
+                <constructor-arg index="4" ref="imageService"/>
+                <constructor-arg index="5" ref="fileService"/>
+                <constructor-arg index="6" ref="dtoAssemblerAdaptersRepository"/>
+                <constructor-arg index="7" ref="systemService"/>
+                <property name="cfgContext">
+                    <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
+                        <property name="functionalArea" value="CMS"/>
+                        <property name="name" value="dtoContentServiceCMS1"/>
+                        <property name="cfgInterface" value="DtoContentService"/>
+                        <property name="cfgDefault" value="false"/>
+                        <property name="properties">
+                            <props>
+                                <prop key="extension">SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]</prop>
+                                <prop key="description">Default service that can be overridden via system properties (Disable by commenting out in SYSTEM_EXTENSION_CFG_PROPERTIES using '#')</prop>
+                                <prop key="SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]">CMS.dtoContentService=dtoContentServiceCMS1</prop>
+                            </props>
+                        </property>
+                    </bean>
+                </property>
             </bean>
         </property>
+    </bean>
+
+    <bean id="dtoContentServiceCMS3" parent="txProxyTemplate">
+        <property name="target">
+            <bean class="org.yes.cart.service.dto.impl.DtoContentCMS3ServiceImpl">
+                <constructor-arg index="0" type="org.yes.cart.domain.dto.factory.DtoFactory" ref="dtoInterfaceToClassFactory"/>
+                <constructor-arg index="1" ref="contentService"/>
+                <constructor-arg index="2" ref="dtoAttributeService"/>
+                <constructor-arg index="3" ref="attrValueEntityContentDao"/>
+                <constructor-arg index="4" ref="imageService"/>
+                <constructor-arg index="5" ref="fileService"/>
+                <constructor-arg index="6" ref="dtoAssemblerAdaptersRepository"/>
+                <constructor-arg index="7" ref="systemService"/>
+                <property name="cfgContext">
+                    <bean class="org.yes.cart.config.impl.ConfigurationContextImpl">
+                        <property name="functionalArea" value="CMS"/>
+                        <property name="name" value="dtoContentServiceCMS3"/>
+                        <property name="cfgInterface" value="DtoContentService"/>
+                        <property name="cfgDefault" value="true"/>
+                        <property name="properties">
+                            <props>
+                                <prop key="extension">SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]</prop>
+                                <prop key="description">Default service that can be overridden via system properties (Disable by commenting out in SYSTEM_EXTENSION_CFG_PROPERTIES using '#')</prop>
+                                <prop key="SYSTEM[SYSTEM_EXTENSION_CFG_PROPERTIES]">CMS.dtoContentService=dtoContentServiceCMS3</prop>
+                            </props>
+                        </property>
+                    </bean>
+                </property>
+            </bean>
+        </property>
+    </bean>
+
+    <bean id="dtoContentService" class="org.yes.cart.service.dto.impl.DtoContentServiceFactoryImpl">
+        <constructor-arg ref="dtoContentServiceCMS3"/>
     </bean>
 
     <bean id="dtoEtypeService" parent="txProxyTemplate">
@@ -107,18 +155,19 @@
             <bean class="org.yes.cart.service.dto.impl.DtoProductServiceImpl">
                 <constructor-arg index="0" type="org.yes.cart.domain.dto.factory.DtoFactory" ref="dtoInterfaceToClassFactory"/>
                 <constructor-arg index="1" ref="productService"/>
-                <constructor-arg index="2" ref="dtoAssemblerAdaptersRepository"/>
-                <constructor-arg index="3" ref="dtoAttributeService"/>
-                <constructor-arg index="4" ref="dtoAttributeGroupService"/>
-                <constructor-arg index="5" ref="dtoEtypeService"/>
-                <constructor-arg index="6" ref="attrValueEntityProductDao"/>
-                <constructor-arg index="7" ref="productAssociationDao"/>
-                <constructor-arg index="8" ref="imageService"/>
-                <constructor-arg index="9" ref="fileService"/>
-                <constructor-arg index="10" ref="dtoProductTypeAttrService"/>
-                <constructor-arg index="11" ref="dtoProductCategoryService"/>
-                <constructor-arg index="12" ref="systemService"/>
-                <constructor-arg index="13" ref="languageService"/>
+                <constructor-arg index="2" ref="categoryService"/>
+                <constructor-arg index="3" ref="dtoAssemblerAdaptersRepository"/>
+                <constructor-arg index="4" ref="dtoAttributeService"/>
+                <constructor-arg index="5" ref="dtoAttributeGroupService"/>
+                <constructor-arg index="6" ref="dtoEtypeService"/>
+                <constructor-arg index="7" ref="attrValueEntityProductDao"/>
+                <constructor-arg index="8" ref="productAssociationDao"/>
+                <constructor-arg index="9" ref="imageService"/>
+                <constructor-arg index="10" ref="fileService"/>
+                <constructor-arg index="11" ref="dtoProductTypeAttrService"/>
+                <constructor-arg index="12" ref="dtoProductCategoryService"/>
+                <constructor-arg index="13" ref="systemService"/>
+                <constructor-arg index="14" ref="languageService"/>
                 <lookup-method name="lookupDtoProductSkuService" bean="dtoProductSkuService"/>
             </bean>
         </property>
@@ -144,14 +193,14 @@
     <bean id="dtoPriceListService" parent="txProxyTemplate">
         <property name="target">
             <bean class="org.yes.cart.service.dto.impl.DtoPriceListsServiceImpl">
-                <constructor-arg index="0" ref="dtoShopService"/>
-                <constructor-arg index="1" ref="dtoProductSkuService"/>
-                <constructor-arg index="2" ref="priceService"/>
-                <constructor-arg index="3" ref="productSkuDao"/>
-                <constructor-arg index="4" ref="carrierSlaDao"/>
-                <constructor-arg index="5" ref="shopDao"/>
-                <constructor-arg index="6" type="org.yes.cart.domain.dto.factory.DtoFactory" ref="dtoInterfaceToClassFactory"/>
-                <constructor-arg index="7" ref="dtoAssemblerAdaptersRepository"/>
+                <constructor-arg index="0" ref="dtoProductSkuService"/>
+                <constructor-arg index="1" ref="priceService"/>
+                <constructor-arg index="2" ref="productSkuDao"/>
+                <constructor-arg index="3" ref="carrierSlaDao"/>
+                <constructor-arg index="4" ref="shopDao"/>
+                <constructor-arg index="5" type="org.yes.cart.domain.dto.factory.DtoFactory" ref="dtoInterfaceToClassFactory"/>
+                <constructor-arg index="6" ref="dtoAssemblerAdaptersRepository"/>
+                <constructor-arg index="7" ref="shopService"/>
             </bean>
         </property>
     </bean>
@@ -425,11 +474,12 @@
                 <constructor-arg index="1" type="org.yes.cart.service.domain.SystemService" ref="systemService"/>
                 <constructor-arg index="2" type="org.yes.cart.service.domain.AttributeService" ref="attributeService"/>
                 <constructor-arg index="3" type="org.yes.cart.service.domain.ShopService" ref="shopService"/>
-                <constructor-arg index="4" type="org.yes.cart.dao.GenericDAO" ref="managerRoleDao"/>
-                <constructor-arg index="5" type="org.yes.cart.dao.GenericDAO" ref="roleDao"/>
-                <constructor-arg index="6" type="org.yes.cart.dao.GenericDAO" ref="shopDao"/>
-                <constructor-arg index="7" type="org.yes.cart.domain.dto.factory.DtoFactory" ref="dtoInterfaceToClassFactory"/>
-                <constructor-arg index="8" ref="dtoAssemblerAdaptersRepository"/>
+                <constructor-arg index="4" type="org.yes.cart.service.domain.CategoryService" ref="categoryService"/>
+                <constructor-arg index="5" type="org.yes.cart.dao.GenericDAO" ref="managerRoleDao"/>
+                <constructor-arg index="6" type="org.yes.cart.dao.GenericDAO" ref="roleDao"/>
+                <constructor-arg index="7" type="org.yes.cart.dao.GenericDAO" ref="shopDao"/>
+                <constructor-arg index="8" type="org.yes.cart.domain.dto.factory.DtoFactory" ref="dtoInterfaceToClassFactory"/>
+                <constructor-arg index="9" ref="dtoAssemblerAdaptersRepository"/>
             </bean>
         </property>
     </bean>
@@ -472,6 +522,7 @@
                 <constructor-arg index="0" type="org.yes.cart.domain.dto.factory.DtoFactory" ref="dtoInterfaceToClassFactory"/>
                 <constructor-arg index="1" ref="taxService"/>
                 <constructor-arg index="2" ref="dtoAssemblerAdaptersRepository"/>
+                <constructor-arg index="3" ref="shopService"/>
             </bean>
         </property>
     </bean>
@@ -481,8 +532,9 @@
             <bean class="org.yes.cart.service.dto.impl.DtoTaxConfigServiceImpl">
                 <constructor-arg index="0" type="org.yes.cart.domain.dto.factory.DtoFactory" ref="dtoInterfaceToClassFactory"/>
                 <constructor-arg index="1" ref="taxConfigService"/>
-                <constructor-arg index="2" ref="taxService"/>
-                <constructor-arg index="3" ref="dtoAssemblerAdaptersRepository"/>
+                <constructor-arg index="2" ref="dtoAssemblerAdaptersRepository"/>
+                <constructor-arg index="3" ref="taxService"/>
+                <constructor-arg index="4" ref="shopService"/>
             </bean>
         </property>
     </bean>
@@ -511,7 +563,7 @@
     </bean>
 
 
-    <bean id="dtoInterfaceToClassFactoryMapping" class="org.yes.cart.util.spring.LinkedHashMapBean">
+    <bean id="dtoInterfaceToClassFactoryMapping" class="org.yes.cart.utils.spring.LinkedHashMapBean">
         <constructor-arg>
             <map>
                 <entry key="org.yes.cart.domain.dto.ProdTypeAttributeViewGroupDTO" value="org.yes.cart.domain.dto.impl.ProdTypeAttributeViewGroupDTOImpl"/>
@@ -527,6 +579,7 @@
                 <entry key="org.yes.cart.domain.dto.ShopUrlDTO" value="org.yes.cart.domain.dto.impl.ShopUrlDTOImpl"/>
                 <entry key="org.yes.cart.domain.dto.ShopAliasDTO" value="org.yes.cart.domain.dto.impl.ShopAliasDTOImpl"/>
                 <entry key="org.yes.cart.domain.dto.CategoryDTO" value="org.yes.cart.domain.dto.impl.CategoryDTOImpl"/>
+                <entry key="org.yes.cart.domain.dto.ContentDTO" value="org.yes.cart.domain.dto.impl.ContentDTOImpl"/>
                 <entry key="org.yes.cart.domain.dto.BrandDTO" value="org.yes.cart.domain.dto.impl.BrandDTOImpl"/>
                 <entry key="org.yes.cart.domain.dto.ProductTypeDTO" value="org.yes.cart.domain.dto.impl.ProductTypeDTOImpl"/>
                 <entry key="org.yes.cart.domain.dto.ProductTypeAttrDTO" value="org.yes.cart.domain.dto.impl.ProductTypeAttrDTOImpl"/>
@@ -536,6 +589,7 @@
                 <entry key="org.yes.cart.domain.dto.ProductSkuDTO" value="org.yes.cart.domain.dto.impl.ProductSkuDTOImpl"/>
                 <entry key="org.yes.cart.domain.dto.AttrValueDTO" value="org.yes.cart.domain.dto.impl.AttrValueDTOImpl"/>
                 <entry key="org.yes.cart.domain.dto.AttrValueCategoryDTO" value="org.yes.cart.domain.dto.impl.AttrValueCategoryDTOImpl"/>
+                <entry key="org.yes.cart.domain.dto.AttrValueContentDTO" value="org.yes.cart.domain.dto.impl.AttrValueContentDTOImpl"/>
                 <entry key="org.yes.cart.domain.dto.AttrValueCustomerDTO" value="org.yes.cart.domain.dto.impl.AttrValueCustomerDTOImpl"/>
                 <entry key="org.yes.cart.domain.dto.CustomerDTO" value="org.yes.cart.domain.dto.impl.CustomerDTOImpl"/>
                 <entry key="org.yes.cart.domain.dto.CustomerCardDTO" value="org.yes.cart.domain.dto.impl.CustomerCardDTOImpl"/>
@@ -614,6 +668,12 @@
         <constructor-arg index="0" ref="productSkuDao"/>
     </bean>
 
+    <bean id="customerWishListSkuCodeToName" class="org.yes.cart.domain.dto.adapter.impl.CustomerWishListSkuCodeToNameConverter">
+        <constructor-arg index="0" ref="genericDao"/>
+    </bean>
+
+    <bean id="customerShopToMap" class="org.yes.cart.domain.dto.adapter.impl.CustomerShopToMapConverter"/>
+
     <bean id="warehouseSkuCodeToName" class="org.yes.cart.domain.dto.adapter.impl.SkuWarehouseSkuCodeToNameConverter">
         <constructor-arg index="0" ref="genericDao"/>
     </bean>
@@ -656,7 +716,11 @@
 
     <bean id="i18nStringConverter" class="org.yes.cart.domain.dto.adapter.impl.I18NStringConverter"/>
 
-    <bean id="dtoAssemblerAdaptersRepositoryMapping" class="org.yes.cart.util.spring.LinkedHashMapBean">
+    <bean id="i18nModelConverter" class="org.yes.cart.domain.dto.adapter.impl.I18NModelConverter"/>
+
+    <bean id="customValuesMapConverter" class="org.yes.cart.domain.dto.adapter.impl.CustomValuesMapConverter"/>
+
+    <bean id="dtoAssemblerAdaptersRepositoryMapping" class="org.yes.cart.utils.spring.LinkedHashMapBean">
         <constructor-arg>
             <map>
                 <entry key="bigDecimalToFloat"                  value-ref="bigDecimalToFloat"/>
@@ -664,6 +728,8 @@
                 <entry key="productTypeDTO2ProductType"         value-ref="productTypeDTO2ProductType"/>
                 <entry key="productId2Product"                  value-ref="productId2Product"/>
                 <entry key="skuId2Sku"                          value-ref="skuId2Sku"/>
+                <entry key="customerWishListSkuCodeToName"      value-ref="customerWishListSkuCodeToName"/>
+                <entry key="customerShopToMap"                  value-ref="customerShopToMap"/>
                 <entry key="warehouseSkuCodeToName"             value-ref="warehouseSkuCodeToName"/>
                 <entry key="priceSkuCodeToName"                 value-ref="priceSkuCodeToName"/>
                 <entry key="productAssociationSkuCodeToName"    value-ref="productAssociationSkuCodeToName"/>
@@ -677,6 +743,9 @@
                 <entry key="attributeDTO2Code"                  value-ref="attributeDTO2Code"/>
 
                 <entry key="i18nStringConverter"                value-ref="i18nStringConverter"/>
+                <entry key="i18nModelConverter"                 value-ref="i18nModelConverter"/>
+
+                <entry key="customValuesMapConverter"           value-ref="customValuesMapConverter"/>
 
             </map>
         </constructor-arg>

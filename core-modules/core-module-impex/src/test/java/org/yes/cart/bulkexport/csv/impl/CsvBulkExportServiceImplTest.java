@@ -65,7 +65,7 @@ public class CsvBulkExportServiceImplTest extends BaseCoreDBTestCase {
 
         if (bulkExportService == null) {
             bulkExportService = createContext().getBean("csvBulkExportService", ExportService.class);
-            xml = createContext().getBean("exportDescriptorXStreamProvider", XStreamProvider.class);
+            xml = createContext().getBean("exportCsvDescriptorXStreamProvider", XStreamProvider.class);
         }
         super.setUp();
 
@@ -103,8 +103,8 @@ public class CsvBulkExportServiceImplTest extends BaseCoreDBTestCase {
             mockery.checking(new Expectations() {{
                 // ONLY allow messages during import
                 allowing(listener).notifyPing();
-                allowing(listener).notifyPing(with(any(String.class)));
-                allowing(listener).notifyMessage(with(any(String.class)));
+                allowing(listener).notifyPing(with(any(String.class)), with(any(Object[].class)));
+                allowing(listener).notifyMessage(with(any(String.class)), with(any(Object[].class)));
             }});
 
             Set<String> importedFilesSet = new HashSet<>();
@@ -120,9 +120,9 @@ public class CsvBulkExportServiceImplTest extends BaseCoreDBTestCase {
 
             long dt = System.currentTimeMillis();
             String fileToExport = "target/attributenames-export-" + UUID.randomUUID().toString() + ".csv";
-            bulkExportService.doExport(createContext("src/test/resources/export/attributenames.xml", listener, fileToExport));
+            bulkExportService.doExport(createContext("src/test/resources/export/csv/attributenames.xml", listener, fileToExport));
             final long attrs = System.currentTimeMillis() - dt;
-            System.out.println(cntProductAttr + " attributes  in " + attrs + "millis (~" + (attrs / cntProductAttr) + " per item)");
+            System.out.println(String.format("%5d", cntProductAttr) + " attributes  in " + attrs + "millis (~" + (attrs / cntProductAttr) + " per item)");
 
             String content = FileUtils.readFileToString(new File(fileToExport), "UTF-8");
             assertTrue(content.contains("\"PRODUCT\";\"COLOR\";\"Color\";;;;\"false\";\"false\";\"Failover is: false\";\"500\";\"java.lang.String\""));
@@ -135,9 +135,9 @@ public class CsvBulkExportServiceImplTest extends BaseCoreDBTestCase {
 
             dt = System.currentTimeMillis();
             fileToExport = "target/productnames-export-" + UUID.randomUUID().toString() + ".csv";
-            bulkExportService.doExport(createContext("src/test/resources/export/productnames.xml", listener, fileToExport));
+            bulkExportService.doExport(createContext("src/test/resources/export/csv/productnames.xml", listener, fileToExport));
             final long prods = System.currentTimeMillis() - dt;
-            System.out.println(cntProd + " products in " + prods + "millis (~" + (prods / cntProd) + " per item)");
+            System.out.println(String.format("%5d", cntProd) + " products in " + prods + "millis (~" + (prods / cntProd) + " per item)");
 
 
             content = FileUtils.readFileToString(new File(fileToExport), "UTF-8");
@@ -145,7 +145,8 @@ public class CsvBulkExportServiceImplTest extends BaseCoreDBTestCase {
             assertTrue(content.contains("#IMAGE0#\t#sobot-picture.jpeg#"));
             assertTrue(content.contains(";\"sobot-picture.jpeg\";\"#101#\t#Big Boys Gadgets#\""));
             assertTrue(content.contains(";\"sobot-picture.jpeg\";;")); // AVC
-            assertTrue(content.contains(";;\"12.11\";\"11.10\"")); // PRICES
+            assertTrue(content.contains("\"PREORDER-BACK-TO-FLOW0\";\"PREORDER-BACK-TO-FLOW0\";;;\"Brand is: PreorderCompany\";\"\";\"\";\"\";;\"11.10\";\"11.10\"\n")); // PRICES
+            assertTrue(content.contains("\"PREORDER-BACK-TO-FLOW2\";\"PREORDER-BACK-TO-FLOW2\";;;\"Brand is: PreorderCompany\";\"\";\"\";\"\";;\"12.11\";\"12.11\"\n")); // PRICES
 
             mockery.assertIsSatisfied();
 

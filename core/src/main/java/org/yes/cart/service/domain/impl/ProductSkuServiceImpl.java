@@ -17,10 +17,13 @@
 package org.yes.cart.service.domain.impl;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.yes.cart.dao.GenericDAO;
 import org.yes.cart.dao.GenericFTSCapableDAO;
 import org.yes.cart.domain.dto.ProductSkuSearchResultDTO;
+import org.yes.cart.domain.dto.ProductSkuSearchResultPageDTO;
 import org.yes.cart.domain.dto.impl.ProductSkuSearchResultDTOImpl;
+import org.yes.cart.domain.dto.impl.ProductSkuSearchResultPageDTOImpl;
 import org.yes.cart.domain.entity.Product;
 import org.yes.cart.domain.entity.ProductSku;
 import org.yes.cart.domain.entity.SkuPrice;
@@ -29,11 +32,9 @@ import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.search.dao.entity.AdapterUtils;
 import org.yes.cart.search.dto.NavigationContext;
 import org.yes.cart.service.domain.ProductSkuService;
+import org.yes.cart.utils.HQLUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * User: Igor Azarny iazarny@yahoo.com
@@ -79,6 +80,77 @@ public class ProductSkuServiceImpl extends BaseGenericServiceImpl<ProductSku> im
         );
     }
 
+
+
+    private Pair<String, Object[]> findProductSkuQuery(final boolean count,
+                                                       final String sort,
+                                                       final boolean sortDescending,
+                                                       final Map<String, List> filter) {
+
+        final Map<String, List> currentFilter = filter != null ? new HashMap<>(filter) : null;
+
+        final StringBuilder hqlCriteria = new StringBuilder();
+        final List<Object> params = new ArrayList<>();
+
+        if (count) {
+            hqlCriteria.append("select count(s.skuId) from ProductSkuEntity s ");
+        } else {
+            hqlCriteria.append("select s from ProductSkuEntity s ");
+        }
+
+        final List supplierCatalogCodes = currentFilter != null ? currentFilter.remove("supplierCatalogCodes") : null;
+        if (CollectionUtils.isNotEmpty(supplierCatalogCodes)) {
+            hqlCriteria.append(" where (s.supplierCatalogCode is null or s.supplierCatalogCode in (?1)) ");
+            params.add(supplierCatalogCodes);
+        }
+
+        HQLUtils.appendFilterCriteria(hqlCriteria, params, "s", currentFilter);
+
+        if (StringUtils.isNotBlank(sort)) {
+
+            hqlCriteria.append(" order by s." + sort + " " + (sortDescending ? "desc" : "asc"));
+
+        }
+
+        return new Pair<>(
+                hqlCriteria.toString(),
+                params.toArray(new Object[params.size()])
+        );
+
+    }
+
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ProductSku> findProductSkus(final int start, final int offset, final String sort, final boolean sortDescending, final Map<String, List> filter) {
+
+        final Pair<String, Object[]> query = findProductSkuQuery(false, sort, sortDescending, filter);
+
+        return getGenericDao().findRangeByQuery(
+                query.getFirst(),
+                start, offset,
+                query.getSecond()
+        );
+
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int findProductSkuCount(final Map<String, List> filter) {
+
+        final Pair<String, Object[]> query = findProductSkuQuery(true, null, false, filter);
+
+        return getGenericDao().findCountByQuery(
+                query.getFirst(),
+                query.getSecond()
+        );
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -91,7 +163,7 @@ public class ProductSkuServiceImpl extends BaseGenericServiceImpl<ProductSku> im
      * {@inheritDoc}
      */
     @Override
-    public List<ProductSkuSearchResultDTO> getProductSkuSearchResultDTOByQuery(final NavigationContext context) {
+    public ProductSkuSearchResultPageDTO getProductSkuSearchResultDTOByQuery(final NavigationContext context) {
 
         final Pair<List<Object[]>, Integer> searchRez = ((GenericFTSCapableDAO) getGenericDao()).fullTextSearch(
                 context.getProductSkuQuery(),
@@ -110,7 +182,7 @@ public class ProductSkuServiceImpl extends BaseGenericServiceImpl<ProductSku> im
             rez.add(dto);
         }
 
-        return rez;
+        return new ProductSkuSearchResultPageDTOImpl(rez, searchRez.getSecond());
 
     }
 
@@ -190,7 +262,7 @@ public class ProductSkuServiceImpl extends BaseGenericServiceImpl<ProductSku> im
      */
     @Override
     public void removeAllWishLists(final ProductSku sku) {
-        getGenericDao().executeUpdate("REMOVE.ALL.WISHLIST.BY.SKUID", sku.getSkuId());
+        getGenericDao().executeUpdate("REMOVE.ALL.WISHLIST.BY.SKUID", sku.getCode());
     }
 
     /**

@@ -22,7 +22,7 @@ import org.yes.cart.shoppingcart.AmountCalculationStrategy;
 import org.yes.cart.shoppingcart.MutableShoppingCart;
 import org.yes.cart.shoppingcart.ShoppingCartCommand;
 import org.yes.cart.shoppingcart.ShoppingCartCommandFactory;
-import org.yes.cart.util.MoneyUtils;
+import org.yes.cart.utils.MoneyUtils;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -54,7 +54,7 @@ public class SetSkuPriceEventCommandImplTest extends BaseCoreDBTestCase {
         assertEquals(MoneyUtils.ZERO, shoppingCart.getTotal().getSubTotal());
         Map<String, String> params = new HashMap<>();
         params.put(ShoppingCartCommand.CMD_ADDTOCART, "CC_TEST1");
-        params.put(ShoppingCartCommand.CMD_ADDTOCART_P_QTY, "5");
+        params.put(ShoppingCartCommand.CMD_P_QTY, "5");
 
         commands.execute(shoppingCart, (Map) params);
         assertTrue("Expected 90.00, was: " + shoppingCart.getTotal().getListSubTotal(), (new BigDecimal("90.00")).compareTo(shoppingCart.getTotal().getListSubTotal()) == 0);

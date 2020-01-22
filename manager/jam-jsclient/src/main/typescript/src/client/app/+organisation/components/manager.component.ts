@@ -13,10 +13,15 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  */
-import { Component, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, ViewChild, Output, EventEmitter } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
 import { YcValidators } from './../../shared/validation/validators';
-import { ManagerVO, ManagerShopLinkVO, ManagerRoleLinkVO, ShopVO, RoleVO, Pair, ValidationRequestVO } from './../../shared/model/index';
+import {
+  ManagerVO, ManagerShopLinkVO, ManagerRoleLinkVO, ManagerSupplierCatalogVO,
+  ShopVO, RoleVO, ProductSupplierCatalogVO,
+  Pair, ValidationRequestVO
+} from './../../shared/model/index';
+import { ModalComponent, ModalResult, ModalAction } from './../../shared/modal/index';
 import { FormValidationEvent, Futures, Future } from './../../shared/event/index';
 import { UiUtil } from './../../shared/ui/index';
 import { LogUtil } from './../../shared/log/index';
@@ -35,6 +40,7 @@ export class ManagerComponent implements OnInit, OnDestroy {
 
   private _shops:any = {};
   private _roles:any = {};
+  private _suppliers:any = {};
 
   private availableShops:Array<Pair<ShopVO, ManagerShopLinkVO>> = [];
   private supportedShops:Array<Pair<ShopVO, ManagerShopLinkVO>> = [];
@@ -42,11 +48,23 @@ export class ManagerComponent implements OnInit, OnDestroy {
   private availableRoles:Array<Pair<RoleVO, ManagerRoleLinkVO>> = [];
   private supportedRoles:Array<Pair<RoleVO, ManagerRoleLinkVO>> = [];
 
-  private initialising:boolean = false; // tslint:disable-line:no-unused-variable
+  private availableSuppliers:Array<Pair<ProductSupplierCatalogVO, ManagerSupplierCatalogVO>> = [];
+  private supportedSuppliers:Array<Pair<ProductSupplierCatalogVO, ManagerSupplierCatalogVO>> = [];
+
   private delayedChange:Future;
 
   private managerForm:any;
-  private managerFormSub:any; // tslint:disable-line:no-unused-variable
+
+  private mustSelectShop:boolean = false;
+
+  private newSupplier:ProductSupplierCatalogVO;
+  @ViewChild('editNewSupplierCode')
+  private editNewSupplierCode:ModalComponent;
+
+  private newSupplierForm:any;
+  private validForSave:boolean = false;
+
+  private reloadCatalogue:boolean = false;
 
   constructor(fb: FormBuilder) {
     LogUtil.debug('ManagerComponent constructed');
@@ -75,10 +93,17 @@ export class ManagerComponent implements OnInit, OnDestroy {
       'lastName': ['', YcValidators.requiredNonBlankTrimmed128],
       'managerShops': [''],
       'managerRoles': [''],
+      'managerSupplierCatalogs': [''],
       'companyName1': ['', YcValidators.nonBlankTrimmed255],
       'companyName2': ['', YcValidators.nonBlankTrimmed255],
       'companyDepartment': ['', YcValidators.nonBlankTrimmed255],
     });
+
+    this.newSupplierForm = fb.group({
+      'code': ['', YcValidators.requiredValidCode]
+    });
+
+    this.newSupplier = this.newSupplierInstance();
 
     this.delayedChange = Futures.perpetual(function() {
       that.formChange();
@@ -86,45 +111,71 @@ export class ManagerComponent implements OnInit, OnDestroy {
   }
 
   formBind():void {
-    UiUtil.formBind(this, 'managerForm', 'managerFormSub', 'delayedChange', 'initialising');
+    UiUtil.formBind(this, 'managerForm', 'delayedChange');
   }
 
   formUnbind():void {
-    UiUtil.formUnbind(this, 'managerFormSub');
+    UiUtil.formUnbind(this, 'managerForm');
   }
 
   formChange():void {
     LogUtil.debug('ManagerComponent formChange', this.managerForm.valid, this._manager);
-    this.dataChanged.emit({ source: this._manager, valid: this.managerForm.valid });
+    this.dataChanged.emit({ source: this._manager, valid: this.managerForm.valid && !this.mustSelectShop });
   }
 
   formMarkDirty(field:string):void {
     UiUtil.formMarkFieldDirty(this, 'managerForm', field);
   }
 
+
+  formBindAdd():void {
+    UiUtil.formBind(this, 'newSupplierForm', 'formChangeAdd', false);
+  }
+
+  formUnbindAdd():void {
+    UiUtil.formUnbind(this, 'newSupplierForm');
+  }
+
+  formChangeAdd():void {
+    LogUtil.debug('ManagerComponent formChangeAdd', this.newSupplierForm.valid, this.newSupplier);
+    this.validForSave = this.newSupplierForm.valid;
+  }
+
+
   @Input()
   set shops(shops:Array<ShopVO>) {
-    shops.forEach(shop => {
-      this._shops['S' + shop.shopId] = shop;
-    });
+    if (shops != null) {
+      shops.forEach(shop => {
+        this._shops['S' + shop.shopId] = shop;
+      });
+    }
     LogUtil.debug('ManagerComponent mapped shops', this._shops);
   }
 
   @Input()
   set roles(roles:Array<RoleVO>) {
     roles.forEach(role => {
-      this._roles['R' + role.roleId] = role;
+      this._roles[role.code] = role;
     });
     LogUtil.debug('ManagerComponent mapped roles', this._roles);
   }
 
   @Input()
+  set suppliers(suppliers:Array<ProductSupplierCatalogVO>) {
+    suppliers.forEach(supplier => {
+      this._suppliers[supplier.code] = supplier;
+    });
+    LogUtil.debug('ManagerComponent mapped suppliers', this._suppliers);
+  }
+
+  @Input()
   set manager(manager:ManagerVO) {
 
-    UiUtil.formInitialise(this, 'initialising', 'managerForm', '_manager', manager, manager != null && manager.managerId > 0, ['email']);
+    UiUtil.formInitialise(this, 'managerForm', '_manager', manager, manager != null && manager.managerId > 0, ['email']);
 
     this.recalculateShops();
     this.recalculateRoles();
+    this.recalculateSuppliers();
   }
 
   get manager():ManagerVO {
@@ -155,7 +206,7 @@ export class ManagerComponent implements OnInit, OnDestroy {
   onSupportedRoleClick(supported:Pair<RoleVO, ManagerRoleLinkVO>) {
     LogUtil.debug('ManagerComponent remove supported role', supported);
     let idx = this._manager.managerRoles.findIndex(link =>
-      link.roleId == supported.first.roleId
+      link.code == supported.first.code
     );
     if (idx != -1) {
       this._manager.managerRoles.splice(idx, 1);
@@ -173,19 +224,77 @@ export class ManagerComponent implements OnInit, OnDestroy {
     this.formChange();
   }
 
+  onSupportedSupplierClick(supported:Pair<ProductSupplierCatalogVO, ManagerSupplierCatalogVO>) {
+    LogUtil.debug('ManagerComponent remove supported supplier', supported);
+    let idx = this._manager.managerSupplierCatalogs.findIndex(link =>
+      link.code == supported.first.code
+    );
+    if (idx != -1) {
+      this._manager.managerSupplierCatalogs.splice(idx, 1);
+      this.recalculateSuppliers();
+      this.formMarkDirty('managerSupplierCatalogs');
+      this.formChange();
+    }
+  }
+
+  onAvailableSupplierClick(available:Pair<ProductSupplierCatalogVO, ManagerSupplierCatalogVO>) {
+    LogUtil.debug('ManagerComponent add supported supplier', available);
+    this._manager.managerSupplierCatalogs.push(available.second);
+    this.recalculateSuppliers();
+    this.formMarkDirty('managerSupplierCatalogs');
+    this.formChange();
+  }
+
+  onCategoriesDataChanged(event:any) {
+    LogUtil.debug('ManagerComponent cat data changed', this._manager, event);
+    this._manager.managerCategoryCatalogs = event;
+    this.delayedChange.delay();
+  }
+
   ngOnInit() {
     LogUtil.debug('ManagerComponent ngOnInit');
     this.formBind();
+    this.formBindAdd();
   }
 
   ngOnDestroy() {
     LogUtil.debug('ManagerComponent ngOnDestroy');
     this.formUnbind();
+    this.formUnbindAdd();
   }
 
   tabSelected(tab:any) {
     LogUtil.debug('ManagerComponent tabSelected', tab);
+    this.reloadCatalogue = tab === 'Catalogue';
   }
+
+  newSupplierInstance():ProductSupplierCatalogVO {
+    return { code: '' };
+  }
+
+  /**
+   * Create new supplier.
+   */
+  createNew() {
+    LogUtil.debug('ManagerComponent createNew');
+    this.validForSave = false;
+    UiUtil.formInitialise(this, 'newSupplierForm', 'newSupplier', this.newSupplierInstance());
+    this.editNewSupplierCode.show();
+  }
+
+  /**
+   * Handle result of new supplier modal dialog.
+   * @param modalresult
+   */
+  editNewSupplierCodeResult(modalresult:ModalResult) {
+    LogUtil.debug('ManagerComponent editNewCategoryNameModalResult modal result', modalresult);
+    if (ModalAction.POSITIVE === modalresult.action) {
+      let supplier:ProductSupplierCatalogVO = { code: this.newSupplier.code };
+      this._suppliers[supplier.code] = supplier;
+      this.onAvailableSupplierClick({ first: supplier, second: { managerId: this.manager.managerId, code: supplier.code }});
+    }
+  }
+
 
   private recalculateShops():void {
 
@@ -196,6 +305,8 @@ export class ManagerComponent implements OnInit, OnDestroy {
       this.availableShops = this.getAvailableShopNames();
       this.supportedShops = [];
     }
+
+    this.mustSelectShop = this._manager != null && !(this._manager.managerId > 0) && (this._manager.managerShops == null || this._manager.managerShops.length == 0);
   }
 
   private recalculateRoles():void {
@@ -206,6 +317,17 @@ export class ManagerComponent implements OnInit, OnDestroy {
     } else {
       this.availableRoles = this.getAvailableRoleNames();
       this.supportedRoles = [];
+    }
+  }
+
+  private recalculateSuppliers():void {
+
+    if (this._manager) {
+      this.availableSuppliers = this.getAvailableSupplierNames();
+      this.supportedSuppliers = this.getSupportedSupplierNames();
+    } else {
+      this.availableSuppliers = this.getAvailableSupplierNames();
+      this.supportedSuppliers = [];
     }
   }
 
@@ -266,7 +388,7 @@ export class ManagerComponent implements OnInit, OnDestroy {
     let skipKeys = <Array<string>>[];
     if (supported) {
       supported.forEach(managerrole => {
-        skipKeys.push('R' + managerrole.roleId);
+        skipKeys.push(managerrole.code);
       });
     }
     LogUtil.debug('ManagerComponent supported roles', skipKeys);
@@ -277,7 +399,7 @@ export class ManagerComponent implements OnInit, OnDestroy {
         let role = this._roles[key];
         labels.push({
           first: role,
-          second: { managerId: this._manager != null ? this._manager.managerId : 0, roleId: role.roleId, code: '-' }
+          second: { managerId: this._manager != null ? this._manager.managerId : 0, code: role.code }
         });
       }
     }
@@ -295,7 +417,7 @@ export class ManagerComponent implements OnInit, OnDestroy {
     let keepKeys = <Array<string>>[];
     if (supported) {
       supported.forEach(managerrole => {
-        keepKeys.push('R' + managerrole.roleId);
+        keepKeys.push(managerrole.code);
       });
     }
     LogUtil.debug('ManagerComponent supported roles', keepKeys);
@@ -315,6 +437,67 @@ export class ManagerComponent implements OnInit, OnDestroy {
     });
 
     LogUtil.debug('ManagerComponent supported roles', labels);
+    return labels;
+  }
+
+  private getAvailableSupplierNames():Array<Pair<ProductSupplierCatalogVO, ManagerSupplierCatalogVO>> {
+
+    let supported = this._manager != null ? this._manager.managerSupplierCatalogs : [];
+    let skipKeys = <Array<string>>[];
+    if (supported) {
+      supported.forEach(managersup => {
+        skipKeys.push(managersup.code);
+      });
+    }
+    LogUtil.debug('ManagerComponent supported suppliers', skipKeys);
+
+    let labels = <Array<Pair<ProductSupplierCatalogVO, ManagerSupplierCatalogVO>>>[];
+    for (let key in this._suppliers) {
+      if (skipKeys.indexOf(key) == -1) {
+        let supplier = this._suppliers[key];
+        labels.push({
+          first: supplier,
+          second: { managerId: this._manager != null ? this._manager.managerId : 0, code: supplier.code }
+        });
+      }
+    }
+
+    labels.sort((a, b) => {
+      return (a.first.code.toLowerCase() < b.first.code.toLowerCase()) ? -1 : 1;
+    });
+
+    LogUtil.debug('ManagerComponent available suppliers', labels);
+    return labels;
+  }
+
+  private getSupportedSupplierNames():Array<Pair<ProductSupplierCatalogVO, ManagerSupplierCatalogVO>> {
+    let supported = this._manager.managerSupplierCatalogs;
+    let keepKeys = <Array<string>>[];
+    if (supported) {
+      supported.forEach(managersup => {
+        keepKeys.push(managersup.code);
+        if (!this._suppliers.hasOwnProperty(managersup.code)) {
+          this._suppliers[managersup.code] = { code: managersup.code };
+        }
+      });
+    }
+    LogUtil.debug('ManagerComponent supported suppliers', keepKeys);
+
+    let labels = <Array<Pair<ProductSupplierCatalogVO, ManagerSupplierCatalogVO>>>[];
+    for (let key in this._suppliers) {
+      let idx = keepKeys.indexOf(key);
+      if (idx != -1) {
+        let supplier = this._suppliers[key];
+        let managerSupplier = this._manager.managerSupplierCatalogs[idx];
+        labels.push({ first: supplier, second: managerSupplier });
+      }
+    }
+
+    labels.sort((a, b) => {
+      return (a.first.code.toLowerCase() < b.first.code.toLowerCase()) ? -1 : 1;
+    });
+
+    LogUtil.debug('ManagerComponent supported suppliers', labels);
     return labels;
   }
 

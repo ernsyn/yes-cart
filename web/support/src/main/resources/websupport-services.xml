@@ -36,29 +36,12 @@
     <import resource="classpath:payment-api.xml"/>
     <import resource="classpath:core-payments.xml"/>
     <import resource="classpath:core-orderstate.xml"/>
+    <import resource="classpath:core-reports.xml"/>
 
     <!-- ################################## Category , Product and Sku image services begin ######################## -->
 
-    <bean id="categoryImageAttributeStrategy"
-          class="org.yes.cart.web.support.service.impl.CategoryImageRetrieveStrategyAttributeImpl">
-        <constructor-arg index="0" value="CATEGORY_IMAGE"/>
-    </bean>
-
-    <bean id="categoryImageRandomProduct"
-          class="org.yes.cart.web.support.service.impl.CategoryImageRetrieveStrategyRandomProductImpl">
-        <constructor-arg index="0" ref="productService"/>
-        <constructor-arg index="1" value="IMAGE0"/>
-    </bean>
-
     <bean id="categoryImageService" class="org.yes.cart.web.support.service.impl.CategoryImageServiceImpl">
-        <constructor-arg index="0">
-            <map>
-                <entry key="ATTRIBUTE" value-ref="categoryImageAttributeStrategy"/>
-                <entry key="RANDOM_PRODUCT" value-ref="categoryImageRandomProduct"/>
-            </map>
-        </constructor-arg>
-        <constructor-arg index="1" value="ATTRIBUTE"/>
-        <constructor-arg index="2" ref="cacheManager"/>
+        <constructor-arg index="0" ref="cacheManager"/>
     </bean>
 
     <bean id="categoryFileService" class="org.yes.cart.web.support.service.impl.CategoryFileServiceImpl">
@@ -89,20 +72,15 @@
         <constructor-arg index="0" ref="cacheManager"/>
     </bean>
 
-
-    <!-- ############################ Category , Product and Sku image services end ############################### -->
-
-    <!-- ############################ Reports for web start ####################################################### -->
-
-    <bean id="reportGenerator" class="org.yes.cart.report.impl.WebReportGeneratorImpl">
-        <constructor-arg index="0" ref="themeService"/>
-        <constructor-arg index="1" ref="shopService"/>
-        <constructor-arg index="2" ref="contentService"/>
-        <constructor-arg index="3" ref="systemService"/>
-        <constructor-arg index="4" ref="imageService"/>
+    <bean id="contentImageService" class="org.yes.cart.web.support.service.impl.ContentImageServiceImpl">
+        <constructor-arg index="0" ref="cacheManager"/>
     </bean>
 
-    <!-- ############################ Reports for web start end ################################################### -->
+    <bean id="contentFileService" class="org.yes.cart.web.support.service.impl.ContentFileServiceImpl">
+        <constructor-arg index="0" ref="cacheManager"/>
+    </bean>
+
+    <!-- ############################ Category , Product and Sku image services end ############################### -->
 
     <!-- ############################ Facades for web start ####################################################### -->
 
@@ -120,6 +98,11 @@
         <constructor-arg index="4" ref="passPhraseGenerator"/>
         <constructor-arg index="5" ref="shopCustomerCustomisationSupport"/>
         <constructor-arg index="6" ref="shopAddressCustomisationSupport"/>
+    </bean>
+
+    <bean id="managerServiceFacade" class="org.yes.cart.web.support.service.impl.ManagerServiceFacadeImpl">
+        <constructor-arg index="0" ref="customerService"/>
+        <constructor-arg index="1" ref="shopService"/>
     </bean>
 
     <bean id="promotionFacade" class="org.yes.cart.web.support.service.impl.PromotionFacadeImpl">
@@ -142,7 +125,7 @@
         <constructor-arg index="4" ref="carrierSlaService"/>
         <constructor-arg index="5" ref="paymentProcessorFactory"/>
         <constructor-arg index="6" ref="paymentModulesManager"/>
-        <constructor-arg index="7" ref="reportGenerator"/>
+        <constructor-arg index="7" ref="reportGeneratorPDF"/>
     </bean>
 
     <bean id="categoryServiceFacade"  class="org.yes.cart.web.support.service.impl.CategoryServiceFacadeImpl">
@@ -186,6 +169,7 @@
         </description>
         <property name="corePoolSize" value="1"/>
         <property name="maxPoolSize" value="10"/>
+        <property name="threadNamePrefix" value="[websupport-email]-"/>
     </bean>
 
     <bean id="customerNewsletterAspect" class="org.yes.cart.web.aspect.NewsletterAspect">
@@ -196,6 +180,13 @@
     </bean>
 
     <bean id="customerContactFormAspect" class="org.yes.cart.web.aspect.ContactFormAspect">
+        <constructor-arg index="0" ref="aspectExecutor"/>
+        <constructor-arg index="1" ref="mailService"/>
+        <constructor-arg index="2" ref="mailComposer"/>
+        <constructor-arg index="3" ref="themeService"/>
+    </bean>
+
+    <bean id="managedListAspect" class="org.yes.cart.web.aspect.ManagedListAspect">
         <constructor-arg index="0" ref="aspectExecutor"/>
         <constructor-arg index="1" ref="mailService"/>
         <constructor-arg index="2" ref="mailComposer"/>

@@ -16,12 +16,19 @@
 
 package org.yes.cart.service.vo.impl;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.NumberUtils;
 import org.springframework.security.access.AccessDeniedException;
 import org.yes.cart.domain.dto.PriceListDTO;
 import org.yes.cart.domain.dto.ShopDTO;
 import org.yes.cart.domain.dto.impl.PriceListDTOImpl;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.domain.vo.VoPriceList;
+import org.yes.cart.domain.vo.VoSearchContext;
+import org.yes.cart.domain.vo.VoSearchResult;
 import org.yes.cart.service.dto.DtoPriceListsService;
+import org.yes.cart.service.dto.impl.FilterSearchUtils;
 import org.yes.cart.service.federation.FederationFacade;
 import org.yes.cart.service.vo.VoAssemblySupport;
 import org.yes.cart.service.vo.VoPriceService;
@@ -55,25 +62,44 @@ public class VoPriceServiceImpl implements VoPriceService {
      * {@inheritDoc}
      */
     @Override
-    public List<VoPriceList> getFiltered(final long shopId, final String currency, final String filter, final int max) throws Exception {
+    public VoSearchResult<VoPriceList> getFilteredPrices(final VoSearchContext filter) throws Exception {
 
-        final List<VoPriceList> list = new ArrayList<>();
+        final VoSearchResult<VoPriceList> result = new VoSearchResult<>();
+        final List<VoPriceList> results = new ArrayList<>();
+        result.setSearchContext(filter);
+        result.setItems(results);
 
-        if (federationFacade.isManageable(shopId, ShopDTO.class)) {
+        final String shopCode = FilterSearchUtils.getStringFilter(filter.getParameters().get("shopCode"));
+        final String currency = FilterSearchUtils.getStringFilter(filter.getParameters().get("currency"));
 
-            final List<PriceListDTO> dtos = dtoPriceListsService.findBy(shopId, currency, filter, 0, max);
-            return voAssemblySupport.assembleVos(VoPriceList.class, PriceListDTO.class, dtos);
+        if (federationFacade.isManageable(shopCode, ShopDTO.class) && StringUtils.isNotBlank(currency)) {
 
+            final SearchContext searchContext = new SearchContext(
+                    filter.getParameters(),
+                    filter.getStart(),
+                    filter.getSize(),
+                    filter.getSortBy(),
+                    filter.isSortDesc(),
+                    "filter", "shopCode", "currency"
+            );
+
+
+            final SearchResult<PriceListDTO> batch = dtoPriceListsService.findPrices(searchContext);
+            if (!batch.getItems().isEmpty()) {
+                results.addAll(voAssemblySupport.assembleVos(VoPriceList.class, PriceListDTO.class, batch.getItems()));
+            }
+
+            result.setTotal(batch.getTotal());
         }
 
-        return list;
+        return result;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public VoPriceList getById(final long id) throws Exception {
+    public VoPriceList getPriceById(final long id) throws Exception {
         final PriceListDTO dto = dtoPriceListsService.getById(id);
         if (federationFacade.isManageable(dto.getShopCode(), ShopDTO.class)) {
             return voAssemblySupport.assembleVo(VoPriceList.class, PriceListDTO.class, new VoPriceList(), dto);
@@ -86,7 +112,7 @@ public class VoPriceServiceImpl implements VoPriceService {
      * {@inheritDoc}
      */
     @Override
-    public VoPriceList update(final VoPriceList vo) throws Exception {
+    public VoPriceList updatePrice(final VoPriceList vo) throws Exception {
         final PriceListDTO dto = dtoPriceListsService.getById(vo.getSkuPriceId());
         if (dto != null && federationFacade.isManageable(dto.getShopCode(), ShopDTO.class)) {
             dtoPriceListsService.updatePrice(
@@ -95,20 +121,20 @@ public class VoPriceServiceImpl implements VoPriceService {
         } else {
             throw new AccessDeniedException("Access is denied");
         }
-        return getById(vo.getSkuPriceId());
+        return getPriceById(vo.getSkuPriceId());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public VoPriceList create(final VoPriceList vo) throws Exception {
+    public VoPriceList createPrice(final VoPriceList vo) throws Exception {
         if (federationFacade.isManageable(vo.getShopCode(), ShopDTO.class)) {
             PriceListDTO dto = new PriceListDTOImpl();
             dto = dtoPriceListsService.createPrice(
                     voAssemblySupport.assembleDto(PriceListDTO.class, VoPriceList.class, dto, vo)
             );
-            return getById(dto.getSkuPriceId());
+            return getPriceById(dto.getSkuPriceId());
         } else {
             throw new AccessDeniedException("Access is denied");
         }
@@ -118,9 +144,9 @@ public class VoPriceServiceImpl implements VoPriceService {
      * {@inheritDoc}
      */
     @Override
-    public void remove(final long id) throws Exception {
+    public void removePrice(final long id) throws Exception {
 
-        getById(id); // check access
+        getPriceById(id); // check access
         dtoPriceListsService.removePrice(id);
 
     }

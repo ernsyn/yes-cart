@@ -18,6 +18,7 @@ package org.yes.cart.domain.dto;
 
 import org.yes.cart.domain.entity.Brand;
 import org.yes.cart.domain.entity.Identifiable;
+import org.yes.cart.domain.i18n.I18NModel;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,28 +33,17 @@ public interface ProductSearchResultDTO extends Identifiable {
 
     /**
      * Get product id.
+     *
      * @return product id.
      */
     @Override
     long getId();
 
     /**
-     * Set product id.
-     * @param id product id.
-     */
-    void setId(long id);
-
-    /**
      * Get product code.
      * @return product code.
      */
     String getCode();
-
-    /**
-     * Set product code.
-     * @param code product code.
-     */
-    void setCode(String code);
 
     /**
      * Get the non unique product code.
@@ -63,26 +53,11 @@ public interface ProductSearchResultDTO extends Identifiable {
     String getManufacturerCode();
 
     /**
-     * Manufacturer non unique product code.
-     * Limitation code must not contains underscore
-     *
-     * @param code manufacturer code
-     */
-    void setManufacturerCode(String code);
-
-    /**
      * Fulfilment center for given search result.
      *
      * @return fulfilment centre code for this result
      */
     String getFulfilmentCentreCode();
-
-    /**
-     * Fulfilment center for given search result.
-     *
-     * @param code fulfilment centre code for this result
-     */
-    void setFulfilmentCentreCode(String code);
 
     /**
      * Get the space separated product tags. For example
@@ -93,13 +68,6 @@ public interface ProductSearchResultDTO extends Identifiable {
      * @return space separated product tags
      */
     String getTag();
-
-    /**
-     * Set space separated product tags.
-     *
-     * @param tag space separated product tags.
-     */
-    void setTag(String tag);
 
 
     /**
@@ -112,16 +80,6 @@ public interface ProductSearchResultDTO extends Identifiable {
     String getBrand();
 
     /**
-     * Set {@link Brand} of product.
-     *
-     * NOTE: this is search index value, which lower case
-     *
-     * @param brand {@link Brand} of product.
-     */
-    void setBrand(String brand);
-
-
-    /**
      * Get multi SKU flag.
      *
      * @return true if this product has multiple SKU
@@ -129,27 +87,17 @@ public interface ProductSearchResultDTO extends Identifiable {
     boolean isMultisku();
 
     /**
-     * Set multi SKU flag.
-     *
-     * @param multisku true if this product has multiple SKU
-     */
-    void setMultisku(boolean multisku);
-
-    /**
      * Get product default sku code.
+     *
      * @return product default sku code.
      */
     String getDefaultSkuCode();
 
     /**
-     * Set product default sku code.
-     * @param defaultSkuCode product default sku code.
-     */
-    void setDefaultSkuCode(String defaultSkuCode);
-
-    /**
      * Get product name by specified locale.
+     *
      * @param locale given locale
+     *
      * @return product name.
      */
     String getName(final String locale);
@@ -161,23 +109,34 @@ public interface ProductSearchResultDTO extends Identifiable {
     String getName();
 
     /**
-     * Set product name.
-     * @param name product name.
+     * Get display name, which is hold localization failover.
+     *
+     * @return display name.
      */
-    void setName(String name);
+    I18NModel getDisplayName();
+
+    /**
+     * Get localized description.
+     *
+     * @param locale locale.
+     *
+     * @return localized description
+     */
+    String getDescription(String locale);
 
     /**
      * Get product description.
+     *
      * @return product description.
      */
     String getDescription();
 
     /**
-     * Set product description.
-     * @param description product description.
+     * Get localized raw value
+     *
+     * @return localized raw value
      */
-    void setDescription(String description);
-
+    I18NModel getDisplayDescription();
 
     /**
      * Get start of product availability.
@@ -190,13 +149,6 @@ public interface ProductSearchResultDTO extends Identifiable {
     LocalDateTime getAvailablefrom();
 
     /**
-     * Set start of product availability.
-     *
-     * @param availablefrom start of product availability.
-     */
-    void setAvailablefrom(LocalDateTime availablefrom);
-
-    /**
      * Get end of product availability.
      * Null - product has not end date, means no limitation.
      *
@@ -207,11 +159,35 @@ public interface ProductSearchResultDTO extends Identifiable {
     LocalDateTime getAvailableto();
 
     /**
-     * Set end of product availability.
+     * Get product release date.
+     * Null - product has no release date (already available).
      *
-     * @param availableto end of product availability.
+     * @return product release date.
      */
-    void setAvailableto(LocalDateTime availableto);
+    LocalDateTime getReleaseDate();
+
+    /**
+     * Get restock date.
+     *
+     * @return product restock date.
+     */
+    LocalDateTime getRestockDate();
+
+    /**
+     * Get restock note.
+     *
+     * @param locale locale
+     *
+     * @return restock note
+     */
+    String getRestockNote(String locale);
+
+    /**
+     * Get restock notes.
+     *
+     * @return restock notes
+     */
+    I18NModel getRestockNotes();
 
     /**
      * Set product availability. See ProductEntity fields for more details.
@@ -220,22 +196,10 @@ public interface ProductSearchResultDTO extends Identifiable {
     int getAvailability();
 
     /**
-     * Set product availability.
-     * @param availability product availability.
-     */
-    void setAvailability(int availability);
-
-    /**
      * Get available quantity on warehouses.
      * @return available qty on all warehouses.
      */
     Map<String, BigDecimal> getQtyOnWarehouse(long shop);
-
-    /**
-     * Set available qty on all warehouses.
-     * @param qty quantity.
-     */
-    void setQtyOnWarehouse(Map<Long, Map<String, BigDecimal>> qty);
 
     /**
      * Get default image, under IMAGE0 attribute.
@@ -244,78 +208,27 @@ public interface ProductSearchResultDTO extends Identifiable {
     String getDefaultImage();
 
     /**
-     * Set default image.
-     * @param defaultImage default image.
-     */
-    void setDefaultImage(String defaultImage);
-
-
-    /**
-     * Get display name, which is hold localization failover.
-     * @return display name.
-     */
-    String getDisplayName();
-
-    /**
-     * Set display name.
-     * @param displayName display name.
-     */
-    void setDisplayName(String displayName);
-
-
-    /**
-     * Get localized description.
-     * @param locale locale.
-     * @return localized description
-     */
-    String getDescription(String locale);
-
-
-    /**
-     * Get localized raw value
-     * @return localized raw value
-     */
-    String getDisplayDescription();
-
-    /**
-     * Set raw localized value for description.
+     * Get product type by specified locale.
      *
-     * @param displayDescription localized raw value
-     */
-    void setDisplayDescription(String displayDescription);
-
-
-    /**
-     * Get product name by specified locale.
      * @param locale given locale
-     * @return product name.
+     *
+     * @return product type.
      */
     String getType(final String locale);
 
     /**
      * Get product type.
+     *
      * @return product type.
      */
     String getType();
 
     /**
-     * Set product type.
-     * @param type product type.
-     */
-    void setType(String type);
-
-    /**
      * Get product type.
+     *
      * @return product type.
      */
-    String getDisplayType();
-
-    /**
-     * Set product type.
-     * @param type product type.
-     */
-    void setDisplayType(String type);
-
+    I18NModel getDisplayType();
 
     /**
      * Is this product type service.
@@ -325,13 +238,6 @@ public interface ProductSearchResultDTO extends Identifiable {
     boolean isService();
 
     /**
-     * Set this product type as service. For example - Gift wrap
-     *
-     * @param service service flag to set.
-     */
-    void setService(boolean service);
-
-    /**
      * Is this product type ensemble.
      *
      * @return true if ensemble
@@ -339,26 +245,11 @@ public interface ProductSearchResultDTO extends Identifiable {
     boolean isEnsemble();
 
     /**
-     * Set product type to ensemble
-     *
-     * @param ensemble true is ensemble
-     */
-    void setEnsemble(boolean ensemble);
-
-    /**
      * Is this product type can be shipped
      *
      * @return true if product shippable
      */
     boolean isShippable();
-
-
-    /**
-     * Set product type to shippable.
-     *
-     * @param shippable true if shippable
-     */
-    void setShippable(boolean shippable);
 
     /**
      * Is product digital.
@@ -368,25 +259,11 @@ public interface ProductSearchResultDTO extends Identifiable {
     boolean isDigital();
 
     /**
-     * Set digital flag to product.
-     *
-     * @param digital flag to set
-     */
-    void setDigital(boolean digital);
-
-    /**
      * Is digital product downloadable ?
      *
      * @return true in case if digital product can be downloaded.
      */
     boolean isDownloadable();
-
-    /**
-     * Set downloadable flag.
-     *
-     * @param downloadable flag to set.
-     */
-    void setDownloadable(boolean downloadable);
 
 
     /**
@@ -394,14 +271,7 @@ public interface ProductSearchResultDTO extends Identifiable {
      *
      * @return set featured flag.
      */
-    Boolean getFeatured();
-
-    /**
-     * Set product featured flag.
-     *
-     * @param featured featured flag.
-     */
-    void setFeatured(Boolean featured);
+    boolean isFeatured();
 
 
     /**
@@ -412,21 +282,11 @@ public interface ProductSearchResultDTO extends Identifiable {
     BigDecimal getMinOrderQuantity();
 
     /**
-     * @param minOrderQuantity minimal quantity for order.
-     */
-    void setMinOrderQuantity(BigDecimal minOrderQuantity);
-
-    /**
      * Get maximum quantity for order. E.g. 5.0 means customer can only buy up to 5
      *
      * @return maximum order quantity
      */
     BigDecimal getMaxOrderQuantity();
-
-    /**
-     * @param maxOrderQuantity maximum quantity for order.
-     */
-    void setMaxOrderQuantity(BigDecimal maxOrderQuantity);
 
     /**
      * Get step quantity for order. E.g. 5.0 means customer can only buy in batches of 5 - 5, 10, 15
@@ -437,23 +297,32 @@ public interface ProductSearchResultDTO extends Identifiable {
     BigDecimal getStepOrderQuantity();
 
     /**
-     * @param stepOrderQuantity step quantity for order.
+     * Get SKUs defined for this product.
+     *
+     * @return list of SKU
      */
-    void setStepOrderQuantity(BigDecimal stepOrderQuantity);
+    ProductSkuSearchResultDTO getBaseSku(long skuId);
+
+    /**
+     * Get SKUs defined for this product.
+     *
+     * @return SKUs
+     */
+    Map<Long, ProductSkuSearchResultDTO> getBaseSkus();
 
     /**
      * Get SKUs sorted by search priority from the FT search.
      *
      * @return list of SKU
      */
-    List<ProductSkuSearchResultDTO> getSkus();
+    List<ProductSkuSearchResultDTO> getSearchSkus();
 
     /**
      * Set SKUs sorted by search priority from the FT search.
      *
-     * @param skus list of SKU
+     * @param searchSkus list of SKU
      */
-    void setSkus(List<ProductSkuSearchResultDTO> skus);
+    void setSearchSkus(List<ProductSkuSearchResultDTO> searchSkus);
 
     /**
      * Stored attributes container.
@@ -462,13 +331,6 @@ public interface ProductSearchResultDTO extends Identifiable {
      */
     StoredAttributesDTO getAttributes();
 
-    /**
-     * Stored attributes container.
-     *
-     * @param attributes stored attributes
-     */
-    void setAttributes(StoredAttributesDTO attributes);
-
 
     /**
      * @return created timestamp.
@@ -476,19 +338,9 @@ public interface ProductSearchResultDTO extends Identifiable {
     Instant getCreatedTimestamp();
 
     /**
-     * @param createdTimestamp set created timestamp.
-     */
-    void setCreatedTimestamp(Instant createdTimestamp);
-
-    /**
      * @return updated timestamp.
      */
     Instant getUpdatedTimestamp();
-
-    /**
-     * @param updatedTimestamp set updated timestamp.
-     */
-    void setUpdatedTimestamp(Instant updatedTimestamp);
 
     /**
      * Creates copy of this object

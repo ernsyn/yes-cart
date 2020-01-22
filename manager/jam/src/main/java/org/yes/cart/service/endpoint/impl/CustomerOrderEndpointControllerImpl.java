@@ -20,16 +20,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.yes.cart.domain.vo.VoCustomerOrder;
-import org.yes.cart.domain.vo.VoCustomerOrderInfo;
-import org.yes.cart.domain.vo.VoCustomerOrderTransitionResult;
-import org.yes.cart.domain.vo.VoPayment;
+import org.yes.cart.domain.vo.*;
 import org.yes.cart.service.endpoint.CustomerOrderEndpointController;
 import org.yes.cart.service.vo.VoCustomerOrderService;
 import org.yes.cart.service.vo.VoPaymentService;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * User: denispavlov
@@ -51,14 +45,14 @@ public class CustomerOrderEndpointControllerImpl implements CustomerOrderEndpoin
 
     @Override
     public @ResponseBody
-    List<VoCustomerOrderInfo> getFilteredOrders(@PathVariable("lang") final String lang, @RequestBody(required = false) final Map<String, Object> filter, @PathVariable("max") final int max) throws Exception {
-        return voCustomerOrderService.getFiltered(lang, (String) filter.get("filter"), (List) filter.get("statuses"), max);
+    VoSearchResult<VoCustomerOrderInfo> getFilteredOrders(@PathVariable("lang") final String lang, @RequestBody(required = false) final VoSearchContext filter) throws Exception {
+        return voCustomerOrderService.getFilteredOrders(lang, filter);
     }
 
     @Override
     public @ResponseBody
     VoCustomerOrder getOrderById(@PathVariable("lang") final String lang, @PathVariable("id") final long id) throws Exception {
-        return voCustomerOrderService.getById(lang, id);
+        return voCustomerOrderService.getOrderById(lang, id);
     }
 
     @Override
@@ -81,7 +75,7 @@ public class CustomerOrderEndpointControllerImpl implements CustomerOrderEndpoin
 
     @Override
     public @ResponseBody
-    List<VoPayment> getFilteredPayments(@RequestBody final Map<String, Object> filter, @PathVariable("max") final int max) throws Exception {
-        return voPaymentService.getFiltered((String) filter.get("filter"), (List) filter.get("operations"), (List) filter.get("statuses"), max);
+    VoSearchResult<VoPayment> getFilteredPayments(@RequestBody final VoSearchContext filter) throws Exception {
+        return voPaymentService.getFilteredPayments(filter);
     }
 }

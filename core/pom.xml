@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2009 Denys Pavlov, Igor Azarnyi
   ~
@@ -20,10 +21,10 @@
     <parent>
         <groupId>org.yes</groupId>
         <artifactId>yes-cart</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>3.7.0-SNAPSHOT</version>
     </parent>
     <artifactId>core</artifactId>
-    <name>Yes cart core service</name>
+    <name>Core service</name>
     <dependencies>
         <dependency>
             <groupId>org.yes</groupId>
@@ -37,12 +38,12 @@
         </dependency>
         <dependency>
             <groupId>org.yes</groupId>
-            <artifactId>persistence</artifactId>
+            <artifactId>persistence-core-hibernate</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
             <groupId>org.yes</groupId>
-            <artifactId>persistence</artifactId>
+            <artifactId>persistence-core-hibernate</artifactId>
             <version>${project.parent.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
@@ -53,6 +54,13 @@
             <artifactId>groovy-all</artifactId>
             <version>${groovy-all.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf-spring4</artifactId>
+            <version>${thymeleaf.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>commons-beanutils</groupId>
             <artifactId>commons-beanutils</artifactId>
@@ -66,7 +74,7 @@
         </dependency>
         <dependency>
             <groupId>net.sf.ehcache</groupId>
-            <artifactId>ehcache-core</artifactId>
+            <artifactId>ehcache</artifactId>
             <version>${ehcache-core.version}</version>
         </dependency>
         <!--Performance sampling on MySQL-->
@@ -91,21 +99,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context-support</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-core</artifactId>
-            <version>${spring-security.version}</version>
-        </dependency>
+
         <dependency>
             <groupId>com.inspire-software.lib.dto.geda</groupId>
             <artifactId>geda.core</artifactId>

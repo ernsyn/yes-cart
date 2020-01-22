@@ -43,10 +43,11 @@ public class FailoverStringI18NModelTest {
     }
 
     @Test
-    public void testStringInvalid() throws Exception {
+    public void testStringSingle() throws Exception {
         final I18NModel model = new FailoverStringI18NModel("some text", "failover");
         assertNotNull(model.getAllValues());
-        assertTrue(model.getAllValues().isEmpty());
+        assertFalse(model.getAllValues().isEmpty());
+        assertEquals("some text", model.getValue(I18NModel.DEFAULT));
     }
 
     @Test
@@ -69,5 +70,20 @@ public class FailoverStringI18NModelTest {
         assertEquals("Текст", model.getValue("RU"));
         assertEquals("model failover", model.getValue("UK"));
         assertEquals("model failover", model.getValue("CA"));
+    }
+
+
+    @Test
+    public void testCopy() throws Exception {
+
+        final I18NModel model = new FailoverStringI18NModel("EN#~#Some text#~#RU#~#Текст#~#UK#~##~#xx#~#model failover", "failover");
+        final I18NModel copy = model.copy();
+
+        assertEquals(copy, model);
+
+        copy.putValue("EN", "Changed");
+        assertEquals("Some text", model.getValue("EN"));
+        assertEquals("Changed", copy.getValue("EN"));
+
     }
 }

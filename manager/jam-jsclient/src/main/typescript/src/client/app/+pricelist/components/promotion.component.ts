@@ -17,7 +17,7 @@ import { Component, OnInit, OnDestroy, Input, Output, ViewChild, EventEmitter } 
 import { FormBuilder, Validators } from '@angular/forms';
 import { YcValidators } from './../../shared/validation/validators';
 import { PricingService, Util } from './../../shared/services/index';
-import { PromotionVO, PromotionCouponVO, ValidationRequestVO, BrandVO, CategoryVO } from './../../shared/model/index';
+import { PromotionVO, PromotionCouponVO, ValidationRequestVO, BrandVO, CategoryVO, Pair, SearchResultVO } from './../../shared/model/index';
 import { FormValidationEvent, Futures, Future } from './../../shared/event/index';
 import { UiUtil } from './../../shared/ui/index';
 import { ModalComponent, ModalResult, ModalAction } from './../../shared/modal/index';
@@ -64,32 +64,24 @@ export class PromotionComponent implements OnInit, OnDestroy {
   @Output() dataChanged: EventEmitter<FormValidationEvent<PromotionVO>> = new EventEmitter<FormValidationEvent<PromotionVO>>();
 
   private _promotion:PromotionVO;
-  private coupons:PromotionCouponVO[] = [];
+  private coupons:SearchResultVO<PromotionCouponVO>;
   private selectedCoupon:PromotionCouponVO = null;
 
   private couponFilter:string;
   private forceShowAll:boolean = false;
   private couponFilterRequired:boolean = true;
-  private couponFilterCapped:boolean = false;
 
   private delayedFiltering:Future;
   private delayedFilteringMs:number = Config.UI_INPUT_DELAY;
-  private filterCap:number = Config.UI_FILTER_CAP;
-  private filterNoCap:number = Config.UI_FILTER_NO_CAP;
 
   private deleteValue:string = null;
-
-  private initialising:boolean = false; // tslint:disable-line:no-unused-variable
-  private initialising2:boolean = false; // tslint:disable-line:no-unused-variable
 
   private validForGenerate:boolean = true;
   private delayedChange:Future;
 
   private promotionForm:any;
-  private promotionFormSub:any; // tslint:disable-line:no-unused-variable
 
   private couponForm:any;
-  private couponFormSub:any; // tslint:disable-line:no-unused-variable
 
   @ViewChild('deleteConfirmationModalDialog')
   private deleteConfirmationModalDialog:ModalComponent;
@@ -154,8 +146,8 @@ export class PromotionComponent implements OnInit, OnDestroy {
       'promoActionContext': ['', Validators.required],
       'couponTriggered': [''],
       'canBeCombined': [''],
-      'availablefrom': ['', YcValidators.validDate],
-      'availableto': ['', YcValidators.validDate],
+      'availablefrom': [''],
+      'availableto': [''],
       'tag': ['', YcValidators.nonBlankTrimmed],
       'name': [''],
       'description': [''],
@@ -175,17 +167,35 @@ export class PromotionComponent implements OnInit, OnDestroy {
       that.getFilteredPromotionCoupons();
     }, this.delayedFilteringMs);
 
+    this.coupons = this.newSearchResultInstance();
   }
 
+  newSearchResultInstance():SearchResultVO<PromotionCouponVO> {
+    return {
+      searchContext: {
+        parameters: {
+          filter: []
+        },
+        start: 0,
+        size: Config.UI_TABLE_PAGE_SIZE,
+        sortBy: null,
+        sortDesc: false
+      },
+      items: [],
+      total: 0
+    };
+  }
+
+
   formBind():void {
-    UiUtil.formBind(this, 'promotionForm', 'promotionFormSub', 'delayedChange', 'initialising');
-    UiUtil.formBind(this, 'couponForm', 'couponFormSub', 'formChangeCoupons', 'initialising2', false);
+    UiUtil.formBind(this, 'promotionForm', 'delayedChange');
+    UiUtil.formBind(this, 'couponForm', 'formChangeCoupons', false);
   }
 
 
   formUnbind():void {
-    UiUtil.formUnbind(this, 'promotionFormSub');
-    UiUtil.formUnbind(this, 'couponFormSub');
+    UiUtil.formUnbind(this, 'promotionForm');
+    UiUtil.formUnbind(this, 'couponForm');
   }
 
   formChange():void {
@@ -201,7 +211,9 @@ export class PromotionComponent implements OnInit, OnDestroy {
   @Input()
   set promotion(promotion:PromotionVO) {
 
-    UiUtil.formInitialise(this, 'initialising', 'promotionForm', '_promotion', promotion, promotion != null && promotion.promotionId > 0,
+    this.coupons = this.newSearchResultInstance();
+
+    UiUtil.formInitialise(this, 'promotionForm', '_promotion', promotion, promotion != null && promotion.promotionId > 0,
       ['code', 'promoType', 'promoAction', ]);
 
   }
@@ -211,21 +223,20 @@ export class PromotionComponent implements OnInit, OnDestroy {
   }
 
 
-  get availableto():string {
-    return UiUtil.dateInputGetterProxy(this._promotion, 'enabledTo');
+  onAvailableFrom(event:FormValidationEvent<any>) {
+    if (event.valid) {
+      this.promotion.enabledFrom = event.source;
+    }
+    UiUtil.formDataChange(this, 'promotionForm', 'availablefrom', event);
   }
 
-  set availableto(availableto:string) {
-    UiUtil.dateInputSetterProxy(this._promotion, 'enabledTo', availableto);
+  onAvailableTo(event:FormValidationEvent<any>) {
+    if (event.valid) {
+      this.promotion.enabledTo = event.source;
+    }
+    UiUtil.formDataChange(this, 'promotionForm', 'availableto', event);
   }
 
-  get availablefrom():string {
-    return UiUtil.dateInputGetterProxy(this._promotion, 'enabledFrom');
-  }
-
-  set availablefrom(availablefrom:string) {
-    UiUtil.dateInputSetterProxy(this._promotion, 'enabledFrom', availablefrom);
-  }
 
   onNameDataChange(event:FormValidationEvent<any>) {
     UiUtil.formI18nDataChange(this, 'promotionForm', 'name', event);
@@ -367,15 +378,32 @@ export class PromotionComponent implements OnInit, OnDestroy {
   }
 
   protected onFilterChange(event:any) {
-
+    this.coupons.searchContext.start = 0; // changing filter means we need to start from first page
     this.delayedFiltering.delay();
-
   }
 
   protected onRefreshHandler() {
 
     this.delayedFiltering.delay();
 
+  }
+
+  protected onPageSelected(page:number) {
+    LogUtil.debug('PromotionComponent onPageSelected', page);
+    this.coupons.searchContext.start = page;
+    this.delayedFiltering.delay();
+  }
+
+  protected onSortSelected(sort:Pair<string, boolean>) {
+    LogUtil.debug('PromotionComponent ononSortSelected', sort);
+    if (sort == null) {
+      this.coupons.searchContext.sortBy = null;
+      this.coupons.searchContext.sortDesc = false;
+    } else {
+      this.coupons.searchContext.sortBy = sort.first;
+      this.coupons.searchContext.sortDesc = sort.second;
+    }
+    this.delayedFiltering.delay();
   }
 
   protected onCouponGenerate() {
@@ -390,7 +418,7 @@ export class PromotionComponent implements OnInit, OnDestroy {
         code: null, usageLimit: 1, usageLimitPerCustomer: 0, usageCount: 0
       };
 
-      UiUtil.formInitialise(this, 'initialising2', 'couponForm', 'generateCoupons', couponConfig);
+      UiUtil.formInitialise(this, 'couponForm', 'generateCoupons', couponConfig);
 
       this.generateCouponsModalDialog.show();
 
@@ -409,11 +437,8 @@ export class PromotionComponent implements OnInit, OnDestroy {
         let _sub:any = this._promotionService.createPromotionCoupons(this.generateCoupons).subscribe(allcoupons => {
           _sub.unsubscribe();
           LogUtil.debug('PromotionComponent removePromotionCoupon', this.selectedCoupon);
-          this.coupons = allcoupons;
           this.selectedCoupon = null;
-          this.couponFilterCapped = false;
-          this.cannotExport = this.coupons.length == 0;
-          _sub.unsubscribe();
+          this.delayedFiltering.delay();
         });
       }
     }
@@ -455,24 +480,24 @@ export class PromotionComponent implements OnInit, OnDestroy {
     if (this._promotion != null && !this.couponFilterRequired) {
 
       this.loading = true;
-      let max = this.forceShowAll ? this.filterNoCap : this.filterCap;
-      let _sub:any = this._promotionService.getFilteredPromotionCoupons(this._promotion, this.couponFilter, max).subscribe(allcoupons => {
+
+      this.coupons.searchContext.parameters.filter = [ this.couponFilter ];
+      this.coupons.searchContext.parameters.promotionId = [ this._promotion.promotionId ];
+      this.coupons.searchContext.size = Config.UI_TABLE_PAGE_SIZE;
+
+      let _sub:any = this._promotionService.getFilteredPromotionCoupons(this.coupons.searchContext).subscribe(allcoupons => {
         LogUtil.debug('PromotionComponent getFilteredPromotionCoupons', allcoupons);
         this.coupons = allcoupons;
         this.selectedCoupon = null;
-        this.couponFilterCapped = this.coupons.length >= max;
-        this.cannotExport = this.coupons.length == 0;
+        this.cannotExport = this.coupons == null || this.coupons.total == 0;
         this.loading = false;
         _sub.unsubscribe();
       });
-
     } else {
-      this.coupons = [];
+      this.coupons = this.newSearchResultInstance();
       this.selectedCoupon = null;
-      this.couponFilterCapped = false;
       this.cannotExport = true;
     }
-
   }
 
 }

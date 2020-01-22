@@ -14,11 +14,11 @@
               <i class="fa fa-question-circle-o"></i>
             </button>
           </span>
-          <!-- span class="input-group-btn">
+          <span class="input-group-btn">
             <button type="button" (click)="onForceShowAll()" class="btn {{ forceShowAll ? 'btn-danger' : 'btn-default' }} btn-square btn-xl " title="{{ (forceShowAll ? 'MODAL_BUTTON_ALLFILTEROFF' : 'MODAL_BUTTON_ALLFILTERON') | translate }}">
               <i class="fa fa-filter"></i>
             </button>
-          </span -->
+          </span>
           <input class="form-control filter-input" type="text" name="productFilter" [(ngModel)]="productFilter" (ngModelChange)="onProductFilterChange($event)" autocomplete="off"/>
           <span class="input-group-btn">
             <button class="btn btn-default btn-circle btn-xl" type="button" (click)="onClearFilterProduct()" title="{{ 'MODAL_BUTTON_CLEARFILTER' | translate }}">
@@ -29,33 +29,10 @@
       </form>
     </div>
 
-    <div class="col-xs-12 col-md-5 padding-lr-0" [hidden]="viewMode !== 'skus'">
-      <form class="width-100">
-        <div class="input-group">
-          <!-- span class="input-group-btn">
-            <button type="button" (click)="onForceShowAll()" class="btn {{ forceShowAll ? 'btn-danger' : 'btn-default' }} btn-circle btn-xl " title="{{ (forceShowAll ? 'MODAL_BUTTON_ALLFILTEROFF' : 'MODAL_BUTTON_ALLFILTERON') | translate }}">
-              <i class="fa fa-filter"></i>
-            </button>
-          </span -->
-          <input class="form-control filter-input" type="text" name="skuFilter" [(ngModel)]="skuFilter" autocomplete="off"/>
-          <span class="input-group-btn">
-            <button class="btn btn-default btn-circle btn-xl" type="button" (click)="onClearFilterSKU()" title="{{ 'MODAL_BUTTON_CLEARFILTER' | translate }}">
-              <i class="fa fa-times-circle-o"></i>
-            </button>
-          </span>
-        </div>
-      </form>
-    </div>
-
-
     <div class="col-xs-12 {{ viewMode === 'products' || viewMode === 'skus' ? 'col-md-7' : '' }} padding-lr-0 button-panel">
 
       <button type="button" (click)="onBackToList()" [hidden]="viewMode === 'products'" class="btn btn-info btn-circle btn-xl" title="{{ 'MODAL_BUTTON_BACK' | translate }}">
         <i class="fa fa-chevron-left"></i>
-      </button>
-
-      <button type="button" (click)="onRowListSelected()" [disabled]="selectedProduct == null" [hidden]="viewMode === 'skus' || viewMode === 'sku'" class="btn btn-default btn-circle btn-xl">
-        <i class="fa fa-list"></i>
       </button>
 
       <button type="button" (click)="onRowNew()" [disabled]="(productEdit != null && changed) || skuEdit != null" class="btn btn-default btn-circle btn-xl" title="{{ 'MODAL_BUTTON_CREATE' | translate }}">
@@ -80,7 +57,6 @@
 
   </div>
 
-
   <div [hidden]="viewMode !== 'products'" class="{{ loading ? 'loading-data' : '' }}">
 
     <div *ngIf="searchHelpShow">
@@ -88,8 +64,8 @@
         <p>{{ 'SEARCH_HELP_PRODUCT_DEFAULT' | translate }}</p>
         <p>{{ 'SEARCH_HELP_PRODUCT_EXACT' | translate }} <span><button type="button" (click)="onSearchCodeExact()" class="btn btn-default btn-circle"><i class="fa fa-tag"></i></button></span></p>
         <p>{{ 'SEARCH_HELP_PRODUCT_CODE' | translate }} <span><button type="button" (click)="onSearchCode()" class="btn btn-default btn-circle"><i class="fa fa-tag"></i></button></span></p>
-        <p>{{ 'SEARCH_HELP_PRODUCT_TYPE' | translate }} <span><button type="button" (click)="onSearchType()" class="btn btn-default btn-circle"><i class="fa fa-cogs"></i></button></span></p>
-        <p>{{ 'SEARCH_HELP_PRODUCT_CATEGORY' | translate }} <span><button type="button" (click)="onSearchCategories()" class="btn btn-default btn-circle"><i class="fa fa-sitemap"></i></button></span></p>
+        <p>{{ 'SEARCH_HELP_PRODUCT_TYPE' | translate }} <span><button type="button" (click)="onSearchType()" class="btn btn-default btn-circle"><i class="fa fa-cogs"></i></button></span> &nbsp; <span><button type="button" (click)="onSearchBrand()" class="btn btn-default btn-circle"><i class="fa fa-trademark"></i></button></span></p>
+        <p>{{ 'SEARCH_HELP_PRODUCT_CATEGORY' | translate }} <span><button type="button" (click)="onViewTree()" class="btn btn-default btn-circle"><i class="fa fa-sitemap"></i></button></span></p>
         <p>{{ 'SEARCH_HELP_CALENDAR' | translate }} <span><button type="button" (click)="onSearchDate()" class="btn btn-default btn-circle"><i class="fa fa-calendar"></i></button></span></p>
       </div>
     </div>
@@ -98,11 +74,7 @@
       <p class="bg-danger text-padding">{{ 'FILTER_REQUIRED' | translate }}</p>
     </div>
 
-    <div *ngIf="productFilterCapped">
-      <p class="bg-warning text-padding">{{ 'FILTER_CAPPED' | translate }}</p>
-    </div>
-
-    <yc-products [products]="products" [filter]="productFilter" (dataSelected)="onProductSelected($event)"></yc-products>
+    <yc-products [products]="products" (dataSelected)="onProductSelected($event)" (pageSelected)="onPageSelected($event)" (sortSelected)="onSortSelected($event)"></yc-products>
   </div>
 
   <div [hidden]="viewMode !== 'product'" class="{{ loading ? 'loading-data' : '' }}">
@@ -111,14 +83,9 @@
                 (dataSelected)="onSkuSelected($event)"></yc-product>
   </div>
 
-  <div [hidden]="viewMode !== 'skus'" class="{{ loading ? 'loading-data' : '' }}">
-    <yc-skus [skus]="skus" [filter]="skuFilter" (dataSelected)="onSkuSelected($event)"></yc-skus>
-  </div>
-
   <div [hidden]="viewMode !== 'sku'" class="{{ loading ? 'loading-data' : '' }}">
     <yc-sku [sku]="skuEdit" [attributes]="skuEditAttributes" (dataChanged)="onSkuChanged($event)"></yc-sku>
   </div>
-
 
   <yc-modal #deleteConfirmationModalDialog
             title="{{ 'MODAL_CONFIRM_TITLE' | translate }}"
@@ -129,5 +96,13 @@
     {{ 'MODAL_CONFIRM_DELETE' | translate:{value: deleteValue } }}
   </yc-modal>
 
+  <yc-category-min-select #categorySelectComponent
+                          (dataSelected)="onCatalogTreeDataSelected($event)"></yc-category-min-select>
+
+  <yc-brand-select #brandSelectComponent
+                   (dataSelected)="onBrandSelected($event)"></yc-brand-select>
+
+  <yc-product-type-select #productTypeSelectComponent
+                          (dataSelected)="onProductTypeSelected($event)"></yc-product-type-select>
 
 </div>

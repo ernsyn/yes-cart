@@ -80,27 +80,11 @@ public interface GenericDAO<T, PK extends Serializable> {
     ResultsIterator<T> findAllIterator();
 
     /**
-     * Find single entity, that returned by named query.
-     *
-     * @param namedQueryName name of query
-     * @param parameters     optional parameters for named query
-     *
-     * @return single entity   or null if not found
-     */
-    T findSingleByNamedQuery(String namedQueryName, Object... parameters);
-
-    /**
-     * Find single entity, that returned by named query.
-     *
-     * @param namedQueryName name of query
-     * @param parameters     optional parameters for named query
-     *
-     * @return single entity   or null if not found
-     */
-    T findSingleByNamedQueryCached(String namedQueryName, Object... parameters);
-
-    /**
      * Find by hsql query.
+     * E.g. "select x from XEntity x where x.foo = ?1 and x.bar = ?2"
+     *
+     * Sorting should be defined in HSQL query.
+     * E.g. "select x from XEntity x where x.foo = ?1 and x.bar = ?2 order by x.foo asc"
      *
      * @param hsqlQuery  query
      * @param parameters parameters
@@ -109,8 +93,45 @@ public interface GenericDAO<T, PK extends Serializable> {
      */
     List<Object> findByQuery(String hsqlQuery, Object... parameters);
 
+
+    /**
+     * Find entities within HSQL query.
+     * E.g. "select x from XEntity x where x.foo = ?1 and x.bar = ?2"
+     *
+     * Sorting should be defined in HSQL query.
+     * E.g. "select x from XEntity x where x.foo = ?1 and x.bar = ?2 order by x.foo asc"
+     *
+     * @param hsqlQuery      query
+     * @param firstResult    first row of result
+     * @param maxResults     size of result set
+     * @param parameters     optional parameters for named query
+     *
+     * @return list of found entities
+     */
+    List<T> findRangeByQuery(String hsqlQuery,
+                             int firstResult,
+                             int maxResults,
+                             Object... parameters);
+
+
+    /**
+     * Find count by criteria.
+     * E.g. "select count(x) from XEntity x where x.foo = ?1 and x.bar = ?2"
+     *
+     * @param hsqlQuery HQL criteria, to reference entity use "e", e.g. " where e.attr1 = ? and e.attr2 = ?"
+     * @param parameters parameters to fill in for question marks
+     *
+     * @return list of found entities.
+     */
+    int findCountByQuery(String hsqlQuery, Object... parameters);
+
+
     /**
      * Find by hsql query.
+     * E.g. "select x from XEntity x where x.foo = ?1 and x.bar = ?2"
+     *
+     * Sorting should be defined in HSQL query.
+     * E.g. "select x from XEntity x where x.foo = ?1 and x.bar = ?2 order by x.foo asc"
      *
      * @param hsqlQuery  query
      * @param parameters parameters
@@ -122,6 +143,10 @@ public interface GenericDAO<T, PK extends Serializable> {
 
     /**
      * Find single entity, that returned by named query.
+     * E.g. "select x from XEntity x where x.foo = ?1 and x.bar = ?2"
+     *
+     * Sorting should be defined in HSQL query.
+     * E.g. "select x from XEntity x where x.foo = ?1 and x.bar = ?2 order by x.foo asc"
      *
      * @param hsqlQuery  HSQL query string
      * @param parameters optional parameters for named query
@@ -140,6 +165,16 @@ public interface GenericDAO<T, PK extends Serializable> {
      * @return single entity
      */
     Object getScalarResultByNamedQuery(String namedQueryName, Object... parameters);
+
+    /**
+     * Find single entity, that returned by named query.
+     *
+     * @param namedQueryName name of query
+     * @param parameters     optional parameters for named query
+     *
+     * @return single entity   or null if not found
+     */
+    T findSingleByNamedQuery(String namedQueryName, Object... parameters);
 
 
     /**
@@ -165,23 +200,13 @@ public interface GenericDAO<T, PK extends Serializable> {
     /**
      * Find entities within named query .
      *
-     * @param namedQueryName name of query
-     * @param timeout timeout to lock object for
-     * @param parameters     optional parameters for named query
+     * @param namedQueryName    name of query
+     * @param timeout           timeout to lock object for
+     * @param parameters        optional parameters for named query
      *
      * @return list of found entities
      */
     List<T> findByNamedQueryForUpdate(String namedQueryName, int timeout, Object... parameters);
-
-    /**
-     * Find entities within named query .
-     *
-     * @param namedQueryName name of query
-     * @param parameters     optional parameters for named query
-     *
-     * @return list of found entities
-     */
-    List<T> findByNamedQueryCached(String namedQueryName, Object... parameters);
 
     /**
      * Find "query objects" within named query .
@@ -245,7 +270,9 @@ public interface GenericDAO<T, PK extends Serializable> {
 
 
     /**
-     * Find entities within named query .
+     * Find entities within named query.
+     *
+     * Sorting is predefined in named query.
      *
      * @param namedQueryName name of query
      * @param parameters     optional parameters for named query
@@ -259,8 +286,24 @@ public interface GenericDAO<T, PK extends Serializable> {
                                   int maxResults,
                                   Object... parameters);
 
+
+    /**
+     * Find count by criteria.
+     *
+     * @param namedQueryName HQL criteria, to reference entity use "e", e.g. " where e.attr1 = ? and e.attr2 = ?"
+     * @param parameters parameters to fill in for question marks
+     *
+     * @return list of found entities.
+     */
+    int findCountByNamedQuery(String namedQueryName, Object... parameters);
+
+
     /**
      * Find entities by criteria.
+     * E.g. " where e.foo = ?1 and e.bar = ?2"
+     *
+     * Sorting should be defined in HSQL query.
+     * E.g. " where e.foo = ?1 and e.bar = ?2 order by e.foo asc"
      *
      * @param eCriteria HQL criteria, to reference entity use "e", e.g. " where e.attr1 = ? and e.attr2 = ?"
      * @param parameters parameters to fill in for question marks
@@ -271,6 +314,10 @@ public interface GenericDAO<T, PK extends Serializable> {
 
     /**
      * Find entities by criteria.
+     * E.g. " where e.foo = ?1 and e.bar = ?2"
+     *
+     * Sorting should be defined in HSQL query.
+     * E.g. " where e.foo = ?1 and e.bar = ?2 order by e.foo asc"
      *
      * @param eCriteria HQL criteria, to reference entity use "e", e.g. " where e.attr1 = ? and e.attr2 = ?"
      * @param parameters parameters to fill in for question marks
@@ -281,11 +328,15 @@ public interface GenericDAO<T, PK extends Serializable> {
 
     /**
      * Find entities by criteria.
+     * E.g. " where e.foo = ?1 and e.bar = ?2"
      *
-     * @param eCriteria HQL criteria, to reference entity use "e", e.g. " where e.attr1 = ? and e.attr2 = ?"
-     * @param firstResult first result
-     * @param maxResults max results
-     * @param parameters parameters to fill in for question marks
+     * Sorting should be defined in HSQL query.
+     * E.g. " where e.foo = ?1 and e.bar = ?2 order by e.foo asc"
+     *
+     * @param eCriteria         HQL criteria, to reference entity use "e", e.g. " where e.attr1 = ? and e.attr2 = ?"
+     * @param firstResult       first result
+     * @param maxResults        max results
+     * @param parameters        parameters to fill in for question marks
      *
      * @return list of found entities.
      */
@@ -296,6 +347,10 @@ public interface GenericDAO<T, PK extends Serializable> {
 
     /**
      * Find count by criteria.
+     * E.g. " where e.foo = ?1 and e.bar = ?2"
+     *
+     * Sorting should be defined in HSQL query.
+     * E.g. " where e.foo = ?1 and e.bar = ?2 order by e.foo asc"
      *
      * @param eCriteria HQL criteria, to reference entity use "e", e.g. " where e.attr1 = ? and e.attr2 = ?"
      * @param parameters parameters to fill in for question marks
@@ -306,6 +361,10 @@ public interface GenericDAO<T, PK extends Serializable> {
 
     /**
      * Find single entity by criteria.
+     * E.g. " where e.foo = ?1 and e.bar = ?2"
+     *
+     * Sorting should be defined in HSQL query.
+     * E.g. " where e.foo = ?1 and e.bar = ?2 order by e.foo asc"
      *
      * @param eCriteria HQL criteria, to reference entity use "e", e.g. " where e.attr1 = ? and e.attr2 = ?"
      * @param parameters parameters to fill in for question marks

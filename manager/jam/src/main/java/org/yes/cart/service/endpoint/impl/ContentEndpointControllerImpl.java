@@ -24,10 +24,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.yes.cart.domain.misc.MutablePair;
-import org.yes.cart.domain.vo.VoAttrValueContent;
-import org.yes.cart.domain.vo.VoContent;
-import org.yes.cart.domain.vo.VoContentBody;
-import org.yes.cart.domain.vo.VoContentWithBody;
+import org.yes.cart.domain.vo.*;
 import org.yes.cart.service.endpoint.ContentEndpointController;
 import org.yes.cart.service.vo.VoContentService;
 import org.yes.cart.service.vo.VoMailService;
@@ -86,32 +83,32 @@ public class ContentEndpointControllerImpl implements ContentEndpointController 
 
     @Override
     public @ResponseBody
-    List<VoContent> getFilteredContent(@PathVariable("shopId") final long shopId, @RequestBody(required = false) final String filter, @PathVariable("max") final int max) throws Exception {
-        return voContentService.getFiltered(shopId, filter, max);
+    VoSearchResult<VoContent> getFilteredContent(@PathVariable("shopId") final long shopId, @RequestBody final VoSearchContext filter) throws Exception {
+        return voContentService.getFilteredContent(shopId, filter);
     }
 
     @Override
     public @ResponseBody
     VoContentWithBody getContentById(@PathVariable("id") final long id) throws Exception {
-        return voContentService.getById(id);
+        return voContentService.getContentById(id);
     }
 
     @Override
     public @ResponseBody
     VoContentWithBody createContent(@RequestBody final VoContent voContent) throws Exception {
-        return voContentService.create(voContent);
+        return voContentService.createContent(voContent);
     }
 
     @Override
     public @ResponseBody
     VoContentWithBody updateContent(@RequestBody final VoContentWithBody voContent) throws Exception {
-        return voContentService.update(voContent);
+        return voContentService.updateContent(voContent);
     }
 
     @Override
     public @ResponseBody
     void removeContent(@PathVariable("id") final long id) throws Exception {
-        voContentService.remove(id);
+        voContentService.removeContent(id);
     }
 
     @Override
@@ -123,7 +120,7 @@ public class ContentEndpointControllerImpl implements ContentEndpointController 
     @Override
     public @ResponseBody
     List<VoAttrValueContent> updateContent(@RequestBody final List<MutablePair<VoAttrValueContent, Boolean>> vo) throws Exception {
-        return voContentService.update(vo);
+        return voContentService.updateContentAttributes(vo);
     }
 
     @Override

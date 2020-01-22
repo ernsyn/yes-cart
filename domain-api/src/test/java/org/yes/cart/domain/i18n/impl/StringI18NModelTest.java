@@ -19,6 +19,8 @@ package org.yes.cart.domain.i18n.impl;
 import org.junit.Test;
 import org.yes.cart.domain.i18n.I18NModel;
 
+import java.util.Map;
+
 import static org.junit.Assert.*;
 
 /**
@@ -30,9 +32,15 @@ public class StringI18NModelTest {
 
     @Test
     public void testStringNull() throws Exception {
-        final I18NModel model = new StringI18NModel();
-        assertNotNull(model.getAllValues());
-        assertTrue(model.getAllValues().isEmpty());
+        final I18NModel modelDefault = new StringI18NModel();
+        assertNotNull(modelDefault.getAllValues());
+        assertTrue(modelDefault.getAllValues().isEmpty());
+        final I18NModel modelMap = new StringI18NModel((Map) null);
+        assertNotNull(modelMap.getAllValues());
+        assertTrue(modelMap.getAllValues().isEmpty());
+        final I18NModel modelI18n = new StringI18NModel((I18NModel) null);
+        assertNotNull(modelI18n.getAllValues());
+        assertTrue(modelI18n.getAllValues().isEmpty());
     }
 
     @Test
@@ -43,10 +51,11 @@ public class StringI18NModelTest {
     }
 
     @Test
-    public void testStringInvalid() throws Exception {
+    public void testStringSingle() throws Exception {
         final I18NModel model = new StringI18NModel("some text");
         assertNotNull(model.getAllValues());
-        assertTrue(model.getAllValues().isEmpty());
+        assertFalse(model.getAllValues().isEmpty());
+        assertEquals("some text", model.getValue(I18NModel.DEFAULT));
     }
 
     @Test
@@ -120,4 +129,23 @@ public class StringI18NModelTest {
         assertNotEquals(m2.hashCode(), m3.hashCode());
 
     }
+
+
+    @Test
+    public void testCopy() throws Exception {
+
+        final I18NModel model = new StringI18NModel("EN#~#Some text#~#RU#~#Текст#~#UK#~##~#xx#~#model failover");
+        final I18NModel copy = model.copy();
+
+        assertEquals(copy, model);
+
+        copy.putValue("EN", "Changed");
+        copy.putValue(I18NModel.DEFAULT, "Changed default");
+        assertEquals("Some text", model.getValue("EN"));
+        assertEquals("model failover", model.getValue(I18NModel.DEFAULT));
+        assertEquals("Changed default", copy.getValue(I18NModel.DEFAULT));
+
+
+    }
+
 }

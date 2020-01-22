@@ -19,14 +19,18 @@ package org.yes.cart.service.vo.impl;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.security.access.AccessDeniedException;
-import org.yes.cart.constants.Constants;
 import org.yes.cart.domain.dto.AttrValueCategoryDTO;
 import org.yes.cart.domain.dto.CategoryDTO;
 import org.yes.cart.domain.misc.MutablePair;
 import org.yes.cart.domain.misc.Pair;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.domain.vo.VoAttrValueCategory;
 import org.yes.cart.domain.vo.VoCategory;
+import org.yes.cart.domain.vo.VoSearchContext;
+import org.yes.cart.domain.vo.VoSearchResult;
 import org.yes.cart.service.domain.CategoryService;
+import org.yes.cart.service.domain.ShopService;
 import org.yes.cart.service.dto.DtoAttributeService;
 import org.yes.cart.service.dto.DtoCategoryService;
 import org.yes.cart.service.federation.FederationFacade;
@@ -44,6 +48,8 @@ public class VoCategoryServiceImpl implements VoCategoryService {
     private final DtoCategoryService dtoCategoryService;
     private final DtoAttributeService dtoAttributeService;
 
+    private final ShopService shopService;
+
     private final FederationFacade federationFacade;
     private final VoAssemblySupport voAssemblySupport;
     private final VoIOSupport voIOSupport;
@@ -55,11 +61,13 @@ public class VoCategoryServiceImpl implements VoCategoryService {
 
     public VoCategoryServiceImpl(final DtoCategoryService dtoCategoryService,
                                  final DtoAttributeService dtoAttributeService,
+                                 final ShopService shopService,
                                  final FederationFacade federationFacade,
                                  final VoAssemblySupport voAssemblySupport,
                                  final VoIOSupport voIOSupport) {
         this.dtoCategoryService = dtoCategoryService;
         this.dtoAttributeService = dtoAttributeService;
+        this.shopService = shopService;
         this.federationFacade = federationFacade;
         this.voAssemblySupport = voAssemblySupport;
         this.voIOSupport = voIOSupport;
@@ -68,9 +76,6 @@ public class VoCategoryServiceImpl implements VoCategoryService {
                 new VoAttributesCRUDTemplate<VoAttrValueCategory, AttrValueCategoryDTO>(
                         VoAttrValueCategory.class,
                         AttrValueCategoryDTO.class,
-                        Constants.CATEGORY_IMAGE_REPOSITORY_URL_PATTERN,
-                        Constants.CATEGORY_FILE_REPOSITORY_URL_PATTERN,
-                        Constants.CATEGORY_SYSFILE_REPOSITORY_URL_PATTERN,
                         this.dtoCategoryService,
                         this.dtoAttributeService,
                         this.voAssemblySupport,
@@ -131,8 +136,10 @@ public class VoCategoryServiceImpl implements VoCategoryService {
 
             final CategoryService service = (CategoryService) dtoCategoryService.getService();
             for (final Long linked : service.getCategoryLinks(categoryId)) {
-                // Check links with access
-                path.addAll(getBranchPathsInternal(linked, true));
+                if (!linked.equals(categoryId)) {
+                    // Check links with access
+                    path.addAll(getBranchPathsInternal(linked, true));
+                }
             }
         }
         return path;
@@ -185,10 +192,8 @@ public class VoCategoryServiceImpl implements VoCategoryService {
 
     /**
      * Adapt dto to vo recursively.
-     * @param categoryDTOs list of dto
-     * @param voCategories list of vo
      */
-    private void adaptCategories(List<CategoryDTO> categoryDTOs, List<VoCategory> voCategories) {
+    private void adaptCategories(final List<CategoryDTO> categoryDTOs, final List<VoCategory> voCategories) {
         for(CategoryDTO dto : categoryDTOs) {
             VoCategory voCategory =
                     voAssemblySupport.assembleVo(VoCategory.class, CategoryDTO.class, new VoCategory(), dto);
@@ -202,27 +207,48 @@ public class VoCategoryServiceImpl implements VoCategoryService {
 
     /** {@inheritDoc} */
     @Override
-    public List<VoCategory> getFiltered(final String filter, final int max) throws Exception {
+    public VoSearchResult<VoCategory> getFilteredCategories(final VoSearchContext filter) throws Exception {
 
+        final VoSearchResult<VoCategory> result = new VoSearchResult<>();
         final List<VoCategory> results = new ArrayList<>();
+        result.setSearchContext(filter);
+        result.setItems(results);
 
-        int start = 0;
-        do {
-            final List<CategoryDTO> batch = dtoCategoryService.findBy(filter, start, max);
-            if (batch.isEmpty()) {
-                break;
+        final Map<String, List> params = new HashMap<>();
+        if (filter.getParameters() != null) {
+            params.putAll(filter.getParameters());
+        }
+        if (!federationFacade.isCurrentUserSystemAdmin()) {
+            final Set<Long> manageableShopIds = federationFacade.getAccessibleShopIdsByCurrentManager();
+            final Set<Long> manageableCategoryIds = new HashSet<>();
+            for (final Long shopId : manageableShopIds) {
+                manageableCategoryIds.addAll(shopService.getShopCategoriesIds(shopId));
             }
-            federationFacade.applyFederationFilter(batch, CategoryDTO.class);
-            results.addAll(voAssemblySupport.assembleVos(VoCategory.class, CategoryDTO.class, batch));
-            start++;
-        } while (results.size() < max && max != Integer.MAX_VALUE);
-        return results.size() > max ? results.subList(0, max) : results;
+            params.put("categoryIds", new ArrayList(manageableCategoryIds));
+        }
 
+        final SearchContext searchContext = new SearchContext(
+                params,
+                filter.getStart(),
+                filter.getSize(),
+                filter.getSortBy(),
+                filter.isSortDesc(),
+                "filter", "categoryIds"
+        );
+
+        final SearchResult<CategoryDTO> batch = dtoCategoryService.findCategories(searchContext);
+        if (!batch.getItems().isEmpty()) {
+            results.addAll(voAssemblySupport.assembleVos(VoCategory.class, CategoryDTO.class, batch.getItems()));
+        }
+
+        result.setTotal(batch.getTotal());
+
+        return result;
     }
 
     /** {@inheritDoc} */
     @Override
-    public VoCategory getById(final long id) throws Exception {
+    public VoCategory getCategoryById(final long id) throws Exception {
         final CategoryDTO categoryDTO = dtoCategoryService.getById(id);
         if (categoryDTO != null && federationFacade.isManageable(id, CategoryDTO.class)){
             return voAssemblySupport.assembleVo(VoCategory.class, CategoryDTO.class, new VoCategory(), categoryDTO);
@@ -236,7 +262,7 @@ public class VoCategoryServiceImpl implements VoCategoryService {
      * {@inheritDoc}
      */
     @Override
-    public VoCategory update(final VoCategory vo) throws Exception {
+    public VoCategory updateCategory(final VoCategory vo) throws Exception {
         final CategoryDTO categoryDTO = dtoCategoryService.getById(vo.getCategoryId());
         final long categoryId = categoryDTO != null && categoryDTO.getParentId() == vo.getParentId() ? vo.getCategoryId() : vo.getParentId();
         if (categoryDTO != null && federationFacade.isManageable(categoryId, CategoryDTO.class)) {
@@ -246,19 +272,19 @@ public class VoCategoryServiceImpl implements VoCategoryService {
         } else {
             throw new AccessDeniedException("Access is denied");
         }
-        return getById(vo.getCategoryId());
+        return getCategoryById(vo.getCategoryId());
     }
 
     /** {@inheritDoc} */
     @Override
-    public VoCategory create(VoCategory voCategory)  throws Exception {
+    public VoCategory createCategory(final VoCategory voCategory)  throws Exception {
         final CategoryDTO categoryDTO = dtoCategoryService.getNew();
         if (voCategory != null && federationFacade.isManageable(voCategory.getParentId(), CategoryDTO.class)) {
 
             CategoryDTO persistent = voAssemblySupport.assembleDto(CategoryDTO.class, VoCategory.class, categoryDTO, voCategory);
             ensureValidNullValues(persistent);
             persistent = dtoCategoryService.create(persistent);
-            return getById(persistent.getId());
+            return getCategoryById(persistent.getId());
         } else {
             throw new AccessDeniedException("Access is denied");
         }
@@ -277,7 +303,7 @@ public class VoCategoryServiceImpl implements VoCategoryService {
      * {@inheritDoc}
      */
     @Override
-    public void remove(final long id) throws Exception {
+    public void removeCategory(final long id) throws Exception {
         if (federationFacade.isManageable(id, CategoryDTO.class)) {
             dtoCategoryService.remove(id);
         } else {
@@ -299,7 +325,7 @@ public class VoCategoryServiceImpl implements VoCategoryService {
      * {@inheritDoc}
      */
     @Override
-    public List<VoAttrValueCategory> update(final List<MutablePair<VoAttrValueCategory, Boolean>> vo) throws Exception {
+    public List<VoAttrValueCategory> updateCategoryAttributes(final List<MutablePair<VoAttrValueCategory, Boolean>> vo) throws Exception {
 
         final long categoryId = voAttributesCRUDTemplate.verifyAccessAndUpdateAttributes(vo, true);
 
@@ -311,7 +337,7 @@ public class VoCategoryServiceImpl implements VoCategoryService {
      *
      * @param attributes attributes to skip
      */
-    public void setSkipAttributesInView(List<String> attributes) {
+    public void setSkipAttributesInView(final List<String> attributes) {
         this.skipAttributesInView = new HashSet<>(attributes);
     }
 
@@ -320,7 +346,7 @@ public class VoCategoryServiceImpl implements VoCategoryService {
      *
      * @param contentPrefix attributes to skip
      */
-    public void setSkipContentAttributesInView(String contentPrefix) {
+    public void setSkipContentAttributesInView(final String contentPrefix) {
         this.skipContentAttributesInView = contentPrefix;
     }
 }

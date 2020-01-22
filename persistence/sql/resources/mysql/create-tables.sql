@@ -241,6 +241,51 @@
         primary key (ATTRVALUE_ID)
     );
 
+
+    create table TCONTENT (
+        CONTENT_ID bigint not null auto_increment,
+        VERSION bigint not null default 0,
+        PARENT_ID bigint,
+        RANK integer,
+        NAME varchar(255) not null,
+        DISPLAYNAME longtext,
+        DESCRIPTION longtext,
+        UITEMPLATE varchar(255),
+        DISABLED bit default 0,
+        AVAILABLEFROM datetime,
+        AVAILABLETO datetime,
+        URI varchar(255) unique,
+        TITLE varchar(255),
+        METAKEYWORDS varchar(255),
+        METADESCRIPTION varchar(255),
+        DISPLAY_TITLE longtext,
+        DISPLAY_METAKEYWORDS longtext,
+        DISPLAY_METADESCRIPTION longtext,
+        CREATED_TIMESTAMP datetime,
+        UPDATED_TIMESTAMP datetime,
+        CREATED_BY varchar(64),
+        UPDATED_BY varchar(64),
+        GUID varchar(36) not null unique,
+        primary key (CONTENT_ID)
+    );
+
+    create table TCONTENTATTRVALUE (
+        ATTRVALUE_ID bigint not null auto_increment,
+        VERSION bigint not null default 0,
+        VAL longtext,
+        INDEXVAL varchar(255),
+        DISPLAYVAL longtext,
+        CONTENT_ID bigint not null,
+        CODE varchar(255) not null,
+        CREATED_TIMESTAMP datetime,
+        UPDATED_TIMESTAMP datetime,
+        CREATED_BY varchar(64),
+        UPDATED_BY varchar(64),
+        GUID varchar(36) not null unique,
+        primary key (ATTRVALUE_ID)
+    );
+
+
     create table TCOUNTRY (
         COUNTRY_ID bigint not null auto_increment,
         VERSION bigint not null default 0,
@@ -479,11 +524,13 @@
     create table TCUSTOMERWISHLIST (
         CUSTOMERWISHLIST_ID bigint not null auto_increment,
         VERSION bigint not null default 0,
-        SKU_ID bigint not null,
+        SKU_CODE varchar(255) not null,
+        SUPPLIER_CODE varchar(255) not null,
         CUSTOMER_ID bigint not null,
         WL_TYPE varchar(1) default 'W',
         VISIBILITY varchar(1) default 'P',
         TAG varchar(255),
+        NOTIFICATION_EMAIL varchar(255),
         QTY decimal(19,2) not null default 1,
         REGULAR_PRICE_WHEN_ADDED decimal(19,2) not null default 0,
         REGULAR_PRICE_CURRENCY_WHEN_ADDED varchar(5) not null,
@@ -568,6 +615,8 @@
         COMPANYNAME1 varchar(255),
         COMPANYNAME2 varchar(255),
         COMPANYDEPARTMENT varchar(255),
+        PRODUCT_SUPPLIER_CATALOGS varchar(255),
+        CATEGORY_CATALOGS varchar(1024),
         CREATED_TIMESTAMP datetime,
         UPDATED_TIMESTAMP datetime,
         CREATED_BY varchar(64),
@@ -631,17 +680,12 @@
         PIM_DISABLED bit not null default 0,
         PIM_OUTDATED bit not null default 0,
         PIM_UPDATED datetime,
-        DISABLED bit default 0,
-        AVAILABLEFROM datetime,
-        AVAILABLETO datetime,
         NAME varchar(255) not null,
         DISPLAYNAME longtext,
         DESCRIPTION longtext,
         TAG varchar(255),
         BRAND_ID bigint not null,
         PRODUCTTYPE_ID bigint not null,
-        AVAILABILITY integer default 1 not null,
-        FEATURED bit,
         URI varchar(255) unique,
         TITLE varchar(255),
         METAKEYWORDS varchar(255),
@@ -649,9 +693,6 @@
         DISPLAY_TITLE longtext,
         DISPLAY_METAKEYWORDS longtext,
         DISPLAY_METADESCRIPTION longtext,
-        MIN_ORDER_QUANTITY decimal(19,2),
-        MAX_ORDER_QUANTITY decimal(19,2),
-        STEP_ORDER_QUANTITY decimal(19,2),
         CREATED_TIMESTAMP datetime,
         UPDATED_TIMESTAMP datetime,
         CREATED_BY varchar(64),
@@ -946,6 +987,7 @@
         DISPLAYNAME longtext,
         DESCRIPTION longtext,
         PRODUCT_ID bigint,
+        TAG varchar(255),
         RANK integer,
         BARCODE varchar(128),
         URI varchar(255) unique,
@@ -1028,6 +1070,18 @@
         SKU_CODE varchar(255) not null,
         QUANTITY decimal(19,2) not null,
         RESERVED decimal(19,2) default 0,
+        DISABLED bit default 0,
+        AVAILABLEFROM datetime,
+        AVAILABLETO datetime,
+        RELEASEDATE datetime,
+        AVAILABILITY integer default 1 not null,
+        RESTOCKDATE datetime,
+        RESTOCKNOTE varchar(255),
+        FEATURED bit,
+        TAG varchar(255),
+        MIN_ORDER_QUANTITY decimal(19,2),
+        MAX_ORDER_QUANTITY decimal(19,2),
+        STEP_ORDER_QUANTITY decimal(19,2),
         CREATED_TIMESTAMP datetime,
         UPDATED_TIMESTAMP datetime,
         CREATED_BY varchar(64),
@@ -1154,7 +1208,7 @@
         PROMOTIONCOUPONUSAGE_ID bigint not null auto_increment,
         VERSION bigint not null default 0,
         CUSTOMER_EMAIL varchar(255) not null,
-        COUPON_ID bigint not null,
+        COUPON_CODE varchar(255) not null,
         CUSTOMERORDER_ID bigint not null,
         CREATED_TIMESTAMP datetime,
         UPDATED_TIMESTAMP datetime,
@@ -1208,7 +1262,9 @@
         UPDATED_BY varchar(64),
         GUID varchar(36) not null unique,
         CART_STATE varbinary(55536),
+        MANAGED bit not null default 0,
         EMPTY bit not null,
+        SHOP_ID bigint not null default 0,
         CUSTOMER_EMAIL varchar(255),
         ORDERNUM varchar(255),
         primary key (TSHOPPINGCARTSTATE_ID)
@@ -1348,6 +1404,20 @@
     create index AV_CATEGORY_VAL on TCATEGORYATTRVALUE (INDEXVAL);
 
 
+    create index CN_DISABLED on TCONTENT (DISABLED);
+
+
+    alter table TCONTENTATTRVALUE
+        add index FK_AV_CONTENT_CONTENTID (CONTENT_ID),
+        add constraint FK_AV_CONTENT_CONTENTID
+        foreign key (CONTENT_ID)
+        references TCONTENT (CONTENT_ID)
+        on delete cascade;
+
+    create index AV_CONTENT_CODE on TCONTENTATTRVALUE (CODE);
+    create index AV_CONTENT_VAL on TCONTENTATTRVALUE (INDEXVAL);
+
+
     alter table TCUSTOMERATTRVALUE
         add index FK_AV_CUSTOMER_CUSTOMERID (CUSTOMER_ID),
         add constraint FK_AV_CUSTOMER_CUSTOMERID
@@ -1431,14 +1501,7 @@
         references TCUSTOMER (CUSTOMER_ID)         on delete cascade;
 
 
-    alter table TCUSTOMERWISHLIST 
-        add index FK_WL_SKU (SKU_ID), 
-        add constraint FK_WL_SKU 
-        foreign key (SKU_ID) 
-        references TSKU (SKU_ID);
-
-
-    alter table TCUSTOMERWISHLIST 
+    alter table TCUSTOMERWISHLIST
         add index FK_WL_CUSTOMER (CUSTOMER_ID), 
         add constraint FK_WL_CUSTOMER 
         foreign key (CUSTOMER_ID) 
@@ -1696,12 +1759,6 @@
         references TPROMOTION (PROMOTION_ID);
 
     alter table TPROMOTIONCOUPONUSAGE
-        add index FK_COUPON_USAGE (COUPON_ID),
-        add constraint FK_COUPON_USAGE
-        foreign key (COUPON_ID)
-        references TPROMOTIONCOUPON (PROMOTIONCOUPON_ID);
-
-    alter table TPROMOTIONCOUPONUSAGE
         add index FK_ORD_COUPON_USAGE (CUSTOMERORDER_ID),
         add constraint FK_ORD_COUPON_USAGE
         foreign key (CUSTOMERORDER_ID)
@@ -1710,6 +1767,7 @@
     create index PROMOTIONCOUPONUSAGE_EMAIL on TPROMOTIONCOUPONUSAGE (CUSTOMER_EMAIL);
 
     create index SHOPPINGCARTSTATE_EMAIL on TSHOPPINGCARTSTATE (CUSTOMER_EMAIL);
+    create index SHOPPINGCARTSTATE_SHOP on TSHOPPINGCARTSTATE (SHOP_ID);
 
 
     alter table TMAILPART

@@ -46,11 +46,9 @@ export class CategoryComponent implements OnInit, OnDestroy {
 
   private selectedRow:AttrValueCategoryVO;
 
-  private initialising:boolean = false; // tslint:disable-line:no-unused-variable
   private delayedChange:Future;
 
   private categoryForm:any;
-  private categoryFormSub:any; // tslint:disable-line:no-unused-variable
 
   @ViewChild('attributeValuesComponent')
   private attributeValuesComponent:AttributeValuesComponent;
@@ -109,8 +107,8 @@ export class CategoryComponent implements OnInit, OnDestroy {
       'rank': ['', YcValidators.requiredRank],
       'uitemplate': ['', YcValidators.nonBlankTrimmed],
       'disabled': [''],
-      'availablefrom': ['', YcValidators.validDate],
-      'availableto': ['', YcValidators.validDate],
+      'availablefrom': [''],
+      'availableto': [''],
       'uri': ['', validUri],
       'navigationByAttributes': [''],
       'navigationByPrice': [''],
@@ -128,12 +126,12 @@ export class CategoryComponent implements OnInit, OnDestroy {
   }
 
   formBind():void {
-    UiUtil.formBind(this, 'categoryForm', 'categoryFormSub', 'delayedChange', 'initialising');
+    UiUtil.formBind(this, 'categoryForm', 'delayedChange');
   }
 
 
   formUnbind():void {
-    UiUtil.formUnbind(this, 'categoryFormSub');
+    UiUtil.formUnbind(this, 'categoryForm');
   }
 
   formChange():void {
@@ -144,7 +142,7 @@ export class CategoryComponent implements OnInit, OnDestroy {
   @Input()
   set category(category:CategoryVO) {
 
-    UiUtil.formInitialise(this, 'initialising', 'categoryForm', '_category', category);
+    UiUtil.formInitialise(this, 'categoryForm', '_category', category);
     this._changes = [];
 
   }
@@ -153,20 +151,18 @@ export class CategoryComponent implements OnInit, OnDestroy {
     return this._category;
   }
 
-  get availableto():string {
-    return UiUtil.dateInputGetterProxy(this._category, 'availableto');
+  onAvailableFrom(event:FormValidationEvent<any>) {
+    if (event.valid) {
+      this.category.availablefrom = event.source;
+    }
+    UiUtil.formDataChange(this, 'categoryForm', 'availablefrom', event);
   }
 
-  set availableto(availableto:string) {
-    UiUtil.dateInputSetterProxy(this._category, 'availableto', availableto);
-  }
-
-  get availablefrom():string {
-    return UiUtil.dateInputGetterProxy(this._category, 'availablefrom');
-  }
-
-  set availablefrom(availablefrom:string) {
-    UiUtil.dateInputSetterProxy(this._category, 'availablefrom', availablefrom);
+  onAvailableTo(event:FormValidationEvent<any>) {
+    if (event.valid) {
+      this.category.availableto = event.source;
+    }
+    UiUtil.formDataChange(this, 'categoryForm', 'availableto', event);
   }
 
   onNameDataChange(event:FormValidationEvent<any>) {

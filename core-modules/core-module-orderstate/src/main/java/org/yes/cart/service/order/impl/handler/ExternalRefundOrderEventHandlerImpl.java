@@ -27,7 +27,7 @@ import org.yes.cart.service.order.OrderException;
 import org.yes.cart.service.order.PGDisabledException;
 import org.yes.cart.service.payment.PaymentProcessor;
 import org.yes.cart.service.payment.PaymentProcessorFactory;
-import org.yes.cart.util.log.Markers;
+import org.yes.cart.utils.log.Markers;
 
 /**
  * External refund event is triggered by callback from payment gateway, which could happen
@@ -74,7 +74,7 @@ public class ExternalRefundOrderEventHandlerImpl extends AbstractOrderEventHandl
             if (paymentProcessor.getPaymentGateway().getPaymentGatewayFeatures().isOnlineGateway()) {
                 final String state = paymentProcessor.refundNotification(orderEvent.getCustomerOrder(), isForceProcessing(orderEvent), orderEvent.getParams());
                 if (Payment.PAYMENT_STATUS_OK.equals(state)) {
-                    LOG.info(Markers.alert(), "Received refund notification for order {}", orderEvent.getCustomerOrder().getOrdernum());
+                    LOG.info("Received refund notification for order {}", orderEvent.getCustomerOrder().getOrdernum());
                 }
             } // else we have offline payment, so callbacks are not possible
 

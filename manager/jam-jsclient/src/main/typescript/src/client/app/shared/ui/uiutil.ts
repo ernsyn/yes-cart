@@ -33,7 +33,7 @@ export class UiUtil {
   public static dateInputGetterProxy(object:any, prop:string):string {
     if (object != null && object[prop] != null) {
       let date = UiUtil.toDateString(object[prop], true);
-      // LogUtil.debug('CategoryComponent get availableto', object[prop], date);
+      LogUtil.debug('UiUtil.dateInputGetterProxy', prop, object[prop], date);
       return date;
     }
     return null;
@@ -46,15 +46,18 @@ export class UiUtil {
    * @param prop date property
    * @param value value from input
    */
-  public static dateInputSetterProxy(object:any, prop:string, value:string) {
+  public static dateInputSetterProxy(object:any, prop:string, value:any) {
     if (object != null) {
-      if (value == null || value.length == 0) {
-        // LogUtil.debug('CategoryComponent set availableto', value);
-        object[prop] = null;
-      } else if (value.length == 10 || value.length == 19) {
-        let date = UiUtil.toDate(value);
-        // LogUtil.debug('CategoryComponent set availableto', value, date);
+      if (typeof value == 'number') {
+        let date = new Date(value);
+        LogUtil.debug('UiUtil.dateInputSetterProxy (numeric)', prop, object[prop], value, date);
         object[prop] = date;
+      } else {
+        if (value == null || value.length == 0 || value.length == 10 || value.length == 19) {
+          let date = UiUtil.toDate(value);
+          LogUtil.debug('UiUtil.dateInputSetterProxy (string)', prop, object[prop], value, date);
+          object[prop] = date;
+        } // let user edit the value, do not update model yet
       }
     }
   }
@@ -102,12 +105,12 @@ export class UiUtil {
       let dateAndTime = date.split(' ');
       let dateParts = dateAndTime[0].split('-');
       let timeParts = dateAndTime[1].split(':');
-      // LogUtil.debug('UiUtil toDate datetime', dateParts, timeParts);
+      // LogUtil.debug('UiUtil.toDate datetime', dateParts, timeParts);
       return new Date(+dateParts[0], +dateParts[1] - 1, +dateParts[2], +timeParts[0], +timeParts[1], +timeParts[2], 0);
     }
     // date only
     let dateParts = date.split('-');
-    // LogUtil.debug('UiUtil toDate date', dateParts);
+    // LogUtil.debug('UiUtil.toDate date', dateParts);
     return new Date(+dateParts[0], +dateParts[1] - 1, +dateParts[2], 0, 0, 0, 0);
 
   }
@@ -135,21 +138,20 @@ export class UiUtil {
    *
    * @param component component object
    * @param form form property on component
-   * @param subscription property on component to hold subscription object Form.statusChanges.subscribe()
    * @param delayedChange property on component for Future object
-   * @param initialising property on component with initialisation flag
    * @param future is delayedChange a Future
    */
-  public static formBind(component:any, form:string, subscription:string, delayedChange:string, initialising:string, future:boolean = true):void {
+  public static formBind(component:any, form:string, delayedChange:string, future:boolean = true):void {
     let cacheKey = (form + Math.random()).replace('.', '');
-    LogUtil.debug('UiUtils binding form', cacheKey);
-    component[subscription] = component[form].statusChanges.subscribe((data:any) => {
-      LogUtil.debug('UiUtils form status change form/data/dirty/valid ', form, data, component[form].dirty, component[form].valid);
-      if (component[form].dirty && !component[initialising]) {
+    LogUtil.debug('UiUtil.formBind', cacheKey, form);
+    component[form + 'Init'] = false;
+    component[form + 'Sub'] = component[form].statusChanges.subscribe((data:any) => {
+      LogUtil.debug('UiUtil.formBind.statusChanges form/data/dirty/valid ', form, data, component[form].dirty, component[form].valid);
+      if (component[form].dirty && !component[form + 'Init']) {
         let cache:any = UiUtil._formStatusCache.getValue(cacheKey);
         if (cache === null || cache !== data) {
           UiUtil._formStatusCache.putValue(cacheKey, data, UiUtil._formStatusCacheTTL);
-          LogUtil.debug('UiUtils form is dirty firing delayedChange form/data/dirty/valid ', form, data, component[form].dirty, component[form].valid);
+          LogUtil.debug('UiUtil.formBind.statusChanges form is dirty firing delayedChange form/data/dirty/valid ', form, data, component[form].dirty, component[form].valid);
           if (future) {
             component[delayedChange].delay();
           } else {
@@ -161,7 +163,7 @@ export class UiUtil {
       }
     });
     //component[form].valueChanges.subscribe((data:any) => {
-    //  LogUtil.debug('UiUtils form value change form/data/dirty/valid ', form, data, component[form].dirty, component[form].valid);
+    //  LogUtil.debug('UiUtil form value change form/data/dirty/valid ', form, data, component[form].dirty, component[form].valid);
     //});
 
   }
@@ -170,11 +172,12 @@ export class UiUtil {
    * Un-bind component with a form.
    *
    * @param component component object
-   * @param subscription property on component to hold subscription object Form.statusChanges.subscribe()
+   * @param form form property on component, for which to unbind the subscription
    */
-  public static formUnbind(component:any, subscription:string):void {
+  public static formUnbind(component:any, form:string):void {
+    let subscription = form + 'Sub';
     if (component[subscription]) {
-      LogUtil.debug('UiUtils unbinding form', subscription);
+      LogUtil.debug('UiUtil.formUnbind', form, subscription);
       component[subscription].unsubscribe();
     }
   }
@@ -188,12 +191,74 @@ export class UiUtil {
    * @param onlySelf mark only the form element dirty
    */
   public static formMarkFieldDirty(component:any, form:string, field:string, onlySelf:boolean = true):void {
-    LogUtil.debug('UiUtils mark dirty', form, field);
+    LogUtil.debug('UiUtil.formMarkFieldDirty', form, field);
     component[form].controls[field].markAsDirty({ onlySelf: onlySelf });
   }
 
+  /**
+   * Mark field dirty and set error onto control if required.
+   *
+   * @param component component
+   * @param form form
+   * @param field filed to mark dirty
+   * @param {FormValidationEvent<any>} event update event
+   */
+  public static formDataChange(component:any, form:string, field:string, event:FormValidationEvent<any>):void {
+    LogUtil.debug('UiUtil.formDataChange', form, field, event);
+    UiUtil._formDataChange(component, form, field, event);
+  }
+
+
+  /**
+   * Mark field dirty and set error onto control if required.
+   *
+   * @param component component
+   * @param form form
+   * @param field filed to mark dirty
+   * @param {FormValidationEvent<any>} event update event
+   */
   public static formI18nDataChange(component:any, form:string, field:string, event:FormValidationEvent<any>):void {
-    LogUtil.debug('UiUtils i18n change', form, field, event);
+    LogUtil.debug('UiUtil.formI18nDataChange', form, field, event);
+    UiUtil._formDataChange(component, form, field, event);
+  }
+
+  /**
+   * Initialise form with new data object.
+   *
+   * @param component component
+   * @param form form property
+   * @param field component internal field name
+   * @param value new value
+   * @param lock boolean flag to lock fields
+   * @param fieldsToLock field to lock if #lock is true and unlock if #lock is false
+   */
+  public static formInitialise(component:any, form:string, field:string, value:any, lock:boolean = false, fieldsToLock:string[] = []):void {
+
+    component[form + 'Init'] = true;
+
+    let _old:any = component[field];
+    let _form:any = component[form];
+    LogUtil.debug('UiUtil.formInitialise BEFORE form/field/old/new/dirty', form, field, _old, value, _form.dirty);
+
+    component[field] = value;
+
+    if (value != null) {
+      _form.reset(value, { onlySelf: true, emitEvent: true });
+      fieldsToLock.forEach(lockedField => {
+         if (lock) {
+           _form.controls[lockedField].disable({ onlySelf: true });
+         } else {
+           _form.controls[lockedField].enable({ onlySelf: true });
+         }
+      });
+    }
+
+    component[form + 'Init'] = false;
+    LogUtil.debug('UiUtil.formInitialise AFTER form/field/old/new/dirty', form, field, _old, value, _form.dirty);
+
+  }
+
+  private static _formDataChange(component:any, form:string, field:string, event:FormValidationEvent<any>):void {
     let dirty = component[form].dirty;
     if (!dirty) {
       UiUtil.formMarkFieldDirty(component, form, field, false);
@@ -204,43 +269,6 @@ export class UiUtil {
       component[form].controls[field].setErrors({'invalid': true}, {emitEvent: true});
     }
   }
-
-  /**
-   * Initialise form with new data object.
-   *
-   * @param component component
-   * @param initialising initialising flag
-   * @param form form property
-   * @param field component internal field name
-   * @param value new value
-   * @param lock boolean flag to lock fields
-   * @param fieldsToLock field to lock if #lock is true and unlock if #lock is false
-   */
-  public static formInitialise(component:any, initialising:string, form:string, field:string, value:any, lock:boolean = false, fieldsToLock:string[] = []):void {
-
-    component[initialising] = true;
-
-    let _old:any = component[field];
-    let _form:any = component[form];
-    LogUtil.debug('UiUtils form before init form/field/old/new/dirty', form, field, _old, value, _form.dirty);
-
-    component[field] = value;
-    if (value != null) {
-      _form.reset(value);
-      fieldsToLock.forEach(lockedField => {
-         if (lock) {
-           _form.controls[lockedField].disable({ onlySelf: true });
-         } else {
-           _form.controls[lockedField].enable({ onlySelf: true });
-         }
-      });
-    }
-
-    component[initialising] = false;
-    LogUtil.debug('UiUtils form after init form/field/old/new/dirty', form, field, _old, value, _form.dirty);
-
-  }
-
 
   private static toTwoChars(num:number):string {
     if (num > 9) {

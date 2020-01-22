@@ -25,6 +25,7 @@ import org.yes.cart.service.domain.PriceService;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
  * User: denispavlov
@@ -51,8 +52,11 @@ public class PriceServiceCachedImpl implements PriceService {
                                     final String currencyCode,
                                     final BigDecimal quantity,
                                     final boolean enforceTier,
-                                    final String pricingPolicy) {
-        return priceService.getMinimalPrice(productId, selectedSku, customerShopId, masterShopId, currencyCode, quantity, enforceTier, pricingPolicy);
+                                    final String pricingPolicy,
+                                    final String supplier) {
+
+        return priceService.getMinimalPrice(productId, selectedSku, customerShopId, masterShopId, currencyCode, quantity, enforceTier, pricingPolicy, supplier);
+
     }
 
     /**
@@ -65,8 +69,11 @@ public class PriceServiceCachedImpl implements PriceService {
                                               final long customerShopId,
                                               final Long masterShopId,
                                               final String currencyCode,
-                                              final String pricingPolicy) {
-        return priceService.getAllCurrentPrices(productId, selectedSku, customerShopId, masterShopId, currencyCode, pricingPolicy);
+                                              final String pricingPolicy,
+                                              final String supplier) {
+
+        return priceService.getAllCurrentPrices(productId, selectedSku, customerShopId, masterShopId, currencyCode, pricingPolicy, supplier);
+
     }
 
 
@@ -153,14 +160,20 @@ public class PriceServiceCachedImpl implements PriceService {
         priceService.delete(instance);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    @CacheEvict(value = {
-            "priceService-minimalPrice",
-            "priceService-allCurrentPrices",
-            "priceService-allPrices"
-    }, allEntries = true)
-    public void refresh(final String shopCode, final String currency) {
-        // clear all
+    public List<SkuPrice> findPrices(final int start, final int offset, final String sort, final boolean sortDescending, final Map<String, List> filter) {
+        return priceService.findPrices(start, offset, sort, sortDescending, filter);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int findPriceCount(final Map<String, List> filter) {
+        return priceService.findPriceCount(filter);
     }
 
     /**

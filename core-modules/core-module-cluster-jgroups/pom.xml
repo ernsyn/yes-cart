@@ -22,21 +22,17 @@
     <parent>
         <artifactId>core-modules</artifactId>
         <groupId>org.yes</groupId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>3.7.0-SNAPSHOT</version>
     </parent>
     <artifactId>core-module-cluster-jgroups</artifactId>
-    <name>Yes cart core: JGroups cluster support</name>
+    <name>Cluster: JGroups connector</name>
     <dependencies>
         <dependency>
             <groupId>org.yes</groupId>
             <artifactId>core</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
+
         <dependency>
             <groupId>org.jgroups</groupId>
             <artifactId>jgroups</artifactId>
@@ -55,6 +51,7 @@
 
         <filters>
             <filter>${basedir}/../../env/maven/${env}/config-cluster.properties</filter>
+            <filter>${basedir}/../../env/maven/${env}/config-cluster-${env.cluster}.properties</filter>
         </filters>
 
         <resources>

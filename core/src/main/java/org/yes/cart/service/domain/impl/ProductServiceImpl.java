@@ -16,9 +16,10 @@
 
 package org.yes.cart.service.domain.impl;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
 import org.hibernate.Hibernate;
-import org.springframework.util.CollectionUtils;
 import org.yes.cart.constants.AttributeGroupNames;
 import org.yes.cart.constants.AttributeNamesKeys;
 import org.yes.cart.dao.GenericDAO;
@@ -42,11 +43,8 @@ import org.yes.cart.service.domain.AttributeService;
 import org.yes.cart.service.domain.ProductService;
 import org.yes.cart.service.domain.ProductSkuService;
 import org.yes.cart.service.domain.ProductTypeAttrService;
-import org.yes.cart.util.TimeContext;
 import org.yes.cart.utils.HQLUtils;
 
-import java.lang.System;
-import java.time.LocalDateTime;
 import java.util.*;
 
 /**
@@ -64,7 +62,6 @@ public class ProductServiceImpl extends BaseGenericServiceImpl<Product> implemen
     private final GenericDAO<ProductCategory, Long> productCategoryDao;
     private final GenericDAO<ProductTypeAttr, Long> productTypeAttrDao;
     private final ShopCategoryRelationshipSupport shopCategoryRelationshipSupport;
-    private final Random rand;
 
     /**
      * Construct product service.
@@ -95,8 +92,6 @@ public class ProductServiceImpl extends BaseGenericServiceImpl<Product> implemen
         this.productCategoryDao = productCategoryDao;
         this.productTypeAttrDao = productTypeAttrDao;
         this.shopCategoryRelationshipSupport = shopCategoryRelationshipSupport;
-        rand = new Random();
-        rand.setSeed(System.currentTimeMillis());
     }
 
     /** {@inheritDoc} */
@@ -128,38 +123,6 @@ public class ProductServiceImpl extends BaseGenericServiceImpl<Product> implemen
         return images.get(productId);
     }
 
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public List<Product> findProductByCategory(final long categoryId) {
-        return productDao.findByNamedQuery("PRODUCTS.BY.CATEGORYID", categoryId, now(), Boolean.FALSE);
-    }
-
-    LocalDateTime now() {
-        return TimeContext.getLocalDateTime();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Product getRandomProductByCategory(final Category category) {
-        final int qty = getProductQty(category.getCategoryId());
-        if (qty > 0) {
-            final int idx = rand.nextInt(qty);
-            final List<ProductCategory> productCategory =
-                    productCategoryDao.findRangeByNamedQuery("PRODUCT.IN.CATEGORY.ONE", idx, 1, category.getCategoryId());
-
-            if (!CollectionUtils.isEmpty(productCategory)) {
-                final Product product = productDao.findById(productCategory.get(0).getProduct().getProductId());
-                product.getAttributes().size(); // initialise attributes
-                return product;
-            }
-        }
-        return null;
-    }
 
     private static final Comparator<Pair> BY_SECOND = (pair1, pair2) -> ((String) pair1.getSecond()).compareTo((String) pair2.getSecond());
 
@@ -491,28 +454,9 @@ public class ProductServiceImpl extends BaseGenericServiceImpl<Product> implemen
     public Pair<Integer, Integer> findProductQtyAll() {
 
         final int total = getGenericDao().findCountByCriteria(null);
-        final int active = getGenericDao().findCountByCriteria(
-                " where (e.availablefrom is null or e.availability = ?1 or e.availablefrom <= ?2) and (e.availableto is null or e.availableto >= ?2)",
-                Product.AVAILABILITY_PREORDER, now()
-        );
+        final int active = total; // TODO find a way to detect active, potentially count of distinct inventory?
 
         return new Pair<>(total, active);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public List<Product> findProductByCategory(final long categoryId,
-                                               final int firstResult,
-                                               final int maxResults) {
-        return productDao.findRangeByNamedQuery("PRODUCTS.BY.CATEGORYID",
-                firstResult,
-                maxResults,
-                categoryId,
-                now(),
-                Boolean.FALSE
-        );
     }
 
 
@@ -611,14 +555,6 @@ public class ProductServiceImpl extends BaseGenericServiceImpl<Product> implemen
      * {@inheritDoc}
      */
     @Override
-    public List<Long> findProductIdsByUnavailableBefore(final LocalDateTime before) {
-        return (List) productDao.findQueryObjectByNamedQuery("PRODUCT.IDS.BY.AVAILABLETO", before, Boolean.TRUE);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public List<Long> findProductIdsByAttributeValue(final String attrCode, final String attrValue) {
         return (List) productDao.findQueryObjectByNamedQuery("PRODUCT.IDS.BY.ATTRIBUTE.CODE.AND.VALUE", attrCode, attrValue);
     }
@@ -698,15 +634,6 @@ public class ProductServiceImpl extends BaseGenericServiceImpl<Product> implemen
             return String.valueOf(uriAndId[1]);
         }
         return null;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public int getProductQty(final long categoryId) {
-        return Integer.valueOf(
-                String.valueOf(productDao.getScalarResultByNamedQuery("PRODUCTS.QTY.BY.CATEGORYID", categoryId, now(), Boolean.FALSE)));
     }
 
 
@@ -817,6 +744,90 @@ public class ProductServiceImpl extends BaseGenericServiceImpl<Product> implemen
         }
     }
 
+    private Pair<String, Object[]> findProductQuery(final boolean count,
+                                                    final String sort,
+                                                    final boolean sortDescending,
+                                                    final Map<String, List> filter) {
+
+        final Map<String, List> currentFilter = filter != null ? new HashMap<>(filter) : null;
+
+        final StringBuilder hqlCriteria = new StringBuilder();
+        final List<Object> params = new ArrayList<>();
+
+        final List categoryIds = currentFilter != null ? currentFilter.remove("categoryIds") : null;
+        if (CollectionUtils.isNotEmpty(categoryIds)) {
+            if (count) {
+                hqlCriteria.append("select count(distinct p.productId) from ProductEntity p join p.productCategory c where c.category.categoryId in (?1) ");
+            } else {
+                hqlCriteria.append("select distinct p from ProductEntity p join p.productCategory c where c.category.categoryId in (?1) ");
+            }
+            params.add(categoryIds);
+        } else {
+            if (count) {
+                hqlCriteria.append("select count(p.productId) from ProductEntity p ");
+            } else {
+                hqlCriteria.append("select p from ProductEntity p ");
+            }
+        }
+
+        final List supplierCatalogCodes = currentFilter != null ? currentFilter.remove("supplierCatalogCodes") : null;
+        if (CollectionUtils.isNotEmpty(supplierCatalogCodes)) {
+            if (params.size() > 0) {
+                hqlCriteria.append(" and (p.supplierCatalogCode is null or p.supplierCatalogCode in (?").append(params.size() + 1).append(")) ");
+            } else {
+                hqlCriteria.append(" where (p.supplierCatalogCode is null or p.supplierCatalogCode in (?1)) ");
+            }
+            params.add(supplierCatalogCodes);
+        }
+
+        HQLUtils.appendFilterCriteria(hqlCriteria, params, "p", currentFilter);
+
+        if (StringUtils.isNotBlank(sort)) {
+
+            hqlCriteria.append(" order by p." + sort + " " + (sortDescending ? "desc" : "asc"));
+
+        }
+
+        return new Pair<>(
+                hqlCriteria.toString(),
+                params.toArray(new Object[params.size()])
+        );
+
+    }
+
+
+
+
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<Product> findProducts(final int start, final int offset, final String sort, final boolean sortDescending, final Map<String, List> filter) {
+
+        final Pair<String, Object[]> query = findProductQuery(false, sort, sortDescending, filter);
+
+        return getGenericDao().findRangeByQuery(
+                query.getFirst(),
+                start, offset,
+                query.getSecond()
+        );
+
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int findProductCount(final Map<String, List> filter) {
+
+        final Pair<String, Object[]> query = findProductQuery(true, null, false, filter);
+
+        return getGenericDao().findCountByQuery(
+                query.getFirst(),
+                query.getSecond()
+        );
+    }
 
     /**
      * {@inheritDoc}
@@ -838,11 +849,22 @@ public class ProductServiceImpl extends BaseGenericServiceImpl<Product> implemen
 
     }
 
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<String> findProductSupplierCatalogCodes() {
+
+        return (List) productDao.findQueryObjectByNamedQuery("PRODUCT.SUPPLIER.CATALOG.CODES");
+
+    }
+
     /**
      * Persist product. Default sku will be created.
      *
      * @param instance instance to persist
-     * @return persisted instanse
+     * @return persisted instance
      */
     @Override
     public Product create(final Product instance) {
@@ -853,7 +875,7 @@ public class ProductServiceImpl extends BaseGenericServiceImpl<Product> implemen
         sku.setDisplayName(instance.getDisplayName());
         sku.setDescription(instance.getDescription());
         sku.setProduct(instance);
-        sku.setRank(500);
+        sku.setRank(0);
         instance.getSku().add(sku);
 
         return getGenericDao().create(instance);

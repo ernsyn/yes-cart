@@ -16,14 +16,15 @@
 
 package org.yes.cart.service.payment.impl;
 
+import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.yes.cart.BaseCoreDBTestCase;
 import org.yes.cart.constants.ServiceSpringKeys;
 import org.yes.cart.domain.entity.Customer;
 import org.yes.cart.domain.entity.CustomerOrder;
+import org.yes.cart.domain.entity.SkuWarehouse;
 import org.yes.cart.domain.entity.Warehouse;
-import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.payment.PaymentGateway;
 import org.yes.cart.payment.impl.TestExtFormPaymentGatewayImpl;
 import org.yes.cart.payment.persistence.entity.CustomerOrderPayment;
@@ -36,10 +37,8 @@ import org.yes.cart.service.order.OrderAssembler;
 import org.yes.cart.service.order.impl.DeliveryAssemblerImpl;
 import org.yes.cart.service.payment.PaymentCallBackHandlerFacade;
 import org.yes.cart.shoppingcart.ShoppingCart;
-import org.yes.cart.util.ShopCodeContext;
+import org.yes.cart.utils.ShopCodeContext;
 
-import java.math.BigDecimal;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,7 +78,7 @@ public class PaymentCallBackHandlerFacadeImplTest extends BaseCoreDBTestCase {
     public void testHandlePaymentCallbackEnoughStock() throws Exception {
         Customer customer = createCustomer();
         ShoppingCart shoppingCart = getShoppingCart2(customer.getEmail(), false);
-        CustomerOrder customerOrder = orderAssembler.assembleCustomerOrder(shoppingCart);
+        CustomerOrder customerOrder = orderAssembler.assembleCustomerOrder(shoppingCart, RandomStringUtils.random(10));
         customerOrder = deliveryAssembler.assembleCustomerOrder(customerOrder, shoppingCart, getMultiSelection(shoppingCart));
         customerOrder.setPgLabel("testExtFormPaymentGatewayLabel");
         customerOrder = customerOrderService.create(customerOrder);
@@ -103,7 +102,7 @@ public class PaymentCallBackHandlerFacadeImplTest extends BaseCoreDBTestCase {
                 CustomerOrder.ORDER_STATUS_IN_PROGRESS,
                 customerOrder.getOrderStatus());
 
-        final List<CustomerOrderPayment> payments = customerOrderPaymentService.findBy(customerOrder.getOrdernum(), null, (String) null, (String) null);
+        final List<CustomerOrderPayment> payments = customerOrderPaymentService.findPayments(customerOrder.getOrdernum(), null, (String) null, (String) null);
         assertNotNull(payments);
         assertEquals(payments.size(), 1);
         assertEquals(PaymentGateway.AUTH_CAPTURE, payments.get(0).getTransactionOperation());
@@ -116,7 +115,7 @@ public class PaymentCallBackHandlerFacadeImplTest extends BaseCoreDBTestCase {
         Customer customer = createCustomer();
         ShoppingCart shoppingCart = getShoppingCart2(customer.getEmail(), false);
 
-        CustomerOrder customerOrder = orderAssembler.assembleCustomerOrder(shoppingCart);
+        CustomerOrder customerOrder = orderAssembler.assembleCustomerOrder(shoppingCart, RandomStringUtils.random(10));
         customerOrder = deliveryAssembler.assembleCustomerOrder(customerOrder, shoppingCart, getMultiSelection(shoppingCart));
         customerOrder.setPgLabel("testExtFormPaymentGatewayLabel");
         customerOrder = customerOrderService.create(customerOrder);
@@ -127,8 +126,8 @@ public class PaymentCallBackHandlerFacadeImplTest extends BaseCoreDBTestCase {
         // Simulate out of stock condition in time period between we go off to external form and then come back with payment callback
         final Warehouse warehouse = warehouseService.findById(1L);
         assertNotNull(warehouse);
-        final Pair<BigDecimal, BigDecimal> quantityAndReserve = skuWarehouseService.findQuantity(Arrays.asList(warehouse), "CC_TEST1");
-        skuWarehouseService.debit(warehouse, "CC_TEST1", quantityAndReserve.getFirst());
+        final SkuWarehouse inventory = skuWarehouseService.findByWarehouseSku(warehouse, "CC_TEST1");
+        skuWarehouseService.debit(warehouse, "CC_TEST1", inventory.getQuantity());
         // end Simulate
 
         final String ordGuid = customerOrder.getCartGuid();
@@ -148,7 +147,7 @@ public class PaymentCallBackHandlerFacadeImplTest extends BaseCoreDBTestCase {
                 CustomerOrder.ORDER_STATUS_CANCELLED_WAITING_PAYMENT,
                 customerOrder.getOrderStatus());
 
-        final List<CustomerOrderPayment> payments = customerOrderPaymentService.findBy(customerOrder.getOrdernum(), null, (String) null, (String) null);
+        final List<CustomerOrderPayment> payments = customerOrderPaymentService.findPayments(customerOrder.getOrdernum(), null, (String) null, (String) null);
         assertNotNull(payments);
         assertEquals(payments.size(), 2);
         assertEquals(PaymentGateway.AUTH_CAPTURE, payments.get(0).getTransactionOperation());

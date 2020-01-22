@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
   ~ Copyright 2009 Denys Pavlov, Igor Azarnyi
   ~
@@ -20,11 +21,11 @@
     <parent>
         <groupId>org.yes</groupId>
         <artifactId>web</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>3.7.0-SNAPSHOT</version>
     </parent>
-    <artifactId>yes-api</artifactId>
+    <artifactId>rest-api</artifactId>
     <packaging>war</packaging>
-    <name>Yes cart web: REST API</name>
+    <name>WebApps: REST API</name>
     <dependencies>
         <dependency>
             <groupId>org.yes</groupId>
@@ -39,16 +40,6 @@
         <dependency>
             <groupId>org.yes</groupId>
             <artifactId>core</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.yes</groupId>
-            <artifactId>core-module-ws</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.yes</groupId>
-            <artifactId>core-module-cluster-ws</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
@@ -68,36 +59,25 @@
             <artifactId>groovy-all</artifactId>
             <version>${groovy-all.version}</version>
         </dependency>
+
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
             <version>${spring.version}</version>
         </dependency>
+
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-webmvc</artifactId>
             <version>${spring.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-core</artifactId>
-            <version>${spring-security.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-web</artifactId>
-            <version>${spring-security.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-config</artifactId>
-            <version>${spring-security.version}</version>
-        </dependency>
+
         <dependency>
             <groupId>org.springframework.ws</groupId>
             <artifactId>spring-ws-core</artifactId>
             <version>${spring-ws.version}</version>
         </dependency>
+
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
@@ -124,42 +104,17 @@
             <version>${jackson.version}</version>
         </dependency>
 
+        <!-- Swagger2 -->
+
         <dependency>
-            <groupId>org.apache.cxf</groupId>
-            <artifactId>cxf-rt-frontend-jaxws</artifactId>
-            <version>${cxf.version}</version>
-            <exclusions>
-                <exclusion>
-                    <artifactId>asm</artifactId>
-                    <groupId>org.ow2.asm</groupId>
-                </exclusion>
-            </exclusions>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger2</artifactId>
+            <version>${springfox.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.apache.cxf</groupId>
-            <artifactId>cxf-rt-transports-http</artifactId>
-            <version>${cxf.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.cxf</groupId>
-            <artifactId>cxf-rt-ws-security</artifactId>
-            <version>${cxf.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.bouncycastle</groupId>
-                    <artifactId>bcprov-jdk15on</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>net.sf.ehcache</groupId>
-                    <artifactId>ehcache</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <!-- Bouncy castle for ws-security -->
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-            <version>${bcprov-jdk15on.version}</version>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger-ui</artifactId>
+            <version>${springfox.version}</version>
         </dependency>
 
         <!--<dependency>-->
@@ -177,7 +132,7 @@
 
         <dependency>
             <groupId>org.yes</groupId>
-            <artifactId>persistence</artifactId>
+            <artifactId>persistence-core-hibernate</artifactId>
             <version>${project.parent.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
@@ -210,6 +165,10 @@
 
     <profiles>
 
+        <!--
+            DATABASE PROFILES
+        -->
+
         <profile>
             <id>mysql</id>
             <dependencies>
@@ -217,88 +176,6 @@
                     <groupId>mysql</groupId>
                     <artifactId>mysql-connector-java</artifactId>
                     <version>${mysql-connector.version}</version>
-                </dependency>
-            </dependencies>
-        </profile>
-
-        <profile>
-            <id>buildDemo</id>
-            <dependencies>
-                <dependency>
-                    <groupId>mysql</groupId>
-                    <artifactId>mysql-connector-java</artifactId>
-                    <version>${mysql-connector.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>search-lucene-embeded</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-liqpay</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-cybersource</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-authorizenet</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-paypal</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-postfinance</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-            </dependencies>
-        </profile>
-
-        <profile>
-            <id>buildAws</id>
-            <dependencies>
-                <dependency>
-                    <groupId>mysql</groupId>
-                    <artifactId>mysql-connector-java</artifactId>
-                    <version>${mysql-connector.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>search-lucene-embeded</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-liqpay</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-cybersource</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-authorizenet</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-paypal</artifactId>
-                    <version>${project.parent.version}</version>
-                </dependency>
-                <dependency>
-                    <groupId>org.yes</groupId>
-                    <artifactId>payment-module-postfinance</artifactId>
-                    <version>${project.parent.version}</version>
                 </dependency>
             </dependencies>
         </profile>
@@ -314,6 +191,60 @@
                 </dependency>
             </dependencies>
         </profile>
+
+        <!--
+            CLUSTER CONNECTOR
+        -->
+
+        <profile>
+            <id>connWS</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>core-module-cluster-ws</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <activation><activeByDefault>true</activeByDefault></activation>
+            <id>connREST</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>core-module-cluster-rest</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <id>connJGIPv4</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>core-module-cluster-jgroups</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <profile>
+            <id>orconnJGIPv6</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>core-module-cluster-jgroups</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+
+        <!--
+            FULLTEXT PROFILES
+        -->
 
         <profile>
             <activation><activeByDefault>true</activeByDefault></activation>
@@ -337,6 +268,16 @@
                 </dependency>
             </dependencies>
         </profile>
+
+
+        <!--
+            ADD-ON PROFILES
+        -->
+
+
+        <!--
+            PAYMENT MODULES ACTIVATION
+        -->
 
         <profile>
             <id>paymentAll</id>
@@ -424,16 +365,100 @@
             </dependencies>
         </profile>
 
+
+        <!--
+            DEMO STORE
+        -->
+
         <profile>
-            <id>jgroups</id>
+            <id>buildDemo</id>
             <dependencies>
                 <dependency>
+                    <groupId>mysql</groupId>
+                    <artifactId>mysql-connector-java</artifactId>
+                    <version>${mysql-connector.version}</version>
+                </dependency>
+                <dependency>
                     <groupId>org.yes</groupId>
-                    <artifactId>core-module-cluster-jgroups</artifactId>
+                    <artifactId>search-lucene-embeded</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-liqpay</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-cybersource</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-authorizenet</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-paypal</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-postfinance</artifactId>
                     <version>${project.parent.version}</version>
                 </dependency>
             </dependencies>
         </profile>
+
+        <!--
+            AWS STORE
+        -->
+
+        <profile>
+            <id>buildAws</id>
+            <dependencies>
+                <dependency>
+                    <groupId>mysql</groupId>
+                    <artifactId>mysql-connector-java</artifactId>
+                    <version>${mysql-connector.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>search-lucene-embeded</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-liqpay</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-cybersource</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-authorizenet</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-paypal</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.yes</groupId>
+                    <artifactId>payment-module-postfinance</artifactId>
+                    <version>${project.parent.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+
+        <!--
+            TEMPLATES PROFILES
+        -->
 
         <profile>
             <id>templates</id>
@@ -450,7 +475,7 @@
                                         <goal>copy-resources</goal>
                                     </goals>
                                     <configuration>
-                                        <outputDirectory>${basedir}/target/yes-api</outputDirectory>
+                                        <outputDirectory>${basedir}/target/${webapp.api.war.name}</outputDirectory>
                                         <resources>
                                             <resource>
                                                 <directory>${basedir}/../../theme/mail/src/main/resources</directory>
@@ -476,6 +501,7 @@
 
         <filters>
             <filter>${basedir}/../../env/maven/${env}/config-cluster.properties</filter>
+            <filter>${basedir}/../../env/maven/${env}/config-cluster-${env.cluster}.properties</filter>
             <filter>${basedir}/../../env/maven/${env}/config-fs.properties</filter>
             <filter>${basedir}/../../env/maven/${env}/config-db-${env.db}.properties</filter>
             <filter>${basedir}/../../env/maven/${env}/config-ft-${env.search}.properties</filter>

@@ -17,23 +17,30 @@
 package org.yes.cart.service.dto.impl;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.yes.cart.BaseCoreDBTestCase;
+import org.yes.cart.config.ConfigurationRegistry;
 import org.yes.cart.constants.DtoServiceSpringKeys;
 import org.yes.cart.constants.ServiceSpringKeys;
-import org.yes.cart.domain.dto.AttrValueCategoryDTO;
+import org.yes.cart.domain.dto.AttrValueContentDTO;
 import org.yes.cart.domain.dto.AttrValueDTO;
 import org.yes.cart.domain.dto.AttributeDTO;
-import org.yes.cart.domain.dto.CategoryDTO;
+import org.yes.cart.domain.dto.ContentDTO;
 import org.yes.cart.domain.dto.factory.DtoFactory;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.service.domain.ContentService;
+import org.yes.cart.service.domain.ShopService;
 import org.yes.cart.service.dto.DtoAttributeService;
 import org.yes.cart.service.dto.DtoContentService;
 
-import java.util.List;
+import java.util.*;
 
 import static org.junit.Assert.*;
 
@@ -41,13 +48,34 @@ import static org.junit.Assert.*;
  * User: Denis Pavlov
  * Date: 15-June-2013
  */
+@RunWith(Parameterized.class)
 public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
+
+    @Parameterized.Parameters(name = "{0}")
+    public static Collection<String[]> data() {
+        return Arrays.asList(
+                new String[] { "contentServiceCMS1", "dtoContentServiceCMS1" },
+                new String[] { "contentServiceCMS3", "dtoContentServiceCMS3" }
+                );
+    }
 
     private DtoFactory dtoFactory;
     private ContentService service;
+    private ShopService shopService;
     private DtoContentService dtoService;
     private DtoAttributeService dtoAttrService;
+
     public static final int QTY = 10;
+
+
+    private String cmsServiceMode;
+    private String cmsDtoServiceMode;
+
+    public DtoContentServiceImplTezt(final String cmsServiceMode, final String cmsDtoServiceMode) {
+        this.cmsServiceMode = cmsServiceMode;
+        this.cmsDtoServiceMode = cmsDtoServiceMode;
+    }
+
 
     @Override
     @Before
@@ -56,21 +84,56 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
         dtoService = (DtoContentService) ctx().getBean(DtoServiceSpringKeys.DTO_CONTENT_SERVICE);
         dtoAttrService = (DtoAttributeService) ctx().getBean(DtoServiceSpringKeys.DTO_ATTRIBUTE_SERVICE);
         service = (ContentService) ctx().getBean(ServiceSpringKeys.CONTENT_SERVICE);
+        shopService = (ShopService) ctx().getBean(ServiceSpringKeys.SHOP_SERVICE);
+
+        final ContentService serviceMode = (ContentService) ctx().getBean(cmsServiceMode);
+        ((ConfigurationRegistry) service).register("CMS", serviceMode);
+        final DtoContentService dtoServiceMode = (DtoContentService) ctx().getBean(cmsDtoServiceMode);
+        ((ConfigurationRegistry) dtoService).register("CMS", dtoServiceMode);
+
         super.setUp();
     }
 
+    @Override
+    @After
+    public void tearDown() throws Exception {
+
+        ((ConfigurationRegistry) service).register("CMS", null);
+        ((ConfigurationRegistry) dtoService).register("CMS", null);
+
+        super.tearDown();
+    }
 
     @Test
-    public void testFindBy() throws Exception {
+    public void testFindContent() throws Exception {
 
-        List<CategoryDTO> list = dtoService.findBy(10L,"^SHOIP1", 0, 10);
-        assertTrue(list.size() > 1);
+        final List<Long> contentIds = new ArrayList<>(shopService.getShopContentIds(10L));
 
-        list = dtoService.findBy(10L,"@SHOIP1_mail_customer-registered.html", 0, 10);
-        assertEquals(1, list.size());
+        final Map<String, List> filterByParentParams = new HashMap<>();
+        filterByParentParams.put("filter", Collections.singletonList("^ SHOIP1"));
+        filterByParentParams.put("contentIds", contentIds);
+        final SearchContext filterByParent = new SearchContext(filterByParentParams, 0, 10, "guid", false, "filter", "contentIds");
+        SearchResult<ContentDTO> list = dtoService.findContent(filterByParent);
+        assertTrue(list.getTotal() > 1);
+        assertEquals("SHOIP1", list.getItems().get(0).getName());
 
-        list = dtoService.findBy(10L,null, 0, 1);
-        assertTrue(list.size() > 1); // TODO: fix this, there is a check to find content belongs to shop, so page size cannot be applied
+        final Map<String, List> filterByUriParams = new HashMap<>();
+        filterByUriParams.put("filter", Collections.singletonList("@SHOIP1_mail_customer-registered.html"));
+        filterByUriParams.put("contentIds", contentIds);
+        final SearchContext filterByUri = new SearchContext(filterByUriParams, 0, 10, "name", false, "filter", "contentIds");
+        list = dtoService.findContent(filterByUri);
+        assertEquals(1, list.getTotal());
+        assertEquals("SHOIP1_mail_customer-registered.html", list.getItems().get(0).getUri());
+
+        final Map<String, List> filterNoneParams = new HashMap<>();
+        filterNoneParams.put("contentIds", contentIds);
+        final SearchContext filterNone = new SearchContext(filterNoneParams, 0, 10, "name", false, "filter", "contentIds");
+        list = dtoService.findContent(filterNone);
+        assertTrue(list.getTotal() > 1);
+        list.getItems().forEach(content -> {
+            assertTrue(content.getGuid(), content.getGuid().contains("SHOIP1"));
+        });
+
 
     }
 
@@ -78,7 +141,7 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
     @Test
     public void testGetAll() throws Exception {
 
-        List<CategoryDTO> list = dtoService.getAllByShopId(20L);
+        List<ContentDTO> list = dtoService.getAllByShopId(20L);
         assertFalse(list.isEmpty());
 
     }
@@ -86,16 +149,16 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
     @Test
     public void testGetAllWithAvailabilityFilter() throws Exception {
 
-        List<CategoryDTO> list = dtoService.getAllWithAvailabilityFilter(20L, true);
+        List<ContentDTO> list = dtoService.getAllWithAvailabilityFilter(20L, true);
         assertFalse(list.isEmpty());
-        assertFalse(isCategoryPresent(list, 10110L));  //content 2008
-        assertFalse(isCategoryPresent(list, 10111L));  //content 2108
+        assertFalse(isContentPresent(list, 10110L));  //content 2008
+        assertFalse(isContentPresent(list, 10111L));  //content 2108
 
     }
 
-    private boolean isCategoryPresent(final List<CategoryDTO> list, final long pk) {
-        for (CategoryDTO dto : list) {
-            if (dto.getCategoryId() == pk) {
+    private boolean isContentPresent(final List<ContentDTO> list, final long pk) {
+        for (ContentDTO dto : list) {
+            if (dto.getContentId() == pk) {
                 return true;
             }
         }
@@ -109,9 +172,9 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
             @Override
             public void doInTransactionWithoutResult(TransactionStatus status) {
                 try {
-                    CategoryDTO dto = getDto();
+                    ContentDTO dto = getDto();
                     dto = dtoService.create(dto);
-                    assertTrue(dto.getCategoryId() > 0);
+                    assertTrue(dto.getContentId() > 0);
                 } catch (Exception e) {
                     assertTrue(e.getMessage(), false);
 
@@ -131,9 +194,9 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
             @Override
             public void doInTransactionWithoutResult(TransactionStatus status) {
                 try {
-                    CategoryDTO dto = getDto();
+                    ContentDTO dto = getDto();
                     dto = dtoService.create(dto);
-                    assertTrue(dto.getCategoryId() > 0);
+                    assertTrue(dto.getContentId() > 0);
                     dto.setDescription("description");
                     dto = dtoService.update(dto);
                     assertEquals("description", dto.getDescription());
@@ -156,10 +219,10 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
             @Override
             public void doInTransactionWithoutResult(TransactionStatus status) {
                 try {
-                    CategoryDTO dto = getDto();
+                    ContentDTO dto = getDto();
                     dto = dtoService.create(dto);
-                    assertTrue(dto.getCategoryId() > 0);
-                    long id = dto.getCategoryId();
+                    assertTrue(dto.getContentId() > 0);
+                    long id = dto.getContentId();
                     dtoService.remove(id);
                     dto = dtoService.getById(id);
                     assertNull(dto);
@@ -182,7 +245,7 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
             @Override
             public void doInTransactionWithoutResult(TransactionStatus status) {
                 try {
-                    List<CategoryDTO> list = dtoService.getAllByShopId(50L);
+                    List<ContentDTO> list = dtoService.getAllByShopId(50L);
                     assertNull(list); // No Content Root
                 } catch (Exception e) {
 
@@ -206,7 +269,7 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
                 try {
                     dtoService.createContentRoot(50L);
 
-                    List<CategoryDTO> list = dtoService.getAllByShopId(50L);
+                    List<ContentDTO> list = dtoService.getAllByShopId(50L);
                     assertNotNull(list);
                     assertFalse(list.isEmpty());
                     assertEquals(1, list.size());
@@ -297,16 +360,16 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
         for (AttrValueDTO dto : list) {
             assertNull(dto.getVal());
         }
-        AttrValueCategoryDTO attrValueCategory = dtoFactory.getByIface(AttrValueCategoryDTO.class);
-        attrValueCategory.setAttributeDTO(dtoAttrService.getById(1002L));//CATEGORY_ITEMS_PER_PAGE
-        attrValueCategory.setVal("1,2,3");
-        attrValueCategory.setCategoryId(10105L);
-        dtoService.createEntityAttributeValue(attrValueCategory);
-        attrValueCategory = dtoFactory.getByIface(AttrValueCategoryDTO.class);
-        attrValueCategory.setAttributeDTO(dtoAttrService.getById(1004L));//URI
-        attrValueCategory.setVal("val2");
-        attrValueCategory.setCategoryId(10105L);
-        dtoService.createEntityAttributeValue(attrValueCategory);
+        AttrValueContentDTO attrValueContent = dtoFactory.getByIface(AttrValueContentDTO.class);
+        attrValueContent.setAttributeDTO(dtoAttrService.getById(1002L));//CATEGORY_ITEMS_PER_PAGE
+        attrValueContent.setVal("1,2,3");
+        attrValueContent.setContentId(10105L);
+        dtoService.createEntityAttributeValue(attrValueContent);
+        attrValueContent = dtoFactory.getByIface(AttrValueContentDTO.class);
+        attrValueContent.setAttributeDTO(dtoAttrService.getById(1004L));//URI
+        attrValueContent.setVal("val2");
+        attrValueContent.setContentId(10105L);
+        dtoService.createEntityAttributeValue(attrValueContent);
         getCacheMap().get("contentService-byId").clear();
         list = dtoService.getEntityAttributes(10105L);
         assertEquals(QTY, list.size());
@@ -330,8 +393,8 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
 
     }
 
-    private CategoryDTO getDto() {
-        CategoryDTO dto = dtoFactory.getByIface(CategoryDTO.class);
+    private ContentDTO getDto() {
+        ContentDTO dto = dtoFactory.getByIface(ContentDTO.class);
         dto.setName("testcontent");
         dto.setParentId(10105L);
         return dto;
@@ -357,8 +420,8 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
 
         final AttributeDTO attributeDTO = dtoFactory.getByIface(AttributeDTO.class);
         attributeDTO.setCode("CONTENT_BODY_en");
-        final AttrValueCategoryDTO contentLarge = dtoFactory.getByIface(AttrValueCategoryDTO.class);
-        contentLarge.setCategoryId(10106L);
+        final AttrValueContentDTO contentLarge = dtoFactory.getByIface(AttrValueContentDTO.class);
+        contentLarge.setContentId(10106L);
         contentLarge.setAttributeDTO(attributeDTO);
         contentLarge.setVal(LARGE_CONTENT);
 
@@ -387,8 +450,8 @@ public class DtoContentServiceImplTezt extends BaseCoreDBTestCase {
 
         clearCache();
 
-        final AttrValueCategoryDTO contentSmall = dtoFactory.getByIface(AttrValueCategoryDTO.class);
-        contentSmall.setCategoryId(10106L);
+        final AttrValueContentDTO contentSmall = dtoFactory.getByIface(AttrValueContentDTO.class);
+        contentSmall.setContentId(10106L);
         contentSmall.setAttributeDTO(attributeDTO);
         contentSmall.setVal("Small");
 

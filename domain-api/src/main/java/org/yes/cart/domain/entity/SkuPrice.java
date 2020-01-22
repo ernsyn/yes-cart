@@ -231,6 +231,15 @@ public interface SkuPrice extends Auditable, Taggable {
     void setSaleto(LocalDateTime saleto);
 
     /**
+     * Returns true if price is enabled and now is within from/to date range.
+     *
+     * @param now    time now
+     *
+     * @return true if the product is available now
+     */
+    boolean isAvailable(LocalDateTime now);
+
+    /**
      * Primary key.
      *
      * @return pk value
@@ -276,6 +285,20 @@ public interface SkuPrice extends Auditable, Taggable {
      * @param pricingPolicy price type
      */
     void setPricingPolicy(String pricingPolicy);
+
+    /**
+     * Mark this price as supplier specific.
+     *
+     * @return supplier
+     */
+    String getSupplier();
+
+    /**
+     * Mark this price as supplier specific.
+     *
+     * @param supplier supplier
+     */
+    void setSupplier(String supplier);
 
     /**
      * Get reference for this price list.

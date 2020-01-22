@@ -58,7 +58,8 @@
                 <!--</description>-->
                 <!--<property name="corePoolSize" value="1"/>-->
                 <!--<property name="maxPoolSize" value="1"/>-->
-            <!--</bean>-->
+                <!--<property name="threadNamePrefix" value="[dto-cartupdate]-"/>-->
+        <!--</bean>-->
         <!--</constructor-arg>-->
     </bean>
 
@@ -100,6 +101,8 @@
                 <value>expireCartCmd</value>
                 <value>loginCmd</value>
                 <value>logoutCmd</value>
+                <value>loginOnBehalfCmd</value>
+                <value>logoutOnBehalfCmd</value>
                 <value>removeCouponCmd</value>
                 <value>removeFromWishListCmd</value>
                 <value>removeAllSkuCmd</value>
@@ -116,6 +119,7 @@
                 <value>setPriceCmd</value>
                 <value>recalculatePriceCmd</value>
                 <value>qty</value>
+                <value>supplier</value>
                 <value>type</value>
                 <value>wlv</value>
                 <value>sku</value>
@@ -138,6 +142,7 @@
                 <value>cleanCartCmd</value>
                 <value>expireCartCmd</value>
                 <value>loginCmd</value>
+                <value>loginOnBehalfCmd</value>
                 <value>setBillingAddressSeparateCmd</value>
                 <value>splitCartItemsCmd</value>
                 <value>setCarrierSlaCmd</value>

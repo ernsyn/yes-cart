@@ -31,7 +31,7 @@ import org.yes.cart.payment.dto.*;
 import org.yes.cart.payment.dto.impl.BasicCallbackInfoImpl;
 import org.yes.cart.payment.dto.impl.PaymentGatewayFeatureImpl;
 import org.yes.cart.payment.dto.impl.PaymentImpl;
-import org.yes.cart.util.HttpParamsUtils;
+import org.yes.cart.utils.HttpParamsUtils;
 
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
@@ -108,15 +108,6 @@ public class AuthorizeNetSimPaymentGatewayImpl extends AbstractAuthorizeNetPayme
             null ,
             false, false
     );
-
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public String getLabel() {
-        return "authorizeNetSimPaymentGateway";
-    }
 
     /**
      * {@inheritDoc}
@@ -414,10 +405,13 @@ public class AuthorizeNetSimPaymentGatewayImpl extends AbstractAuthorizeNetPayme
             LOG.debug("Signature is not valid");
         }
         if ("1".equals(responseCode)) {
+            LOG.debug("Payment result is {}: {}", responseCode, CallbackAware.CallbackResult.OK);
             return CallbackAware.CallbackResult.OK;
         } else if ("4".equals(responseCode)) {
+            LOG.debug("Payment result is {}: {}", responseCode, CallbackAware.CallbackResult.PROCESSING);
             return CallbackAware.CallbackResult.PROCESSING;
         } else {
+            LOG.debug("Payment result is {}: {}", responseCode, CallbackAware.CallbackResult.FAILED);
             return CallbackAware.CallbackResult.FAILED;
         }
     }
@@ -446,8 +440,8 @@ public class AuthorizeNetSimPaymentGatewayImpl extends AbstractAuthorizeNetPayme
 
         final StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(getHiddenField("x_login", apiLoginId));
-        stringBuilder.append(getHiddenField("x_fp_sequence", x_fp_sequence));
-        stringBuilder.append(getHiddenField("x_fp_timestamp", x_fp_timestamp));
+        stringBuilder.append(getHiddenField("x_fp_sequence", String.valueOf(x_fp_sequence)));
+        stringBuilder.append(getHiddenField("x_fp_timestamp", String.valueOf(x_fp_timestamp)));
         stringBuilder.append(getHiddenField("x_fp_hash", x_fp_hash));
         stringBuilder.append(getHiddenField("x_version", "3.1"));
         stringBuilder.append(getHiddenField("x_method", "CC"));
@@ -602,9 +596,13 @@ public class AuthorizeNetSimPaymentGatewayImpl extends AbstractAuthorizeNetPayme
         final StringBuilder stringBuilder = new StringBuilder();
         for (PaymentLine line : payment.getOrderItems()) {
             if (line.isShipment()) {
-                stringBuilder.append(line.getSkuName().replace("\"","")).append(", ");
+                stringBuilder.append(line.getSkuName()
+                        .replace("\"","")
+                ).append(", ");
             } else {
-                stringBuilder.append(line.getSkuCode().replace("\"",""));
+                stringBuilder.append(line.getSkuCode()
+                        .replace("\"","")
+                );
                 stringBuilder.append(" x ");
                 stringBuilder.append(line.getQuantity());
                 stringBuilder.append(", ");

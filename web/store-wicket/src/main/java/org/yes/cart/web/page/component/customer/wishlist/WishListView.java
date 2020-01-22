@@ -27,13 +27,14 @@ import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.spring.injection.annot.SpringBean;
 import org.apache.wicket.util.value.ValueMap;
 import org.yes.cart.domain.dto.ProductSearchResultDTO;
+import org.yes.cart.domain.dto.ProductSkuSearchResultDTO;
 import org.yes.cart.domain.entity.CustomerWishList;
 import org.yes.cart.domain.entity.ProductAvailabilityModel;
 import org.yes.cart.domain.entity.PriceModel;
 import org.yes.cart.domain.misc.Pair;
 import org.yes.cart.shoppingcart.ShoppingCart;
-import org.yes.cart.util.MoneyUtils;
-import org.yes.cart.util.ShopCodeContext;
+import org.yes.cart.utils.MoneyUtils;
+import org.yes.cart.utils.ShopCodeContext;
 import org.yes.cart.web.application.ApplicationDirector;
 import org.yes.cart.web.page.component.price.PriceView;
 import org.yes.cart.web.page.component.product.AbstractProductSearchResultList;
@@ -127,19 +128,19 @@ public class WishListView extends AbstractProductSearchResultList {
 
             if (CollectionUtils.isNotEmpty(wishList)) {
 
-                final List<String> productIds = new ArrayList<>();
+                final List<String> SKUs = new ArrayList<>();
 
                 for (final CustomerWishList item : wishList) {
 
-                    productIds.add(String.valueOf(item.getSkus().getProduct().getProductId()));
+                    SKUs.add(String.valueOf(item.getSkuCode()));
 
                 }
 
                 final long shopId = getCurrentShopId();
                 final long browsingShopId = getCurrentCustomerShopId();
 
-                final List<ProductSearchResultDTO> uniqueProducts = productServiceFacade.getListProducts(
-                        productIds, -1L, shopId, browsingShopId);
+                final List<ProductSearchResultDTO> uniqueProducts = productServiceFacade.getListProductSKUs(
+                        SKUs, -1L, shopId, browsingShopId);
 
                 final List<ProductSearchResultDTO> wishListProducts = new ArrayList<>();
 
@@ -147,14 +148,28 @@ public class WishListView extends AbstractProductSearchResultList {
 
                     for (final ProductSearchResultDTO uniqueProduct : uniqueProducts) {
 
-                        if (uniqueProduct.getId() == item.getSkus().getProduct().getProductId()) {
-                            final ProductSearchResultDTO copy = uniqueProduct.copy();
-                            copy.setDefaultSkuCode(item.getSkus().getCode());
-                            wishListProducts.add(copy);
-                            wishListDataByProduct.put(copy, item);
+                        if (uniqueProduct.getSearchSkus() != null) {
 
+                            ProductSearchResultDTO wlProductDto = null;
+                            ProductSkuSearchResultDTO wlProductSkuDto = null;
+
+                            for (final ProductSkuSearchResultDTO sku : uniqueProduct.getSearchSkus()) {
+
+                                if (sku.getCode().equals(item.getSkuCode()) &&
+                                        sku.getFulfilmentCentreCode().equals(item.getSupplierCode())) {
+                                    wlProductDto = uniqueProduct.copy();
+                                    wlProductSkuDto = sku;
+                                    wlProductDto.setSearchSkus(Collections.singletonList(sku));
+                                }
+
+                            }
+
+                            if (wlProductDto != null && wlProductSkuDto != null) {
+                                wishListProducts.add(wlProductDto);
+                                wishListDataByProduct.put(wlProductDto, item);
+
+                            }
                         }
-
                     }
 
                 }
@@ -217,7 +232,7 @@ public class WishListView extends AbstractProductSearchResultList {
         );
 
         listItem.add(
-                links.newRemoveFromWishListLink("removeFromWishListLink", product.getDefaultSkuCode(), itemData.getCustomerwishlistId(), (Class) getPage().getClass(), null)
+                links.newRemoveFromWishListLink("removeFromWishListLink", product.getFulfilmentCentreCode(), product.getDefaultSkuCode(), itemData.getCustomerwishlistId(), (Class) getPage().getClass(), null)
                         .add(new Label("removeFromWishListLinkLabel", getLocalizer().getString("removeFromWishlist", this)))
                                 .setVisible(ownerViewing)
         );
@@ -229,6 +244,7 @@ public class WishListView extends AbstractProductSearchResultList {
         listItem.add(new AttributeModifier("data-visibility", itemData.getVisibility()));
         listItem.add(new AttributeModifier("data-type", itemData.getWlType()));
         listItem.add(new AttributeModifier("data-sku", product.getDefaultSkuCode()));
+        listItem.add(new AttributeModifier("data-fc", itemData.getSupplierCode()));
         listItem.add(new AttributeModifier("data-qty", itemData.getQuantity().toPlainString()));
 
     }
@@ -285,8 +301,12 @@ public class WishListView extends AbstractProductSearchResultList {
                                     final CustomerWishList itemData,
                                     final String qty) {
         final PageParameters params = new PageParameters();
-        params.add(WebParametersKeys.SKU_ID, itemData.getSkus().getSkuId());
-        return links.newAddToCartLink(linkId, product.getDefaultSkuCode(), qty, params);
+        for (final ProductSkuSearchResultDTO sku : product.getSearchSkus()) {
+            if (sku.getCode().equals(itemData.getSkuCode())) {
+                params.add(WebParametersKeys.SKU_ID, sku.getId());
+            }
+        }
+        return links.newAddToCartLink(linkId, product.getFulfilmentCentreCode(), product.getDefaultSkuCode(), qty, params);
     }
 
 }

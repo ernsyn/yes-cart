@@ -25,10 +25,12 @@ import org.yes.cart.constants.ServiceSpringKeys;
 import org.yes.cart.domain.entity.Customer;
 import org.yes.cart.domain.entity.CustomerShop;
 import org.yes.cart.domain.entity.Shop;
+import org.yes.cart.domain.misc.SearchContext;
 import org.yes.cart.service.domain.CustomerService;
 import org.yes.cart.service.domain.ShopService;
+import org.yes.cart.utils.DateUtils;
 
-import java.util.List;
+import java.util.*;
 
 import static org.junit.Assert.*;
 
@@ -99,49 +101,100 @@ public class TestCustomerServiceImpl extends BaseCoreDBTestCase {
 
     @Test
     public void testFindCustomer() {
-        Customer customer = getCustomer(getTestName());
-        customer.setEmail("user1@finddomain.com");
-        customer.setFirstname("SomeFirsname");
-        customer.setLastname("user1LastName");
+        Customer customer = getCustomer(getTestName() + "3");
+        customer.setEmail("user3@findpaginateddomain.com");
+        customer.setFirstname("PaginatedFirsname");
+        customer.setLastname("user3LastName");
         customer.setPassword("rawpassword");
         customerService.create(customer, shopService.getById(10L));
-        customer = getCustomer(getTestName() + "2");
-        customer.setFirstname("SomeFirsname");
-        customer.setLastname("Akintola");
+        customer = getCustomer(getTestName() + "4");
+        customer.setFirstname("PaginatedFirsname");
+        customer.setLastname("user4LastName");
         customer.setPassword("rawpassword");
-        customer.setEmail("user2@finddomain.com");
-        customer.setTag("tag1 tag2 tag3");
-        customer.setCustomerType("B2B");
-        customer.setPricingPolicy("P1 P2");
+        customer.setEmail("user4@findpaginateddomain.com");
         customerService.create(customer, shopService.getById(10L));
-        List<Customer> list = customerService.findCustomer(getTestName(), null, null, null, null, null, null);
-        assertNotNull(list);
-        list = customerService.findCustomer("user2", null, null, null, null, null, null);
+
+        final List<Long> shop10 = Collections.singletonList(10L);
+
+
+        List<Customer> list;
+        int count;
+
+        final Map<String, List> filterNone = null;
+
+        count = customerService.findCustomerCount(filterNone);
+        assertTrue(count > 0);
+        list = customerService.findCustomers(0, 1, "firstname", false, filterNone);
+        assertFalse(list.isEmpty());
+
+
+        final Map<String, List> filterAny = new HashMap<>();
+        SearchContext.JoinMode.OR.setMode(filterAny);
+        filterAny.put("email", Collections.singletonList("PaginatedFirsname"));
+        filterAny.put("firstname", Collections.singletonList("PaginatedFirsname"));
+        filterAny.put("lastname", Collections.singletonList("PaginatedFirsname"));
+        filterAny.put("companyName1", Collections.singletonList("PaginatedFirsname"));
+        filterAny.put("companyName2", Collections.singletonList("PaginatedFirsname"));
+        filterAny.put("tag", Collections.singletonList("PaginatedFirsname"));
+
+        count = customerService.findCustomerCount(filterAny);
+        assertEquals(2, count);
+        list = customerService.findCustomers(0, 1, "firstname", false, filterAny);
         assertEquals(1, list.size());
-        list = customerService.findCustomer("finddomain", null, null, null, null, null, null);
+        list = customerService.findCustomers(1, 1, "firstname", false, filterAny);
+        assertEquals(1, list.size());
+
+
+        final Map<String, List> filterSpecific = new HashMap<>();
+        filterSpecific.put("email", Collections.singletonList("user4@findpaginateddomain.com"));
+        filterSpecific.put("firstname", Collections.singletonList("PaginatedFirsname"));
+
+        count = customerService.findCustomerCount(filterSpecific);
+        assertEquals(1, count);
+        list = customerService.findCustomers(0, 1, "firstname", false, filterSpecific);
+        assertEquals(1, list.size());
+
+        final Map<String, List> filterNoMatch = Collections.singletonMap("firstname", Collections.singletonList("ZZZZZZZ"));
+
+        count = customerService.findCustomerCount(filterNoMatch);
+        assertEquals(0, count);
+        list = customerService.findCustomers(0, 1, "firstname", false, filterNoMatch);
+        assertEquals(0, list.size());
+
+        final Map<String, List> filterIncludeDisabled = new HashMap<>();
+        filterIncludeDisabled.put("disabled", Collections.singletonList(SearchContext.MatchMode.ANY));
+        filterIncludeDisabled.put("shopIds", shop10);
+
+        count = customerService.findCustomerCount(filterIncludeDisabled);
+        assertTrue(count > 0);
+        list = customerService.findCustomers(0, 1, "firstname", false, filterIncludeDisabled);
+        assertFalse(list.isEmpty());
+
+        final Map<String, List> filterOr = new HashMap<>();
+        SearchContext.JoinMode.OR.setMode(filterOr);
+        filterOr.put("email", Collections.singletonList("user3@findpaginateddomain.com"));
+        filterOr.put("lastname", Collections.singletonList("user4LastName"));
+        filterOr.put("shopIds", shop10);
+
+        count = customerService.findCustomerCount(filterOr);
+        assertEquals(2, count);
+        list = customerService.findCustomers(0, 2, "firstname", false, filterOr);
         assertEquals(2, list.size());
-        list = customerService.findCustomer(null, "SomeFirsname", null, null, null, null, null);
-        assertEquals(2, list.size());
-        list = customerService.findCustomer(null, null, "user1LastName", null, null, null, null);
+
+        final Map<String, List> filterCreated = new HashMap<>();
+        filterCreated.put("email", Collections.singletonList("user3@findpaginateddomain.com"));
+        filterCreated.put("createdTimestamp", Arrays.asList(
+                SearchContext.MatchMode.GE.toParam(DateUtils.iParseSDT("2019-01-01")),
+                SearchContext.MatchMode.LT.toParam(DateUtils.iParseSDT("2099-01-01"))
+            )
+        );
+        filterCreated.put("shopIds", shop10);
+
+        count = customerService.findCustomerCount(filterCreated);
+        assertEquals(1, count);
+        list = customerService.findCustomers(0, 2, "firstname", false, filterCreated);
         assertEquals(1, list.size());
-        list = customerService.findCustomer(null, null, "kintola", null, null, null, null);
-        assertEquals(1, list.size());
-        list = customerService.findCustomer(null, "SomeFirsname", null, null, null, null, null);
-        assertEquals(2, list.size());
-        list = customerService.findCustomer(null, "SomeFirsname", "Akintola", null, null, null, null);
-        assertEquals(1, list.size());
-        list = customerService.findCustomer(null, null, null, null, "tag1", null, null);
-        assertEquals(1, list.size());
-        list = customerService.findCustomer(null, null, null, null, "tag2", null, null);
-        assertEquals(1, list.size());
-        list = customerService.findCustomer(null, null, null, null, "tag3", null, null);
-        assertEquals(1, list.size());
-        list = customerService.findCustomer(null, null, null, null, null, "B2B", null);
-        assertEquals(1, list.size());
-        list = customerService.findCustomer(null, null, null, null, null, null, "P1");
-        assertEquals(1, list.size());
-        list = customerService.findCustomer(null, null, null, null, null, null, "P2");
-        assertEquals(1, list.size());
+
     }
 
     @Test

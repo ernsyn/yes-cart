@@ -21,10 +21,10 @@
     <parent>
         <artifactId>int-modules</artifactId>
         <groupId>org.yes</groupId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>3.7.0-SNAPSHOT</version>
     </parent>
     <artifactId>int-module-marketing-pricerules</artifactId>
-    <name>Yes cart integration: Price rules</name>
+    <name>Integration: price rules</name>
     <dependencies>
         <dependency>
             <groupId>org.yes</groupId>
@@ -42,33 +42,7 @@
             <version>${javax.servlet.version}</version>
             <scope>provided</scope>
         </dependency>
-
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context-support</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-core</artifactId>
-            <version>${spring-security.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-webmvc</artifactId>
-            <version>${spring.version}</version>
-        </dependency>
-
+        
         <dependency>
             <groupId>org.yes</groupId>
             <artifactId>core</artifactId>
@@ -79,7 +53,7 @@
 
         <dependency>
             <groupId>org.yes</groupId>
-            <artifactId>persistence</artifactId>
+            <artifactId>persistence-core-hibernate</artifactId>
             <version>${project.parent.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>

@@ -18,11 +18,13 @@ package org.yes.cart.service.vo.impl;
 
 import org.apache.commons.lang.StringUtils;
 import org.springframework.security.access.AccessDeniedException;
-import org.yes.cart.constants.Constants;
 import org.yes.cart.domain.dto.*;
 import org.yes.cart.domain.misc.MutablePair;
 import org.yes.cart.domain.misc.Pair;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.domain.vo.*;
+import org.yes.cart.service.domain.ShopService;
 import org.yes.cart.service.dto.DtoAttributeService;
 import org.yes.cart.service.dto.DtoContentService;
 import org.yes.cart.service.federation.FederationFacade;
@@ -42,6 +44,8 @@ public class VoContentServiceImpl implements VoContentService {
     private final DtoContentService dtoContentService;
     private final DtoAttributeService dtoAttributeService;
 
+    private final ShopService shopService;
+
     private final FederationFacade federationFacade;
     private final VoAssemblySupport voAssemblySupport;
     private final VoIOSupport voIOSupport;
@@ -49,26 +53,25 @@ public class VoContentServiceImpl implements VoContentService {
     private Set<String> skipAttributesInView = Collections.emptySet();
     private String skipContentAttributesInView = "";
 
-    private final VoAttributesCRUDTemplate<VoAttrValueContent, AttrValueCategoryDTO> voAttributesCRUDTemplate;
+    private final VoAttributesCRUDTemplate<VoAttrValueContent, AttrValueContentDTO> voAttributesCRUDTemplate;
 
     public VoContentServiceImpl(final DtoContentService dtoContentService,
                                  final DtoAttributeService dtoAttributeService,
+                                 final ShopService shopService,
                                  final FederationFacade federationFacade,
                                  final VoAssemblySupport voAssemblySupport,
                                  final VoIOSupport voIOSupport) {
         this.dtoContentService = dtoContentService;
         this.dtoAttributeService = dtoAttributeService;
+        this.shopService = shopService;
         this.federationFacade = federationFacade;
         this.voAssemblySupport = voAssemblySupport;
         this.voIOSupport = voIOSupport;
 
         this.voAttributesCRUDTemplate =
-                new VoAttributesCRUDTemplate<VoAttrValueContent, AttrValueCategoryDTO>(
+                new VoAttributesCRUDTemplate<VoAttrValueContent, AttrValueContentDTO>(
                         VoAttrValueContent.class,
-                        AttrValueCategoryDTO.class,
-                        Constants.CATEGORY_IMAGE_REPOSITORY_URL_PATTERN,
-                        Constants.CATEGORY_FILE_REPOSITORY_URL_PATTERN,
-                        Constants.CATEGORY_SYSFILE_REPOSITORY_URL_PATTERN,
+                        AttrValueContentDTO.class,
                         this.dtoContentService,
                         this.dtoAttributeService,
                         this.voAssemblySupport,
@@ -87,11 +90,11 @@ public class VoContentServiceImpl implements VoContentService {
 
                     @Override
                     protected Pair<Boolean, String> verifyAccessAndDetermineObjectCode(final long objectId, final boolean includeSecure) throws Exception {
-                        boolean accessible = federationFacade.isManageable(objectId, CategoryDTO.class);
+                        boolean accessible = federationFacade.isManageable(objectId, ContentDTO.class);
                         if (!accessible) {
                             return new Pair<>(false, null);
                         }
-                        final CategoryDTO category = dtoContentService.getById(objectId);
+                        final ContentDTO category = dtoContentService.getById(objectId);
                         if (StringUtils.isNotBlank(category.getUri())) {
                             return new Pair<>(true, category.getUri());
                         }
@@ -103,9 +106,9 @@ public class VoContentServiceImpl implements VoContentService {
     @Override
     public List<VoContent> getAll(final long shopId) throws Exception {
         if (federationFacade.isShopAccessibleByCurrentManager(shopId)) {
-            final List<CategoryDTO> content = dtoContentService.getAllByShopId(shopId);
+            final List<ContentDTO> content = dtoContentService.getAllByShopId(shopId);
             final List<VoContent> voContent = new ArrayList<>(content.size());
-            adaptCategories(content, voContent);
+            adaptContent(content, voContent);
             return voContent;
         }
         return Collections.emptyList();
@@ -115,10 +118,10 @@ public class VoContentServiceImpl implements VoContentService {
     @Override
     public List<VoContent> getBranch(final long shopId, final long contentId, final List<Long> expanded) throws Exception {
         if (federationFacade.isShopAccessibleByCurrentManager(shopId)) {
-            final List<CategoryDTO> categoryDTOs = dtoContentService.getBranchById(shopId, contentId, expanded);
+            final List<ContentDTO> contentDTOs = dtoContentService.getBranchById(shopId, contentId, expanded);
             final List<VoContent> vos = new ArrayList<>();
-            categoryDTOs.removeIf(categoryDTO -> !federationFacade.isManageable(categoryDTO.getCategoryId(), CategoryDTO.class));
-            adaptCategories(categoryDTOs, vos);
+            contentDTOs.removeIf(categoryDTO -> !federationFacade.isManageable(categoryDTO.getContentId(), ContentDTO.class));
+            adaptContent(contentDTOs, vos);
             return vos;
         }
         return Collections.emptyList();
@@ -128,7 +131,7 @@ public class VoContentServiceImpl implements VoContentService {
     @Override
     public List<Long> getBranchPaths(final long shopId, final long contentId) throws Exception {
         final List<Long> path = new ArrayList<>();
-        if (federationFacade.isShopAccessibleByCurrentManager(shopId) && federationFacade.isManageable(contentId, CategoryDTO.class)) {
+        if (federationFacade.isShopAccessibleByCurrentManager(shopId) && federationFacade.isManageable(contentId, ContentDTO.class)) {
 
             path.add(contentId);
 
@@ -155,31 +158,57 @@ public class VoContentServiceImpl implements VoContentService {
 
     /**
      * Adapt dto to vo recursively.
-     * @param content list of dto
-     * @param voContent list of vo
      */
-    private void adaptCategories(List<CategoryDTO> content, List<VoContent> voContent) {
-        for(CategoryDTO dto : content) {
+    private void adaptContent(final List<ContentDTO> content, final List<VoContent> voContent) {
+        for(ContentDTO dto : content) {
             VoContent voCategory =
-                    voAssemblySupport.assembleVo(VoContent.class, CategoryDTO.class, new VoContent(), dto);
+                    voAssemblySupport.assembleVo(VoContent.class, ContentDTO.class, new VoContent(), dto);
             voContent.add(voCategory);
             if (dto.getChildren() != null) {
                 voCategory.setChildren(new ArrayList<>(dto.getChildren().size()));
-                adaptCategories(dto.getChildren(), voCategory.getChildren());
+                adaptContent(dto.getChildren(), voCategory.getChildren());
             }
         }
     }
 
     /** {@inheritDoc} */
     @Override
-    public List<VoContent> getFiltered(final long shopId, final String filter, final int max) throws Exception {
-        if (federationFacade.isManageable(shopId, ShopDTO.class)){
+    public VoSearchResult<VoContent> getFilteredContent(final long shopId, final VoSearchContext filter) throws Exception {
 
-            final List<CategoryDTO> contentDTO = dtoContentService.findBy(shopId, filter, 0, max);
-            return voAssemblySupport.assembleVos(VoContent.class, CategoryDTO.class, contentDTO);
+        final VoSearchResult<VoContent> result = new VoSearchResult<>();
+        final List<VoContent> results = new ArrayList<>();
+        result.setSearchContext(filter);
+        result.setItems(results);
 
+        final Map<String, List> params = new HashMap<>();
+        if (filter.getParameters() != null) {
+            params.putAll(filter.getParameters());
         }
-        return Collections.emptyList();
+        if (federationFacade.isShopAccessibleByCurrentManager(shopId)) {
+            params.put("contentIds", new ArrayList(shopService.getShopContentIds(shopId)));
+        } else {
+            return result;
+        }
+
+        final SearchContext searchContext = new SearchContext(
+                params,
+                filter.getStart(),
+                filter.getSize(),
+                filter.getSortBy(),
+                filter.isSortDesc(),
+                "filter", "contentIds"
+        );
+
+        final SearchResult<ContentDTO> batch = dtoContentService.findContent(searchContext);
+        if (!batch.getItems().isEmpty()) {
+            results.addAll(voAssemblySupport.assembleVos(VoContent.class, ContentDTO.class, batch.getItems()));
+        }
+
+        result.setTotal(batch.getTotal());
+
+        return result;
+
+
     }
 
     /** {@inheritDoc} */
@@ -206,10 +235,10 @@ public class VoContentServiceImpl implements VoContentService {
 
     /** {@inheritDoc} */
     @Override
-    public VoContentWithBody getById(final long id) throws Exception {
-        final CategoryDTO content = dtoContentService.getById(id);
-        if (content != null && federationFacade.isManageable(id, CategoryDTO.class)){
-            final VoContentWithBody contentWithBody = voAssemblySupport.assembleVo(VoContentWithBody.class, CategoryDTO.class, new VoContentWithBody(), content);
+    public VoContentWithBody getContentById(final long id) throws Exception {
+        final ContentDTO content = dtoContentService.getById(id);
+        if (content != null && federationFacade.isManageable(id, ContentDTO.class)){
+            final VoContentWithBody contentWithBody = voAssemblySupport.assembleVo(VoContentWithBody.class, ContentDTO.class, new VoContentWithBody(), content);
             contentWithBody.setContentBodies(getContentBody(id));
             return contentWithBody;
         } else {
@@ -222,47 +251,46 @@ public class VoContentServiceImpl implements VoContentService {
      * {@inheritDoc}
      */
     @Override
-    public VoContentWithBody update(final VoContentWithBody vo) throws Exception {
-        final CategoryDTO categoryDTO = dtoContentService.getById(vo.getContentId());
-        final long categoryId = categoryDTO != null && categoryDTO.getParentId() == vo.getParentId() ? vo.getContentId() : vo.getParentId();
-        if (categoryDTO != null && federationFacade.isManageable(categoryId, CategoryDTO.class)) {
-            CategoryDTO persistent = voAssemblySupport.assembleDto(CategoryDTO.class, VoContent.class, categoryDTO, vo);
+    public VoContentWithBody updateContent(final VoContentWithBody vo) throws Exception {
+        final ContentDTO contentDTO = dtoContentService.getById(vo.getContentId());
+        final long categoryId = contentDTO != null && contentDTO.getParentId() == vo.getParentId() ? vo.getContentId() : vo.getParentId();
+        if (contentDTO != null && federationFacade.isManageable(categoryId, ContentDTO.class)) {
+            ContentDTO persistent = voAssemblySupport.assembleDto(ContentDTO.class, VoContent.class, contentDTO, vo);
             ensureValidNullValues(persistent);
             dtoContentService.update(persistent);
-            updateContent(vo.getContentBodies());
+            updateContentBody(vo.getContentBodies());
         } else {
             throw new AccessDeniedException("Access is denied");
         }
-        return getById(vo.getContentId());
+        return getContentById(vo.getContentId());
     }
 
     /** {@inheritDoc} */
     @Override
-    public VoContentWithBody create(final VoContent voContent) throws Exception {
-        final CategoryDTO categoryDTO = dtoContentService.getNew();
-        if (voContent != null && federationFacade.isManageable(voContent.getParentId(), CategoryDTO.class)){
-            CategoryDTO persistent = voAssemblySupport.assembleDto(CategoryDTO.class, VoContent.class, categoryDTO, voContent);
+    public VoContentWithBody createContent(final VoContent voContent) throws Exception {
+        final ContentDTO contentDTO = dtoContentService.getNew();
+        if (voContent != null && federationFacade.isManageable(voContent.getParentId(), ContentDTO.class)){
+            ContentDTO persistent = voAssemblySupport.assembleDto(ContentDTO.class, VoContent.class, contentDTO, voContent);
             ensureValidNullValues(persistent);
             persistent = dtoContentService.create(persistent);
-            return getById(persistent.getId());
+            return getContentById(persistent.getId());
         } else {
             throw new AccessDeniedException("Access is denied");
         }
     }
 
-    private void ensureValidNullValues(final CategoryDTO persistent) {
+    private void ensureValidNullValues(final ContentDTO persistent) {
         if (StringUtils.isBlank(persistent.getUri())) {
             persistent.setUri(null);
         }
-        persistent.setProductTypeId(null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void remove(final long id) throws Exception {
-        if (federationFacade.isManageable(id, CategoryDTO.class)) {
+    public void removeContent(final long id) throws Exception {
+        if (federationFacade.isManageable(id, ContentDTO.class)) {
             dtoContentService.remove(id);
         } else {
             throw new AccessDeniedException("Access is denied");
@@ -282,8 +310,7 @@ public class VoContentServiceImpl implements VoContentService {
     /**
      * {@inheritDoc}
      */
-    @Override
-    public List<VoAttrValueContent> update(final List<MutablePair<VoAttrValueContent, Boolean>> vo) throws Exception {
+    public List<VoAttrValueContent> updateContentAttributes(final List<MutablePair<VoAttrValueContent, Boolean>> vo) throws Exception {
 
         final long contentId = voAttributesCRUDTemplate.verifyAccessAndUpdateAttributes(vo, true);
 
@@ -294,7 +321,7 @@ public class VoContentServiceImpl implements VoContentService {
 
     @Override
     public List<VoContentBody> getContentBody(final long contentId) throws Exception {
-        if (federationFacade.isManageable(contentId, CategoryDTO.class)) {
+        if (federationFacade.isManageable(contentId, ContentDTO.class)) {
 
             final List<AttrValueDTO> attrs = (List) dtoContentService.getEntityContentAttributes(contentId);
             final List<VoContentBody> bodies = new ArrayList<>();
@@ -315,14 +342,14 @@ public class VoContentServiceImpl implements VoContentService {
     }
 
     @Override
-    public List<VoContentBody> updateContent(final List<VoContentBody> vo) throws Exception {
+    public List<VoContentBody> updateContentBody(final List<VoContentBody> vo) throws Exception {
 
         long contentId = 0;
         if (vo != null) {
             for (VoContentBody body : vo) {
                 if (contentId == 0L) {
                     contentId = body.getContentId();
-                    if (!federationFacade.isManageable(contentId, CategoryDTO.class)) {
+                    if (!federationFacade.isManageable(contentId, ContentDTO.class)) {
                         throw new AccessDeniedException("Access is denied");
                     }
                 }
@@ -365,7 +392,7 @@ public class VoContentServiceImpl implements VoContentService {
      *
      * @param attributes attributes to skip
      */
-    public void setSkipAttributesInView(List<String> attributes) {
+    public void setSkipAttributesInView(final List<String> attributes) {
         this.skipAttributesInView = new HashSet<>(attributes);
     }
 
@@ -374,7 +401,7 @@ public class VoContentServiceImpl implements VoContentService {
      *
      * @param contentPrefix attributes to skip
      */
-    public void setSkipContentAttributesInView(String contentPrefix) {
+    public void setSkipContentAttributesInView(final String contentPrefix) {
         this.skipContentAttributesInView = contentPrefix;
     }
 }

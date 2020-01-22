@@ -138,7 +138,9 @@
     <!-- Transition from time wait to inventory wait state -->
     <bean id="deliveryAllowedByTimeoutOrderEventHandler"
           class="org.yes.cart.service.order.impl.handler.DeliveryAllowedByTimeoutOrderEventHandlerImpl">
-        <constructor-arg index="0" ref="productService"/>
+        <constructor-arg index="0" ref="warehouseService"/>
+        <constructor-arg index="1" ref="inventoryResolver"/>
+        <constructor-arg index="2" ref="productService"/>
     </bean>
 
     <!-- Transition from inventory wait state to inventory allocation -->
@@ -219,6 +221,13 @@
         </property>
     </bean>
 
+    <bean id="managedListsRemovalListener" parent="txProxyOrderStateTransitionListenerTemplate">
+        <property name="target">
+            <bean class="org.yes.cart.service.order.impl.listener.ManagedListsRemovalListenerImpl">
+                <constructor-arg index="0" ref="customerWishListService"/>
+            </bean>
+        </property>
+    </bean>
 
     <bean id="couponUsageTrackingListener" parent="txProxyOrderStateTransitionListenerTemplate">
         <property name="target">
@@ -302,7 +311,7 @@
     </bean>
 
 
-    <bean id="orderStateManagerHandlersMapping" class="org.yes.cart.util.spring.LinkedHashMapBean">
+    <bean id="orderStateManagerHandlersMapping" class="org.yes.cart.utils.spring.LinkedHashMapBean">
         <constructor-arg>
             <map>
                 <entry key="evt.pending"                   value-ref="pendingOrderEventHandler"/>
@@ -331,15 +340,20 @@
         </constructor-arg>
     </bean>
 
-    <bean id="orderStateManagerBeforeListenersMapping" class="org.yes.cart.util.spring.LinkedHashMapBean">
+    <bean id="orderStateManagerBeforeListenersMapping" class="org.yes.cart.utils.spring.LinkedHashMapBean">
         <constructor-arg>
             <map>
-                <entry key="evt.pending"                   value-ref="couponUsageTrackingListener"/>
+                <entry key="evt.pending">
+                    <list>
+                        <ref bean="couponUsageTrackingListener"/>
+                        <ref bean="managedListsRemovalListener"/>
+                    </list>
+                </entry>
             </map>
         </constructor-arg>
     </bean>
 
-    <bean id="orderStateManagerAfterListenersMapping" class="org.yes.cart.util.spring.LinkedHashMapBean">
+    <bean id="orderStateManagerAfterListenersMapping" class="org.yes.cart.utils.spring.LinkedHashMapBean">
         <constructor-arg>
             <map>
                 <entry key="evt.pending"                   value-ref="paymentConfirmedOrderAutoExportListener"/>

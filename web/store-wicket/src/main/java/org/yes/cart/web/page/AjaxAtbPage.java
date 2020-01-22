@@ -13,7 +13,7 @@ import org.yes.cart.shoppingcart.ShoppingCartCommand;
 import org.yes.cart.web.page.component.cart.SmallShoppingCartView;
 import org.yes.cart.web.support.constants.StorefrontServiceSpringKeys;
 import org.yes.cart.web.support.service.ProductServiceFacade;
-import org.yes.cart.web.util.WicketUtil;
+import org.yes.cart.web.utils.WicketUtil;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -45,6 +45,8 @@ public class AjaxAtbPage extends AbstractWebPage {
 
         final StringValue skuValue = getPageParameters().get(ShoppingCartCommand.CMD_ADDTOCART);
         final String sku = skuValue.toString();
+        final StringValue supplierValue = getPageParameters().get(ShoppingCartCommand.CMD_P_SUPPLIER);
+        final String supplier = supplierValue.toString();
 
         addOrReplace(new SmallShoppingCartView("smallCart"));
         addOrReplace(new Label("productAddedMsg",
@@ -53,11 +55,16 @@ public class AjaxAtbPage extends AbstractWebPage {
 
         final ProductSku productSku = productServiceFacade.getProductSkuBySkuCode(sku);
         final ShoppingCart cart = getCurrentCart();
-        final BigDecimal cartQty = cart.getProductSkuQuantity(sku);
-        final QuantityModel pqm = productServiceFacade.getProductQuantity(cartQty, productSku.getProduct());
+        final BigDecimal cartQty = cart.getProductSkuQuantity(supplier, sku);
+        final QuantityModel pqm = productServiceFacade.getProductQuantity(
+                cartQty,
+                productSku.getProduct(),
+                cart.getShoppingContext().getCustomerShopId(),
+                supplier
+        );
 
         final String message;
-        if (!pqm.canOrderMore()) {
+        if (!pqm.isCanOrderMore()) {
 
             final Map<String, Object> params = new HashMap<>();
             params.put("cart", pqm.getCartQty().toPlainString());
@@ -65,7 +72,7 @@ public class AjaxAtbPage extends AbstractWebPage {
             message = getLocalizer().getString("quantityPickerFullTooltip", this,
                     new Model<Serializable>(new ValueMap(params)));
 
-        } else if (pqm.hasMax()) {
+        } else if (pqm.isHasMax()) {
 
             final Map<String, Object> params = new HashMap<>();
             params.put("min", pqm.getMin().toPlainString());

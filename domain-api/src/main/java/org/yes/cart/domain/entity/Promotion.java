@@ -16,6 +16,8 @@
 
 package org.yes.cart.domain.entity;
 
+import org.yes.cart.domain.i18n.I18NModel;
+
 import java.time.LocalDateTime;
 
 /**
@@ -132,12 +134,12 @@ public interface Promotion extends Auditable, Codable, Taggable, Rankable, Namea
     /**
      * @return display name for this promo
      */
-    String getDisplayName();
+    I18NModel getDisplayName();
 
     /**
      * @param displayName display name for this promo
      */
-    void setDisplayName(String displayName);
+    void setDisplayName(I18NModel displayName);
 
     /**
      * @return default description for this promo
@@ -152,12 +154,12 @@ public interface Promotion extends Auditable, Codable, Taggable, Rankable, Namea
     /**
      * @return display description for this promo
      */
-    String getDisplayDescription();
+    I18NModel getDisplayDescription();
 
     /**
      * @param displayDescription display description for this promo
      */
-    void setDisplayDescription(String displayDescription);
+    void setDisplayDescription(I18NModel displayDescription);
 
     /**
      * @return flag that denotes if this promotion is triggered by
@@ -214,5 +216,14 @@ public interface Promotion extends Auditable, Codable, Taggable, Rankable, Namea
      */
     void setEnabledTo(LocalDateTime enabledTo);
 
+
+    /**
+     * Returns true if promotion is enabled and now is within from/to date range.
+     *
+     * @param now    time now
+     *
+     * @return true if the product is available now
+     */
+    boolean isAvailable(LocalDateTime now);
 
 }

@@ -31,8 +31,8 @@ import org.yes.cart.service.domain.SystemService;
 import org.yes.cart.service.order.OrderException;
 import org.yes.cart.service.order.OrderStateManager;
 import org.yes.cart.service.order.impl.OrderEventImpl;
-import org.yes.cart.util.DateUtils;
-import org.yes.cart.util.log.Markers;
+import org.yes.cart.utils.DateUtils;
+import org.yes.cart.utils.log.Markers;
 
 import java.time.Instant;
 import java.util.Arrays;
@@ -43,7 +43,7 @@ import java.util.List;
  * pre oder and back order items and updates those deliveries if the inventory
  * is not available.
  *
- * Last time this job runs is stored in system preferences: JOB_DEL_WAITING_INV_LAST_RUN
+ * Last time this job runs is stored in system preferences: JOB_DELWAITINV_LR
  * So that next run we only scan inventory that has changed since last job run.
  *
  * User: denispavlov

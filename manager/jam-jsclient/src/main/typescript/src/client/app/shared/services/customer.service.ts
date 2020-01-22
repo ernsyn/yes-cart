@@ -16,9 +16,13 @@
 
 
 import { Injectable } from '@angular/core';
-import { Http, Headers, RequestOptions, Response } from '@angular/http';
+import { Http, Response } from '@angular/http';
 import { Config } from '../config/env.config';
-import { CustomerVO, CustomerInfoVO, AttrValueCustomerVO, AddressBookVO, AddressVO, Pair } from '../model/index';
+import {
+  CustomerVO, CustomerInfoVO, AttrValueCustomerVO,
+  AddressBookVO, AddressVO,
+  Pair, SearchContextVO, SearchResultVO
+} from '../model/index';
 import { ErrorEventBus } from './error-event-bus.service';
 import { Util } from './util';
 import { LogUtil } from './../log/index';
@@ -45,14 +49,13 @@ export class CustomerService {
    * Get list of all customers, which are accessible to manage or view,
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
-  getFilteredCustomer(filter:string, max:number) {
+  getFilteredCustomer(filter:SearchContextVO) {
 
-    let body = filter;
-    let headers = new Headers({ 'Content-Type': 'text/plain; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
+    let body = JSON.stringify(filter);
 
-    return this.http.post(this._serviceBaseUrl + '/filtered/' + max, body, options)
-        .map(res => <CustomerInfoVO[]> this.json(res))
+    return this.http.post(this._serviceBaseUrl + '/filtered', body,
+          Util.requestOptions())
+        .map(res => <SearchResultVO<CustomerInfoVO>> this.json(res))
         .catch(this.handleError);
   }
 
@@ -65,7 +68,7 @@ export class CustomerService {
    */
   getCustomerTypes(customerId:number, lang:string) {
 
-    return this.http.get(this._serviceBaseUrl + '/types/' + lang + '/' + customerId + '/')
+    return this.http.get(this._serviceBaseUrl + '/types/' + lang + '/' + customerId + '/', Util.requestOptions())
       .map(res => <Pair<string, string>[]> this.json(res))
       .catch(this.handleError);
   }
@@ -75,7 +78,7 @@ export class CustomerService {
    * @returns {Promise<IteratorResult<T>>|Promise<T>|Q.Promise<IteratorResult<T>>}
    */
   getCustomerById(customerId:number) {
-    return this.http.get(this._serviceBaseUrl + '/' + customerId)
+    return this.http.get(this._serviceBaseUrl + '/' + customerId, Util.requestOptions())
       .map(res => <CustomerVO> this.json(res))
       .catch(this.handleError);
   }
@@ -89,15 +92,13 @@ export class CustomerService {
   saveCustomer(customer:CustomerVO) {
 
     let body = JSON.stringify(customer);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
     if (customer.customerId > 0) {
-      return this.http.post(this._serviceBaseUrl + '/', body, options)
+      return this.http.post(this._serviceBaseUrl + '/', body, Util.requestOptions())
         .map(res => <CustomerVO> this.json(res))
         .catch(this.handleError);
     } else {
-      return this.http.put(this._serviceBaseUrl + '/', body, options)
+      return this.http.put(this._serviceBaseUrl + '/', body, Util.requestOptions())
         .map(res => <CustomerVO> this.json(res))
         .catch(this.handleError);
     }
@@ -110,10 +111,8 @@ export class CustomerService {
    * @returns {Observable<R>}
    */
   removeCustomer(customer:CustomerInfoVO) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/' + customer.customerId, options)
+    return this.http.delete(this._serviceBaseUrl + '/' + customer.customerId, Util.requestOptions())
       .catch(this.handleError);
   }
 
@@ -124,7 +123,7 @@ export class CustomerService {
    * @returns {Observable<R>}
    */
   getCustomerAttributes(id:number) {
-    return this.http.get(this._serviceBaseUrl + '/attributes/' + id)
+    return this.http.get(this._serviceBaseUrl + '/attributes/' + id, Util.requestOptions())
       .map(res => <AttrValueCustomerVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -137,9 +136,7 @@ export class CustomerService {
    */
   saveCustomerAttributes(attrs:Array<Pair<AttrValueCustomerVO, boolean>>) {
     let body = JSON.stringify(attrs);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
-    return this.http.post(this._serviceBaseUrl + '/attributes', body, options)
+    return this.http.post(this._serviceBaseUrl + '/attributes', body, Util.requestOptions())
       .map(res => <AttrValueCustomerVO[]> this.json(res))
       .catch(this.handleError);
   }
@@ -152,10 +149,7 @@ export class CustomerService {
    */
   resetPassword(customer:CustomerInfoVO, shopId:number) {
 
-    let headers = new Headers({ 'Content-Type': 'text/plain; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
-
-    return this.http.post(this._serviceBaseUrl + '/reset/' + customer.customerId + '/' + shopId, null, options)
+    return this.http.post(this._serviceBaseUrl + '/reset/' + customer.customerId + '/' + shopId, null, Util.requestOptions())
         .catch(this.handleError);
   }
 
@@ -166,7 +160,7 @@ export class CustomerService {
    */
   getAddressBook(customer:CustomerInfoVO, formattingShopId:number, lang:string) {
 
-    return this.http.get(this._serviceBaseUrl + '/addressbook/' + customer.customerId + '/' + formattingShopId + '/' + lang)
+    return this.http.get(this._serviceBaseUrl + '/addressbook/' + customer.customerId + '/' + formattingShopId + '/' + lang, Util.requestOptions())
       .map(res => <AddressBookVO> this.json(res))
       .catch(this.handleError);
   }
@@ -181,15 +175,13 @@ export class CustomerService {
   saveAddress(address:AddressVO) {
 
     let body = JSON.stringify(address);
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
     if (address.addressId > 0) {
-      return this.http.post(this._serviceBaseUrl + '/addressbook', body, options)
+      return this.http.post(this._serviceBaseUrl + '/addressbook', body, Util.requestOptions())
         .map(res => <AddressVO> this.json(res))
         .catch(this.handleError);
     } else {
-      return this.http.put(this._serviceBaseUrl + '/addressbook', body, options)
+      return this.http.put(this._serviceBaseUrl + '/addressbook', body, Util.requestOptions())
         .map(res => <AddressVO> this.json(res))
         .catch(this.handleError);
     }
@@ -202,10 +194,8 @@ export class CustomerService {
    * @returns {Observable<R>}
    */
   removeAddress(address:AddressVO) {
-    let headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' });
-    let options = new RequestOptions({ headers: headers });
 
-    return this.http.delete(this._serviceBaseUrl + '/addressbook/' + address.addressId, options)
+    return this.http.delete(this._serviceBaseUrl + '/addressbook/' + address.addressId, Util.requestOptions())
       .catch(this.handleError);
   }
 

@@ -16,7 +16,7 @@
 
 package org.yes.cart.service.domain;
 
-import org.yes.cart.domain.dto.ProductSkuSearchResultDTO;
+import org.yes.cart.domain.dto.ProductSkuSearchResultPageDTO;
 import org.yes.cart.domain.entity.ProductSku;
 import org.yes.cart.domain.entity.SkuPrice;
 import org.yes.cart.domain.entity.SkuWarehouse;
@@ -25,6 +25,7 @@ import org.yes.cart.search.dto.NavigationContext;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * User: Igor Azarny iazarny@yahoo.com
@@ -66,7 +67,7 @@ public interface ProductSkuService extends GenericService<ProductSku> {
      *
      * @return list of products SKU
      */
-    List<ProductSkuSearchResultDTO> getProductSkuSearchResultDTOByQuery(NavigationContext navigationContext);
+    ProductSkuSearchResultPageDTO getProductSkuSearchResultDTOByQuery(NavigationContext navigationContext);
 
 
     /**
@@ -124,6 +125,34 @@ public interface ProductSkuService extends GenericService<ProductSku> {
      * @param sku  given sku.
      */
     void removeAllEnsembleOptions(final ProductSku sku);
+
+
+    /**
+     * Find SKU by given search criteria. Search will be performed using like operation.
+     *
+     * @param start             start
+     * @param offset            page size
+     * @param sort              optional sort property
+     * @param sortDescending    optional sort property direction
+     * @param filter            optional filters (e.g. name, guid)
+     *
+     * @return list of SKU.
+     */
+    List<ProductSku> findProductSkus(int start,
+                                     int offset,
+                                     String sort,
+                                     boolean sortDescending,
+                                     Map<String, List> filter);
+
+    /**
+     * Find SKU by given search criteria. Search will be performed using like operation.
+     *
+     * @param filter            optional filters (e.g. name, guid)
+     *
+     * @return count
+     */
+    int findProductSkuCount(Map<String, List> filter);
+
 
 
 }

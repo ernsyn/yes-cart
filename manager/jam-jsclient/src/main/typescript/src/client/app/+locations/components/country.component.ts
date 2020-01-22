@@ -16,7 +16,7 @@
 import { Component, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
 import { FormBuilder } from '@angular/forms';
 import { YcValidators } from './../../shared/validation/validators';
-import { CountryVO } from './../../shared/model/index';
+import { CountryVO, StateVO } from './../../shared/model/index';
 import { FormValidationEvent, Futures, Future } from './../../shared/event/index';
 import { UiUtil } from './../../shared/ui/index';
 import { LogUtil } from './../../shared/log/index';
@@ -30,14 +30,15 @@ import { LogUtil } from './../../shared/log/index';
 export class CountryComponent implements OnInit, OnDestroy {
 
   @Output() dataChanged: EventEmitter<FormValidationEvent<CountryVO>> = new EventEmitter<FormValidationEvent<CountryVO>>();
+  @Output() dataSelected: EventEmitter<StateVO> = new EventEmitter<StateVO>();
 
   private _country:CountryVO;
 
-  private initialising:boolean = false; // tslint:disable-line:no-unused-variable
   private delayedChange:Future;
 
   private countryForm:any;
-  private countryFormSub:any; // tslint:disable-line:no-unused-variable
+
+  private stateFilter:string;
 
   constructor(fb: FormBuilder) {
     LogUtil.debug('CountryComponent constructed');
@@ -45,8 +46,7 @@ export class CountryComponent implements OnInit, OnDestroy {
     this.countryForm = fb.group({
       'countryCode': ['', YcValidators.requiredValidCountryCode],
       'isoCode': ['', YcValidators.requiredValidCountryIsoCode],
-      'name': ['', YcValidators.requiredNonBlankTrimmed64],
-      'displayName': ['', YcValidators.nonBlankTrimmed],
+      'name': ['']
     });
 
     let that = this;
@@ -56,12 +56,12 @@ export class CountryComponent implements OnInit, OnDestroy {
   }
 
   formBind():void {
-    UiUtil.formBind(this, 'countryForm', 'countryFormSub', 'delayedChange', 'initialising');
+    UiUtil.formBind(this, 'countryForm', 'delayedChange');
   }
 
 
   formUnbind():void {
-    UiUtil.formUnbind(this, 'countryFormSub');
+    UiUtil.formUnbind(this, 'countryForm');
   }
 
   formChange():void {
@@ -69,10 +69,14 @@ export class CountryComponent implements OnInit, OnDestroy {
     this.dataChanged.emit({ source: this._country, valid: this.countryForm.valid });
   }
 
+  onNameDataChange(event:FormValidationEvent<any>) {
+    UiUtil.formI18nDataChange(this, 'countryForm', 'name', event);
+  }
+
   @Input()
   set country(country:CountryVO) {
 
-    UiUtil.formInitialise(this, 'initialising', 'countryForm', '_country', country);
+    UiUtil.formInitialise(this, 'countryForm', '_country', country);
 
   }
 
@@ -92,6 +96,18 @@ export class CountryComponent implements OnInit, OnDestroy {
 
   tabSelected(tab:any) {
     LogUtil.debug('CountryComponent tabSelected', tab);
+  }
+
+
+  protected onClearFilterState() {
+
+    this.stateFilter = '';
+
+  }
+
+  protected onStateSelected(data:StateVO) {
+    LogUtil.debug('CountryComponent onStateSelected', data);
+    this.dataSelected.emit(data);
   }
 
 }

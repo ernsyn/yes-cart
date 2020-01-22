@@ -18,6 +18,8 @@ package org.yes.cart.service.dto;
 
 import org.yes.cart.domain.dto.ProductDTO;
 import org.yes.cart.domain.dto.ProductSkuDTO;
+import org.yes.cart.domain.misc.SearchContext;
+import org.yes.cart.domain.misc.SearchResult;
 import org.yes.cart.exception.ObjectNotFoundException;
 import org.yes.cart.exception.UnableToCreateInstanceException;
 import org.yes.cart.exception.UnableToWrapObjectException;
@@ -39,13 +41,11 @@ public interface DtoProductService extends GenericDTOService<ProductDTO>, Generi
     /**
      * Find products by filter.
      *
-     * @param filter filter for partial match.
-     * @param page page number starting from 0
-     * @param pageSize size of page
+     * @param filter                 filter for partial match.
      *
      * @return list of products
      */
-    List<ProductDTO> findBy(String filter, int page, int pageSize) throws UnmappedInterfaceException, UnableToCreateInstanceException;
+    SearchResult<ProductDTO> findProducts(SearchContext filter) throws UnmappedInterfaceException, UnableToCreateInstanceException;
 
 
     /**
@@ -60,54 +60,13 @@ public interface DtoProductService extends GenericDTOService<ProductDTO>, Generi
     ProductSkuDTO getProductSkuByCode(String skuCode) throws
             ObjectNotFoundException, UnableToWrapObjectException;
 
-    /**
-     * Get products, that assigned to given category id.
-     *
-     * @param categoryId given category id
-     * @return List of assigned product DTOs
-     * @throws org.yes.cart.exception.UnableToCreateInstanceException
-     *          in case of reflection problem
-     * @throws org.yes.cart.exception.UnmappedInterfaceException
-     *          in case of configuration problem
-     */
-    List<ProductDTO> getProductByCategory(long categoryId)
-            throws UnmappedInterfaceException, UnableToCreateInstanceException;
 
     /**
-     * Get the all products in category.
+     * Get list of unique supplier catalog codes that exist.
      *
-     * @param categoryId  category id
-     * @param firstResult index of first result
-     * @param maxResults  quantity results to return
-     * @return list of products
-     * @throws org.yes.cart.exception.UnableToCreateInstanceException
-     *          in case of reflection problem
-     * @throws org.yes.cart.exception.UnmappedInterfaceException
-     *          in case of configuration problem
+     * @return list of unique codes
      */
-    List<ProductDTO> getProductByCategoryWithPaging(
-            long categoryId,
-            int firstResult,
-            int maxResults) throws UnmappedInterfaceException, UnableToCreateInstanceException;
-
-    /**
-     * Find product by given optional filtering criteria.
-     *
-     * @param code          product code.  use like %%
-     * @param name          product name.  use like %%
-     * @param brandId       brand id. use exact match
-     * @param productTypeId product type id. use exact match
-     * @return list of founded products
-     * @throws org.yes.cart.exception.UnableToCreateInstanceException
-     *          in case of reflection problem
-     * @throws org.yes.cart.exception.UnmappedInterfaceException
-     *          in case of configuration problem
-     */
-    List<ProductDTO> getProductByCodeNameBrandType(
-            final String code,
-            final String name,
-            final long brandId,
-            final long productTypeId) throws UnmappedInterfaceException, UnableToCreateInstanceException;
+    List<String> findProductSupplierCatalogCodes();
 
 
     /**

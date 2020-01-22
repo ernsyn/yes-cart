@@ -16,6 +16,7 @@
 
 package org.yes.cart.domain.entity;
 
+import org.yes.cart.domain.i18n.I18NModel;
 import org.yes.cart.domain.misc.navigation.price.PriceTierTree;
 
 import java.time.LocalDateTime;
@@ -84,23 +85,6 @@ public interface Category extends Auditable, Attributable, Rankable, Nameable, S
      */
     void setLinkToId(Long linkToId);
 
-
-    /**
-     * Get category rank inside parent category.
-     *
-     * @return category rank.
-     */
-    @Override
-    int getRank();
-
-    /**
-     * Set category rank.
-     *
-     * @param rank category rank
-     */
-    @Override
-    void setRank(int rank);
-
     /**
      * Default product type in category.
      * Set it, to allow filtered navigation by attributes.
@@ -117,50 +101,18 @@ public interface Category extends Auditable, Attributable, Rankable, Nameable, S
     void setProductType(ProductType productType);
 
     /**
-     * Get category name.
-     *
-     * @return category name.
-     */
-    @Override
-    String getName();
-
-    /**
-     * Set category name.
-     *
-     * @param name category name.
-     */
-    @Override
-    void setName(String name);
-
-    /**
      * display name.
      *
      * @return display name.
      */
-    String getDisplayName();
+    I18NModel getDisplayName();
 
     /**
      * Get display name
      *
      * @param name display name
      */
-    void setDisplayName(String name);
-
-    /**
-     * Get category description.
-     *
-     * @return category description.
-     */
-    @Override
-    String getDescription();
-
-    /**
-     * Set description
-     *
-     * @param description description
-     */
-    @Override
-    void setDescription(String description);
+    void setDisplayName(I18NModel name);
 
     /**
      * Get category UI template variation.
@@ -219,7 +171,16 @@ public interface Category extends Auditable, Attributable, Rankable, Nameable, S
     void setAvailableto(LocalDateTime availableto);
 
     /**
-     * Get all caterory attributes.
+     * Returns true if product is enabled and now is within from/to date range.
+     *
+     * @param now    time now
+     *
+     * @return true if the product is available now
+     */
+    boolean isAvailable(LocalDateTime now);
+
+    /**
+     * Get all category attributes.
      *
      * @return collection of category attributes.
      */
